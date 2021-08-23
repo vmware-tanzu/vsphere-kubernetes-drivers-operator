@@ -272,8 +272,6 @@ to be marked as bad (eg CVE) and shouldn't be deployed.
 VDO itself should support as wide a range of Kubernetes and vSphere as possible. Users should simply be able to select
 the latest VDO without having to consider compatibility issues.
 
-More details on version management can be found [here](https://confluence.eng.vmware.com/pages/viewpage.action?pageId=832096702).
-
 #### VDO Auto-update Behavior
 
 When it comes to auto-updates, there will be two kinds of user: Those who want new updates installed eagerly to ensure
