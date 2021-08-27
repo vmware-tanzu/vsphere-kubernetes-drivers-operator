@@ -1,0 +1,20 @@
+# permissions for end users to view vspherecloudconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vspherecloudconfig-viewer-role
+rules:
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - vspherecloudconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - vspherecloudconfigs/status
+  verbs:
+  - get

@@ -1,0 +1,24 @@
+# permissions for end users to edit vdoconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vdoconfig-editor-role
+rules:
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - vdoconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - vdoconfigs/status
+  verbs:
+  - get
