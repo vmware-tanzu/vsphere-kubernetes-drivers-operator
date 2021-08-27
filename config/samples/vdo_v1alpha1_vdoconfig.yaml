@@ -1,0 +1,8 @@
+apiVersion: vdo.vmware.com/v1alpha1
+kind: VDOConfig
+metadata:
+  name: vdoconfig-sample
+  namespace: vmware-system-vdo
+spec:
+  cloudProvider:
+    vsphereCloudConfig: vspherecloudconfig-sample

@@ -63,6 +63,61 @@ simplify the experience of deploying Kubernetes to vSphere.
 
 - Deliver any additional requirements for specific distributions, such as OpenShift
 
+vSphere Kubernetes Drivers Operator (VDO) is a kubernetes operator
+responsible for installing CPI and CSI vSphere drivers
+enabling k8s workloads to run on vSphere
+
+## Prerequisites
+
+VDO can run on vanilla as well as OpenShift k8s clusters
+It is expected that the kubernetes master/worker vms are setup to work on vSphere
+
+## Getting Started
+
+VDO operator is built out of operator-sdk.
+The operator is configured to run on master node, with a single replica deployment.
+
+Refer the [MakeFile](Makefile) to build and deploy the operator.
+The operator can be deployed
+
+1. locally on a kind cluster `make deploy`
+
+2.remotely on a live k8s cluster `make deploy-k8s-cluster`
+
+Run `make generate` to generate the scaffolding code from the provided base types
+
+Run `make manifests` to generate the spec files required to deploy the operator
+
+The Operator consumes ose-kube-rbac-proxy image.
+This image can be fetched using the following commands
+
+`docker login registry.redhat.io`
+
+`docker pull registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.6`
+
+### Deploy to kind cluster
+
+To load ose-kube-rbac-proxy image onto kind cluster you can use the command
+`kind load docker-image ${IMG_NAME} --name ${KIND_CLUSTER_NAME}`
+
+Run `make deploy` target to `generate`, `build` and `deploy`
+the operator in local kind cluster
+
+### Deploy to K8S cluster
+
+Following environment variables need to be set before invoking the target
+
+1. K8S_MASTER_IP - IP of K8s Master
+
+2. K8S_MASTER_SSH_USER - username to ssh into k8smaster
+
+3. K8S_MASTER_SSH_PWD - password to ssh into k8smaster
+
+`ose-kube-rbac-proxy` image should be available in the cluster
+
+Run `make deploy-k8s-cluster` target to build container and
+deploy the container image in the given k8s cluster
+
 ## Community
 
 All of the exising CPI, CSI and CNI driver projects are maintained in GitHub
@@ -81,6 +136,28 @@ that decisions are well documented.
 If you have an interest in contributing or submitting requirements,
 we'd love to hear from you!
 
+## Contributing
+
+### Project Scope
+
+This is a brand new project we are launching on GitHub, developed and designed upstream.
+We will be setting up a slack channel, regular public developer meetings
+and design discussions in the next few weeks.
+Please watch this space.
+
+### How to Contribute
+
+The vSphere Kubernetes Drivers Opearator project team
+welcomes contributions from the community.
+If you wish to contribute code and
+you have not signed our contributor license agreement (CLA),
+our bot will update the issue when you open a Pull Request.
+For any questions about the CLA process,
+please refer to our FAQ
+
+Please get in touch with us via Slack or
+come to one of our meetings if you want to get involved.
+
 ## License
 
-Antrea is licensed under the [Apache License, version 2.0](LICENSE)
+VDO is licensed under the Apache License, version 2.0
