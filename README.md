@@ -95,6 +95,44 @@ This image can be fetched using the following commands
 
 `docker pull registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.6`
 
+### Configuration
+
+Pre-requisite for deploying operator
+
+1. Create Configmap
+2. Configuration of VDO
+
+The following steps help in configuring VDO to install/configure the drivers
+
+1. configure compatibility
+
+   - `apiVersion: v1
+     kind: ConfigMap
+     metadata:
+     name: comp-matrix-config
+     namespace: vmware-system-vdo
+     data:
+     versionConfigURL: "matrix-url"
+     auto-upgrade: "disabled"`
+
+2. create secret
+
+    - `apiVersion: v1
+      kind: Secret
+      metadata:
+      name: vc-name-creds
+      namespace: kube-system
+      type: kubernetes.io/basic-auth
+      stringData:
+      username: "vc-username"
+      password: "vc-password"`
+
+3. create VsphereCloudConfig resource
+    - credentials field in the resource refers to the name of the secret
+4. create VDOconfig resource
+   - Cloud Provider can take multiple instances of VsphereCloudConfig resource
+   - Storage provider takes a single VsphereCLoudConfig resource
+
 ### Deploy to kind cluster
 
 To load ose-kube-rbac-proxy image onto kind cluster you can use the command

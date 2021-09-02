@@ -145,12 +145,12 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 
-		csiDeploymentYamls, err = r.fetchCsiDeploymentYamls(matrix, vSphereVersions, k8sServerVersion.Major, k8sServerVersion.Minor)
+		csiDeploymentYamls, err = r.fetchCsiDeploymentYamls(vdoctx, matrix, vSphereVersions, k8sServerVersion.Major, k8sServerVersion.Minor)
 		if err != nil {
 			vdoctx.Logger.Error(err, "Error occurred when fetching the CSI deployment yamls")
 			return ctrl.Result{}, err
 		}
-		cpiDeploymentYamls, err = r.fetchCpiDeploymentYamls(matrix, vSphereVersions, k8sServerVersion.Major, k8sServerVersion.Minor)
+		cpiDeploymentYamls, err = r.fetchCpiDeploymentYamls(vdoctx, matrix, vSphereVersions, k8sServerVersion.Major, k8sServerVersion.Minor)
 		if err != nil {
 			vdoctx.Logger.Error(err, "Error occurred when fetching the CPI deployment yamls")
 			return ctrl.Result{}, err
@@ -1081,7 +1081,7 @@ func (r *VDOConfigReconciler) compareSkewVersions(currentVersion, supportedVersi
 	return true, nil
 }
 
-func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(matrix CompatMatrix, vSphereVersions []string, k8sMajorVersion, k8sMinorVersion string) ([]string, error) {
+func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sMajorVersion, k8sMinorVersion string) ([]string, error) {
 	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
 	var csiDeploymentYamls []string
 	var versionList []string
@@ -1092,6 +1092,9 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(matrix CompatMatrix, vSphe
 	}
 	sort.Strings(versionList)
 	var csiVersion string
+
+	ctx.Logger.V(4).Info("vSphere Versions ", "version", vSphereVersions)
+	ctx.Logger.V(4).Info("k8s Versions ", "version", k8sVersion)
 
 	for _, vSphereVersion := range vSphereVersions {
 		for _, version := range versionList {
@@ -1119,12 +1122,14 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(matrix CompatMatrix, vSphe
 		return nil, errors.New("could not fetch compatible CSI version for vSphere version and k8s version ")
 	}
 
+	ctx.Logger.V(4).Info("Corresponding CSI Version ", "version", csiVersion)
+
 	csiDeploymentYamls = matrix.CSISpecList[csiVersion].DeploymentPaths
 
 	return csiDeploymentYamls, nil
 }
 
-func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(matrix CompatMatrix, vSphereVersions []string, k8sMajorVersion, k8sMinorVersion string) ([]string, error) {
+func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sMajorVersion, k8sMinorVersion string) ([]string, error) {
 	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
 	var cpiDeploymentYamls []string
 	var versionList []string
@@ -1136,6 +1141,9 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(matrix CompatMatrix, vSphe
 	sort.Strings(versionList)
 
 	var cpiVersion string
+
+	ctx.Logger.V(4).Info("vSphere Versions ", "version", vSphereVersions)
+	ctx.Logger.V(4).Info("k8s Versions ", "version", k8sVersion)
 
 	for _, vSphereVersion := range vSphereVersions {
 		for _, version := range versionList {
@@ -1159,6 +1167,8 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(matrix CompatMatrix, vSphe
 	if cpiVersion == "" || len(cpiVersion) <= 0 {
 		return nil, errors.New("could not fetch compatible CPI version for vSphere version and k8s version ")
 	}
+
+	ctx.Logger.V(4).Info("Corresponding CPI Version ", "version", cpiVersion)
 
 	cpiDeploymentYamls = matrix.CPISpecList[cpiVersion].DeploymentPaths
 
