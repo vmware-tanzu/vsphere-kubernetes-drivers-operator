@@ -18,10 +18,12 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -439,4 +441,104 @@ var _ = Describe("TestReconcileCSISecret", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
+})
+
+var _ = Describe("TestfetchDeploymentYamls", func() {
+
+	Context("When fetching Deployment yamls succeeds", func() {
+		RegisterFailHandler(Fail)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		var matrix models.CompatMatrix
+
+		matrixString := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7\", \"max\": \"7.0\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7\", \"max\": \"7.0\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
+		err := json.Unmarshal([]byte(matrixString), &matrix)
+		Expect(err).NotTo(HaveOccurred())
+
+		It("should fetch deployment yamls without error", func() {
+			_, err = r.fetchCsiDeploymentYamls(matrix, []string{"7.0.3"}, "1", "21")
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	Context("When version is mentioned in incorrect format", func() {
+		RegisterFailHandler(Fail)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		var matrix models.CompatMatrix
+
+		matrixString := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7\", \"max\": \"7.0\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"v1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7\", \"max\": \"7.0\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
+		err := json.Unmarshal([]byte(matrixString), &matrix)
+		Expect(err).NotTo(HaveOccurred())
+
+		It("should fetch deployment yamls with error", func() {
+			_, err = r.fetchCsiDeploymentYamls(matrix, []string{"7.0.3"}, "1", "21")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Context("When none of the versions matches", func() {
+		RegisterFailHandler(Fail)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		var matrix models.CompatMatrix
+
+		matrixString := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7\", \"max\": \"7.0\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7\", \"max\": \"7.0\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
+		err := json.Unmarshal([]byte(matrixString), &matrix)
+		Expect(err).NotTo(HaveOccurred())
+
+		It("should fetch deployment yamls with error", func() {
+			_, err = r.fetchCsiDeploymentYamls(matrix, []string{"7.0.3"}, "1", "22")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Context("When second latest version matches", func() {
+		RegisterFailHandler(Fail)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		var matrix models.CompatMatrix
+
+		matrixString := "{\n\t\"CSI\": {\n\t\t\"2.2.1\": {\n\t\t\t\"vSphere\": {\n\t\t\t\t\"min\": \"6.7\",\n\t\t\t\t\"max\": \"7.0\"\n\t\t\t},\n\t\t\t\"k8s\": {\n\t\t\t\t\"min\": \"1.18\",\n\t\t\t\t\"max\": \"1.21\"\n\t\t\t},\n\t\t\t\"isCPIRequired\": false,\n\t\t\t\"deploymentPath\": [\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"\n\t\t\t]\n\t\t},\n\t\t\"2.2.0\": {\n\t\t\t\"vSphere\": {\n\t\t\t\t\"min\": \"6.5\",\n\t\t\t\t\"max\": \"6.7\"\n\t\t\t},\n\t\t\t\"k8s\": {\n\t\t\t\t\"min\": \"1.16\",\n\t\t\t\t\"max\": \"1.17\"\n\t\t\t},\n\t\t\t\"isCPIRequired\": false,\n\t\t\t\"deploymentPath\": [\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"\n\t\t\t]\n\t\t}\n\t},\n\t\"CPI\": {\n\t\t\"1.20.0\": {\n\t\t\t\"vSphere\": {\n\t\t\t\t\"min\": \"6.7\",\n\t\t\t\t\"max\": \"7.0\"\n\t\t\t},\n\t\t\t\"k8s\": {\n\t\t\t\t\"skewVersion\": \"1.21\"\n\t\t\t},\n\t\t\t\"deploymentPath\": [\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"\n\t\t\t]\n\t\t},\n\t\t\"1.19.3\": {\n\t\t\t\"vSphere\": {\n\t\t\t\t\"min\": \"6.5\",\n\t\t\t\t\"max\": \"6.7\"\n\t\t\t},\n\t\t\t\"k8s\": {\n\t\t\t\t\"skewVersion\": \"1.17\"\n\t\t\t},\n\t\t\t\"deploymentPath\": [\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n\t\t\t\t\"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"\n\t\t\t]\n\t\t}\n\t}\n\n}"
+		err := json.Unmarshal([]byte(matrixString), &matrix)
+		Expect(err).NotTo(HaveOccurred())
+
+		It("should fetch deployment yamls with error", func() {
+			_, err = r.fetchCsiDeploymentYamls(matrix, []string{"6.5.3"}, "1", "17")
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
 })
