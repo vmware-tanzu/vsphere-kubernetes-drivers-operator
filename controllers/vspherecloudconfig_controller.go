@@ -83,7 +83,7 @@ func (r *VsphereCloudConfigReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 func (r *VsphereCloudConfigReconciler) reconcileVCCredentials(ctx context.Context, config *vdov1alpha1.VsphereCloudConfig) (*vdov1alpha1.VsphereCloudConfig, error) {
-	var vcUser, vcUserPwd, datacenter string
+	var vcUser, vcUserPwd string
 
 	if len(config.Spec.Credentials) > 0 {
 		vcCredsSecret := &v1.Secret{}
@@ -103,12 +103,8 @@ func (r *VsphereCloudConfigReconciler) reconcileVCCredentials(ctx context.Contex
 		vcUserPwd = string(vcCredsSecret.Data["password"])
 	}
 
-	if len(config.Spec.DataCenters) > 0 {
-		datacenter = config.Spec.DataCenters[0]
-	}
-
 	vcIp := config.Spec.VcIP
-	sess, err := session.GetOrCreate(ctx, vcIp, datacenter, vcUser, vcUserPwd, config.Spec.Thumbprint)
+	sess, err := session.GetOrCreate(ctx, vcIp, config.Spec.DataCenters, vcUser, vcUserPwd, config.Spec.Thumbprint)
 	if err != nil {
 		config.Status.Config = vdov1alpha1.VsphereConfigFailed
 		config.Status.Message = fmt.Sprintf("Error establishing session with vcenter %s for user %s", vcIp, vcUser)
