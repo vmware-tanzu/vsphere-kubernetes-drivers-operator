@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -344,6 +345,7 @@ var _ = Describe("TestReconcileConfigMap", func() {
 			Namespace: "kube-system",
 		}
 
+		cpi.CPI_VSPHERE_CONF_FILE = "test_config.conf"
 		It("should reconcile configmap without error", func() {
 			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, secretTestKey)
 			Expect(err).NotTo(HaveOccurred())

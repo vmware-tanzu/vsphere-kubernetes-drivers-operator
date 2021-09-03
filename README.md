@@ -1,4 +1,6 @@
-# vSphere Kubernetes Drivers Operator
+# vSphere Kubernetes Drivers Operator  
+
+[![Build](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/actions/workflows/BuildAndDeploy.yml/badge.svg)](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/actions/workflows/BuildAndDeploy.yml)
 
 ## Overview
 
@@ -88,17 +90,7 @@ Run `make generate` to generate the scaffolding code from the provided base type
 
 Run `make manifests` to generate the spec files required to deploy the operator
 
-The Operator consumes ose-kube-rbac-proxy image.
-This image can be fetched using the following commands
-
-`docker login registry.redhat.io`
-
-`docker pull registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.6`
-
 ### Deploy to kind cluster
-
-To load ose-kube-rbac-proxy image onto kind cluster you can use the command
-`kind load docker-image ${IMG_NAME} --name ${KIND_CLUSTER_NAME}`
 
 Run `make deploy` target to `generate`, `build` and `deploy`
 the operator in local kind cluster
@@ -112,8 +104,6 @@ Following environment variables need to be set before invoking the target
 2. K8S_MASTER_SSH_USER - username to ssh into k8smaster
 
 3. K8S_MASTER_SSH_PWD - password to ssh into k8smaster
-
-`ose-kube-rbac-proxy` image should be available in the cluster
 
 Run `make deploy-k8s-cluster` target to build container and
 deploy the container image in the given k8s cluster
