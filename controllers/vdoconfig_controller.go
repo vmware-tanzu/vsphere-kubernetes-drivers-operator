@@ -121,11 +121,15 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
 
-	if matrixConfigUrl != "" {
-		err = r.CheckCompatAndRetrieveSpec(matrixConfigUrl, vdoctx, req, vdoConfig)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+	if matrixConfigUrl == "" {
+		err = errors.New("Matrix Config URL not provided")
+		vdoctx.Logger.Error(err, "Unable to fetch deployment yamls")
+		return ctrl.Result{}, err
+	}
+
+	err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfigUrl)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	result, err := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientset)
@@ -210,10 +214,10 @@ func (r *VDOConfigReconciler) fetchVsphereVersions(vdoctx vdocontext.VDOContext,
 	var vsphereCloudConfigItems []vdov1alpha1.VsphereCloudConfig
 	for _, vsphereCloudConfig := range vsphereCloudConfigsList {
 		vsphereCloudConfigItem, err := r.fetchVSphereCloudConfig(vdoctx, vsphereCloudConfig, req.Namespace)
-		vsphereCloudConfigItems = append(vsphereCloudConfigItems, *vsphereCloudConfigItem)
 		if err != nil {
 			return nil, err
 		}
+		vsphereCloudConfigItems = append(vsphereCloudConfigItems, *vsphereCloudConfigItem)
 	}
 
 	var vsphereVersions []string
@@ -262,19 +266,6 @@ func (r *VDOConfigReconciler) getVcSession(ctx context.Context, config *vdov1alp
 		return nil, errors.Wrapf(err, "Error establishing session with vcenter %s for user %s", vcIp, vcUser)
 	}
 
-	if sess != nil {
-		state, err := sess.SessionManager.SessionIsActive(ctx)
-		if err != nil {
-			config.Status.Config = vdov1alpha1.VsphereConfigFailed
-			config.Status.Message = fmt.Sprintf("unable to verify session for vc %s", vcIp)
-			return nil, errors.Wrapf(err, "unable to verify session for vc %s", vcIp)
-		}
-
-		r.Logger.V(4).Info("verified vc session", "isActive", state)
-
-		config.Status.Config = vdov1alpha1.VsphereConfigVerified
-		config.Status.Message = ""
-	}
 	return sess, nil
 }
 
@@ -1062,7 +1053,7 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext,
 		}
 	}
 
-	if csiVersion == "" || len(csiVersion) <= 0 {
+	if len(csiVersion) <= 0 {
 		return errors.New("could not fetch compatible CSI version for vSphere version and k8s version ")
 	}
 
@@ -1106,7 +1097,7 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 		}
 	}
 
-	if cpiVersion == "" || len(cpiVersion) <= 0 {
+	if len(cpiVersion) <= 0 {
 		return errors.New("could not fetch compatible CPI version for vSphere version and k8s version ")
 	}
 
@@ -1117,7 +1108,7 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 	return nil
 }
 
-func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(matrixConfigUrl string, ctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig) error {
+func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, matrixConfigUrl string) error {
 
 	k8sVersion, err := r.fetchk8sVersions(ctx)
 	if err != nil {
@@ -1136,11 +1127,13 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(matrixConfigUrl string,
 		ctx.Logger.Error(err, "Error occurred when Parsing the matrix yaml", "Url", matrixConfigUrl)
 		return err
 	}
+
 	err = r.fetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
 	if err != nil {
 		ctx.Logger.Error(err, "Error occurred when fetching the CPI deployment yamls")
 		return err
 	}
+
 	err = r.fetchCsiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
 	if err != nil {
 		ctx.Logger.Error(err, "Error occurred when fetching the CSI deployment yamls")
