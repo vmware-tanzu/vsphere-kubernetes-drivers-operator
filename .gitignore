@@ -3,3 +3,7 @@ bin
 api/.DS_Store
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+pkg/drivers/cpi/test_config.conf
+controllers/test_config.conf
+spec.yaml
+testbin/*

@@ -1,0 +1,44 @@
+name: Build & Deploy
+
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v2.1.4
+
+      - name: Build and Deploy
+        run: make deploy
+
+      # Need to enable the billing in CodeCov
+      - name : Upload CodeCoverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./cover.xml
+          flags: unittests
+          name: codecov-vdo
+          fail_ci_if_error: false # This has been made false as currently billing is not enabled for CodeCov which will lead to error for this step.
+          verbose: true
+
+      # Verify the Deployment
+      - name: Verify the Deployment
+        run: |
+          kubectl get pods -n vmware-system-vdo
+          kubectl apply -f hack/github-action/comp-matrix.yaml
+          kubectl get configmaps -n vmware-system-vdo
+          while [[ $(kubectl get pods -n vmware-system-vdo -l control-plane=controller-manager -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting for pod" && sleep 1 && kubectl get pods -A && docker images && kubectl describe pod -n vmware-system-vdo -l control-plane=controller-manager; done
+          kubectl get pods -n vmware-system-vdo
