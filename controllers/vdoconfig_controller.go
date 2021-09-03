@@ -20,12 +20,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/go-version"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
 	"k8s.io/client-go/discovery"
 	"os"
 	"reflect"
 	"sort"
-
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
 
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
@@ -233,25 +232,13 @@ func (r *VDOConfigReconciler) fetchVsphereVersions(vdoctx vdocontext.VDOContext,
 	return vsphereVersions, nil
 }
 
-func (r *VDOConfigReconciler) getVcSession(ctx context.Context, config *vdov1alpha1.VsphereCloudConfig) (*session.Session, error) {
+func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config *vdov1alpha1.VsphereCloudConfig) (*session.Session, error) {
 	var vcUser, vcUserPwd, datacenter string
 
-	if len(config.Spec.Credentials) > 0 {
-		vcCredsSecret := &v1.Secret{}
-		key := types.NamespacedName{
-			Namespace: VC_CREDS_SECRET_NS,
-			Name:      config.Spec.Credentials,
-		}
+	vcUser, vcUserPwd, err := r.fetchVcCredentials(vdoctx, *config)
 
-		err := r.Get(ctx, key, vcCredsSecret)
-		if err != nil {
-			config.Status.Config = vdov1alpha1.VsphereConfigFailed
-			config.Status.Message = fmt.Sprintf("could not fetch vc credentials secret %s", config.Spec.Credentials)
-			return nil, errors.Wrapf(err, "could not fetch vc credentials secret %s", config.Spec.Credentials)
-		}
-
-		vcUser = string(vcCredsSecret.Data["username"])
-		vcUserPwd = string(vcCredsSecret.Data["password"])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error fetching vcenter credentials ")
 	}
 
 	if len(config.Spec.DataCenters) > 0 {
@@ -259,7 +246,7 @@ func (r *VDOConfigReconciler) getVcSession(ctx context.Context, config *vdov1alp
 	}
 
 	vcIp := config.Spec.VcIP
-	sess, err := session.GetOrCreate(ctx, vcIp, datacenter, vcUser, vcUserPwd, config.Spec.Thumbprint)
+	sess, err := session.GetOrCreate(vdoctx, vcIp, datacenter, vcUser, vcUserPwd, config.Spec.Thumbprint)
 	if err != nil {
 		config.Status.Config = vdov1alpha1.VsphereConfigFailed
 		config.Status.Message = fmt.Sprintf("Error establishing session with vcenter %s for user %s", vcIp, vcUser)
