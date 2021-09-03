@@ -101,7 +101,8 @@ The following steps help in configuring VDO to install/configure the drivers
 
 1. configure compatibility
 
-   - `apiVersion: v1
+   - `cat <<EOF | sudo tee comp-matrix-config.yaml
+     apiVersion: v1
      kind: ConfigMap
      metadata:
      name: comp-matrix-config
@@ -110,9 +111,12 @@ The following steps help in configuring VDO to install/configure the drivers
      versionConfigURL: "matrix-url"
      auto-upgrade: "disabled"`
 
+     `kubectl apply -f comp-matrix-config.yaml`
+
 2. create secret
 
-    - `apiVersion: v1
+    - `cat <<EOF | sudo tee secret.yaml
+      apiVersion: v1
       kind: Secret
       metadata:
       name: vc-name-creds
@@ -121,6 +125,8 @@ The following steps help in configuring VDO to install/configure the drivers
       stringData:
       username: "vc-username"
       password: "vc-password"`
+
+      `kubectl apply -f secret.yaml`
 
 3. create VsphereCloudConfig resource
     - credentials field in the resource refers to the name of the secret
