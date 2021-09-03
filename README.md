@@ -128,7 +128,6 @@ The following steps help in configuring VDO to install/configure the drivers
    - Cloud Provider can take multiple instances of VsphereCloudConfig resource
    - Storage provider takes a single VsphereCLoudConfig resource
 
-
 ### Deploy to kind cluster
 
 Run `make deploy` target to `generate`, `build` and `deploy`
