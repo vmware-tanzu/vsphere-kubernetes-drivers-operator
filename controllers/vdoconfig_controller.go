@@ -82,7 +82,6 @@ type VDOConfigReconciler struct {
 var (
 	NodeAvailabilityMap = make(map[string]bool)
 	SessionFunction = session.GetOrCreate
-	//getVMFunction = GetVMByIP
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
