@@ -40,7 +40,7 @@ var sessionMU sync.Mutex
 // Session is a vSphere session with a configured Finder.
 type Session struct {
 	*govmomi.Client
-	datacenters []*object.Datacenter
+	datacenters    []*object.Datacenter
 	VsphereVersion string
 }
 

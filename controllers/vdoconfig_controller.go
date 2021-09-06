@@ -81,7 +81,7 @@ type VDOConfigReconciler struct {
 
 var (
 	NodeAvailabilityMap = make(map[string]bool)
-	SessionFunction = session.GetOrCreate
+	SessionFunction     = session.GetOrCreate
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -245,7 +245,6 @@ func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error fetching vcenter credentials ")
 	}
-
 
 	vcIp := config.Spec.VcIP
 	sess, err := session.GetOrCreate(vdoctx, vcIp, config.Spec.DataCenters, vcUser, vcUserPwd, config.Spec.Thumbprint)
@@ -671,8 +670,8 @@ func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req 
 	}
 nodeloop:
 	for _, node := range nodes.Items {
-		if val, ok := nodeAvailabilityMap[node.Name]; ok{
-			if val{
+		if val, ok := nodeAvailabilityMap[node.Name]; ok {
+			if val {
 				if node.Labels == nil {
 					node.Labels = make(map[string]string)
 				}
@@ -695,7 +694,7 @@ nodeloop:
 	return nil
 }
 
-func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (*vdov1alpha1.VDOConfig,  map[string]bool, error) {
+func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (*vdov1alpha1.VDOConfig, map[string]bool, error) {
 	nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
 
 	cpiStatus := vdov1alpha1.Configured
@@ -709,7 +708,7 @@ nodeLoop:
 		if len(node.Spec.ProviderID) > 0 {
 			nodeStatus[node.Name] = vdov1alpha1.NodeStatusReady
 			NodeAvailabilityMap[node.Name] = true
-			r.Logger.Info("Adding to Available nodes","node",  node.Name)
+			r.Logger.Info("Adding to Available nodes", "node", node.Name)
 			continue nodeLoop
 		}
 
@@ -720,7 +719,7 @@ nodeLoop:
 					if val {
 						nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
 						cpiStatus = vdov1alpha1.Configuring
-						r.Logger.Info("Adding to Available nodes","node",  node.Name)
+						r.Logger.Info("Adding to Available nodes", "node", node.Name)
 						continue nodeLoop
 					}
 				}
@@ -734,7 +733,7 @@ nodeLoop:
 					if val {
 						nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
 						cpiStatus = vdov1alpha1.Configuring
-						r.Logger.Info("Adding to Available nodes","node",  node.Name)
+						r.Logger.Info("Adding to Available nodes", "node", node.Name)
 						continue nodeLoop
 					}
 				}

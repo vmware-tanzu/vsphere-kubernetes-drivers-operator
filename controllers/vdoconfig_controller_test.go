@@ -23,8 +23,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -387,7 +387,6 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			Scheme: s,
 		}
 
-
 		vdoctx := vdocontext.VDOContext{
 			Context: ctx,
 			Logger:  r.Logger,
@@ -493,7 +492,8 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 			err := r.reconcileNodeLabel(vdoctx, req, clientSet, testnodelist)
 			Expect(err).NotTo(HaveOccurred())
 
-			nodes, err := clientSet.CoreV1().Nodes().List(ctx,metav1.ListOptions{})
+			nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
 
 			for _, node := range nodes.Items {
 				Expect(node.Labels[VDO_NODE_LABEL_KEY]).Should(BeEquivalentTo(req.Name))
