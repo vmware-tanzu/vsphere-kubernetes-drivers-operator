@@ -38,8 +38,9 @@ var sessionMU sync.Mutex
 // Session is a vSphere session with a configured Finder.
 type Session struct {
 	*govmomi.Client
-	Finder     *find.Finder
-	datacenter *object.Datacenter
+	Finder         *find.Finder
+	datacenter     *object.Datacenter
+	VsphereVersion string
 }
 
 // GetOrCreate gets a cached session or creates a new one if one does not
@@ -85,6 +86,7 @@ func GetOrCreate(
 	}
 	session.datacenter = dc
 	session.Finder.SetDatacenter(dc)
+	session.VsphereVersion = session.Client.ServiceContent.About.Version
 
 	// Cache the session.
 	sessionCache[sessionKey] = session

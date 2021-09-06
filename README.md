@@ -90,6 +90,50 @@ Run `make generate` to generate the scaffolding code from the provided base type
 
 Run `make manifests` to generate the spec files required to deploy the operator
 
+### Configuration
+
+Pre-requisite for deploying operator
+
+1. Create Configmap
+2. Configuration of VDO
+
+The following steps help in configuring VDO to install/configure the drivers
+
+1. configure compatibility
+
+   - `cat <<EOF | sudo tee comp-matrix-config.yaml
+     apiVersion: v1
+     kind: ConfigMap
+     metadata:
+     name: comp-matrix-config
+     namespace: vmware-system-vdo
+     data:
+     versionConfigURL: "matrix-url"
+     auto-upgrade: "disabled"`
+
+     `kubectl apply -f comp-matrix-config.yaml`
+
+2. create secret
+
+    - `cat <<EOF | sudo tee secret.yaml
+      apiVersion: v1
+      kind: Secret
+      metadata:
+      name: vc-name-creds
+      namespace: kube-system
+      type: kubernetes.io/basic-auth
+      stringData:
+      username: "vc-username"
+      password: "vc-password"`
+
+      `kubectl apply -f secret.yaml`
+
+3. create VsphereCloudConfig resource
+    - credentials field in the resource refers to the name of the secret
+4. create VDOconfig resource
+   - Cloud Provider can take multiple instances of VsphereCloudConfig resource
+   - Storage provider takes a single VsphereCLoudConfig resource
+
 ### Deploy to kind cluster
 
 Run `make deploy` target to `generate`, `build` and `deploy`

@@ -19,18 +19,19 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/go-version"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
+	"k8s.io/client-go/discovery"
 	"os"
 	"reflect"
-	"strconv"
-	"strings"
-
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
+	"sort"
 
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
 	. "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
 	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/go-logr/logr"
@@ -71,9 +72,11 @@ const (
 // VDOConfigReconciler reconciles a VDOConfig object
 type VDOConfigReconciler struct {
 	client.Client
-	Logger       logr.Logger
-	Scheme       *runtime.Scheme
-	ClientConfig *restclient.Config
+	Logger             logr.Logger
+	Scheme             *runtime.Scheme
+	ClientConfig       *restclient.Config
+	CsiDeploymentYamls []string
+	CpiDeploymentYamls []string
 }
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -108,7 +111,6 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		Context: ctx,
 		Logger:  r.Logger,
 	}
-
 	vdoConfig := &vdov1alpha1.VDOConfig{}
 	err = r.Get(ctx, req.NamespacedName, vdoConfig)
 	if err != nil {
@@ -118,30 +120,23 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
 
-	var csiDeploymentYamls []string
-	var cpiDeploymentYamls []string
-
-	if matrixConfigUrl != "" {
-
-		matrix, err := dynclient.ParseMatrixYaml(matrixConfigUrl)
-		if err != nil {
-			vdoctx.Logger.Error(err, "Error occurred when Parsing the matrix yaml", "Url", matrixConfigUrl)
-			return ctrl.Result{}, err
-		}
-
-		csiDeploymentYamls = r.fetchCsiDeploymentYamls(matrix)
-		cpiDeploymentYamls = r.fetchCpiDeploymentYamls(matrix)
-
-		vdoctx.Logger.V(4).Info("CSI deployment yamls : ", "list", csiDeploymentYamls)
-		vdoctx.Logger.V(4).Info("CPI deployment yamls : ", "list", cpiDeploymentYamls)
+	if matrixConfigUrl == "" {
+		err = errors.New("Matrix Config URL not provided")
+		vdoctx.Logger.Error(err, "Unable to fetch deployment yamls")
+		return ctrl.Result{}, err
 	}
 
-	result, err := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientset, cpiDeploymentYamls)
+	err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfigUrl)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	result, err := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientset)
 	if err != nil {
 		return result, err
 	}
 
-	result, err = r.reconcileCSIConfiguration(vdoctx, req, vdoConfig, clientset, csiDeploymentYamls)
+	result, err = r.reconcileCSIConfiguration(vdoctx, req, vdoConfig, clientset)
 	if err != nil {
 		return result, err
 	}
@@ -197,7 +192,71 @@ func (r *VDOConfigReconciler) fetchVsphereCloudConfigItems(vdoctx vdocontext.VDO
 	return vsphereCloudConfigItems, nil
 }
 
-func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset, deploymentYamls []string) (ctrl.Result, error) {
+func (r *VDOConfigReconciler) fetchk8sVersions(vdoctx vdocontext.VDOContext) (string, error) {
+	discoveryClient, _ := discovery.NewDiscoveryClientForConfig(r.ClientConfig)
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		vdoctx.Logger.Error(err, "Error occurred when k8s version")
+		return "", err
+	}
+	k8sVersion := k8sServerVersion.Major + "." + k8sServerVersion.Minor
+	return k8sVersion, nil
+}
+
+func (r *VDOConfigReconciler) fetchVsphereVersions(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig) (versions []string, err error) {
+	var vsphereCloudConfigsList []string
+	vsphereCloudConfigsList = vdoConfig.Spec.CloudProvider.VsphereCloudConfigs
+
+	if len(vsphereCloudConfigsList) <= 0 {
+		vsphereCloudConfigsList = []string{vdoConfig.Spec.StorageProvider.VsphereCloudConfig}
+	}
+	var vsphereCloudConfigItems []vdov1alpha1.VsphereCloudConfig
+	for _, vsphereCloudConfig := range vsphereCloudConfigsList {
+		vsphereCloudConfigItem, err := r.fetchVSphereCloudConfig(vdoctx, vsphereCloudConfig, req.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		vsphereCloudConfigItems = append(vsphereCloudConfigItems, *vsphereCloudConfigItem)
+	}
+
+	var vsphereVersions []string
+
+	for _, vsphereCloudConfig := range vsphereCloudConfigItems {
+		sess, err := r.getVcSession(vdoctx, &vsphereCloudConfig)
+		if err != nil {
+			return nil, err
+		}
+		vsphereVersions = append(vsphereVersions, sess.VsphereVersion)
+	}
+
+	return vsphereVersions, nil
+}
+
+func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config *vdov1alpha1.VsphereCloudConfig) (*session.Session, error) {
+	var vcUser, vcUserPwd, datacenter string
+
+	vcUser, vcUserPwd, err := r.fetchVcCredentials(vdoctx, *config)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error fetching vcenter credentials ")
+	}
+
+	if len(config.Spec.DataCenters) > 0 {
+		datacenter = config.Spec.DataCenters[0]
+	}
+
+	vcIp := config.Spec.VcIP
+	sess, err := session.GetOrCreate(vdoctx, vcIp, datacenter, vcUser, vcUserPwd, config.Spec.Thumbprint)
+	if err != nil {
+		config.Status.Config = vdov1alpha1.VsphereConfigFailed
+		config.Status.Message = fmt.Sprintf("Error establishing session with vcenter %s for user %s", vcIp, vcUser)
+		return nil, errors.Wrapf(err, "Error establishing session with vcenter %s for user %s", vcIp, vcUser)
+	}
+
+	return sess, nil
+}
+
+func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
 
 	vsphereCloudConfigsList := vdoConfig.Spec.CloudProvider.VsphereCloudConfigs
 	if len(vsphereCloudConfigsList) <= 0 {
@@ -251,7 +310,7 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	vdoctx.Logger.V(4).Info("reconciling deployment for CPI")
-	updateStatus, err := r.reconcileCPIDeployment(vdoctx, deploymentYamls)
+	updateStatus, err := r.reconcileCPIDeployment(vdoctx)
 	if err != nil {
 		r.updateCPIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment of CPI spec files")
 		return ctrl.Result{}, err
@@ -295,7 +354,7 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	return ctrl.Result{}, nil
 }
 
-func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset, deploymentYamls []string) (ctrl.Result, error) {
+func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
 
 	vsphereCloudConfig, err := r.fetchVSphereCloudConfig(vdoctx, vdoConfig.Spec.StorageProvider.VsphereCloudConfig, req.Namespace)
 	if err != nil {
@@ -323,7 +382,7 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	vdoctx.Logger.V(4).Info("reconciling deployment for CSI")
-	updateStatus, err := r.reconcileCSIDeployment(vdoctx, deploymentYamls)
+	updateStatus, err := r.reconcileCSIDeployment(vdoctx)
 	if err != nil {
 		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment of CSI spec files")
 		return ctrl.Result{}, err
@@ -520,10 +579,10 @@ func (r *VDOConfigReconciler) reconcileCSIDeploymentStatus(ctx vdocontext.VDOCon
 
 }
 
-func (r *VDOConfigReconciler) reconcileCPIDeployment(ctx vdocontext.VDOContext, deploymentYamls []string) (bool, error) {
+func (r *VDOConfigReconciler) reconcileCPIDeployment(ctx vdocontext.VDOContext) (bool, error) {
 	var updateStatus bool //maintaining the variable updateStatus for all yaml deployments
 
-	for _, deploymentYaml := range deploymentYamls {
+	for _, deploymentYaml := range r.CpiDeploymentYamls {
 		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus)
 		if err != nil {
 			return updateStatus, err
@@ -533,10 +592,10 @@ func (r *VDOConfigReconciler) reconcileCPIDeployment(ctx vdocontext.VDOContext, 
 	return updateStatus, nil
 }
 
-func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext, deploymentYamls []string) (bool, error) {
+func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext) (bool, error) {
 	var updateStatus bool //maintaining the variable updateStatus for all yaml deployments
 
-	for _, deploymentYaml := range deploymentYamls {
+	for _, deploymentYaml := range r.CsiDeploymentYamls {
 		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus)
 		if err != nil {
 			return updateStatus, err
@@ -901,44 +960,172 @@ func (r *VDOConfigReconciler) reconcileCSISecret(ctx vdocontext.VDOContext, conf
 	return config, nil
 }
 
-func (r *VDOConfigReconciler) compareVersions(currentVersion, latestVersion string) (version string) {
-	currentVersionList := strings.Split(currentVersion, ".")
-	latestVersionList := strings.Split(latestVersion, ".")
-	for i := range currentVersionList {
-		version1, _ := strconv.Atoi(currentVersionList[i])
-		version2, _ := strconv.Atoi(latestVersionList[i])
-		if version1 > version2 {
-			latestVersion = currentVersion
-			break
+// compareVersions checks if the given version lies between min and max version
+func (r *VDOConfigReconciler) compareVersions(minVersion, currentVersion, maxVersion string) (bool, error) {
+
+	minVer, err := version.NewVersion(minVersion)
+	if err != nil {
+		return false, err
+	}
+
+	currentVer, err := version.NewVersion(currentVersion)
+	if err != nil {
+		return false, err
+	}
+
+	maxVer, err := version.NewVersion(maxVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if minVer.LessThanOrEqual(currentVer) && maxVer.GreaterThanOrEqual(currentVer) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// compareSkewVersions checks if the given version matches with the skew version
+func (r *VDOConfigReconciler) compareSkewVersions(currentVersion, supportedVersion string) (bool, error) {
+
+	currentVer, err := version.NewVersion(currentVersion)
+	if err != nil {
+		return false, err
+	}
+
+	supportedVer, err := version.NewVersion(supportedVersion)
+	if err != nil {
+		return false, err
+	}
+
+	if currentVer.Equal(supportedVer) {
+		return true, nil
+	}
+
+	return false, nil
+
+}
+
+func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
+	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
+	var versionList []string
+
+	for ver := range matrix.CSISpecList {
+		versionList = append(versionList, ver)
+	}
+	sort.Strings(versionList)
+	var csiVersion string
+
+	ctx.Logger.V(4).Info("vSphere Versions ", "version", vSphereVersions)
+	ctx.Logger.V(4).Info("k8s Versions ", "version", k8sVersion)
+
+	for _, vSphereVersion := range vSphereVersions {
+		for v := len(versionList) - 1; v >= 0; v-- {
+			isVsphereVersion, err := r.compareVersions(matrix.CSISpecList[versionList[v]].VSphereVersion.Min, vSphereVersion, matrix.CSISpecList[versionList[v]].VSphereVersion.Max)
+
+			if err != nil {
+				return err
+			}
+
+			isK8sVersion, err := r.compareVersions(matrix.CSISpecList[versionList[v]].K8sVersion.Min, k8sVersion, matrix.CSISpecList[versionList[v]].K8sVersion.Max)
+
+			if err != nil {
+				return err
+			}
+
+			if isVsphereVersion && isK8sVersion {
+				csiVersion = versionList[v]
+				break
+			}
 		}
 	}
-	return latestVersion
+
+	if len(csiVersion) <= 0 {
+		return errors.New("could not fetch compatible CSI version for vSphere version and k8s version ")
+	}
+
+	ctx.Logger.V(4).Info("Corresponding CSI Version ", "version", csiVersion)
+
+	r.CsiDeploymentYamls = matrix.CSISpecList[csiVersion].DeploymentPaths
+
+	return nil
 }
 
-func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(matrix CompatMatrix) (deploymentYamls []string) {
-	// Currently fetching the latest version of CSI and corresponding Deployment Yamls
-	// TODO Fetch vsphere and k8s version from the cluster and select suitable CSI version
+func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
 	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
-	var csiDeploymentYamls []string
-	latestCsiVersion := "0.0.0"
-	for version := range matrix.CSISpecList {
-		latestCsiVersion = r.compareVersions(version, latestCsiVersion)
-	}
-	csiDeploymentYamls = matrix.CSISpecList[latestCsiVersion].DeploymentPaths
+	var versionList []string
 
-	return csiDeploymentYamls
+	for ver := range matrix.CPISpecList {
+		versionList = append(versionList, ver)
+	}
+	sort.Strings(versionList)
+
+	var cpiVersion string
+
+	ctx.Logger.V(4).Info("vSphere Versions ", "version", vSphereVersions)
+	ctx.Logger.V(4).Info("k8s Versions ", "version", k8sVersion)
+
+	for _, vSphereVersion := range vSphereVersions {
+		for v := len(versionList) - 1; v >= 0; v-- {
+			isVsphereVersion, err := r.compareVersions(matrix.CPISpecList[versionList[v]].VSphereVersion.Min, vSphereVersion, matrix.CPISpecList[versionList[v]].VSphereVersion.Max)
+			if err != nil {
+				return err
+			}
+
+			isK8sVersion, err := r.compareSkewVersions(k8sVersion, matrix.CPISpecList[versionList[v]].K8sVersion.SkewVersion)
+			if err != nil {
+				return err
+			}
+
+			if isVsphereVersion && isK8sVersion {
+				cpiVersion = versionList[v]
+				break
+			}
+		}
+	}
+
+	if len(cpiVersion) <= 0 {
+		return errors.New("could not fetch compatible CPI version for vSphere version and k8s version ")
+	}
+
+	ctx.Logger.V(4).Info("Corresponding CPI Version ", "version", cpiVersion)
+
+	r.CpiDeploymentYamls = matrix.CPISpecList[cpiVersion].DeploymentPaths
+
+	return nil
 }
 
-func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(matrix CompatMatrix) (deploymentYamls []string) {
-	// Currently fetching the latest version of CPI and corresponding Deployment Yamls
-	// TODO Fetch vsphere and k8s version from the cluster and select suitable CPI version
-	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
-	var cpiDeploymentYamls []string
-	latestCpiVersion := "0.0.0"
-	for version := range matrix.CPISpecList {
-		latestCpiVersion = r.compareVersions(version, latestCpiVersion)
-	}
-	cpiDeploymentYamls = matrix.CPISpecList[latestCpiVersion].DeploymentPaths
+func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, matrixConfigUrl string) error {
 
-	return cpiDeploymentYamls
+	k8sVersion, err := r.fetchk8sVersions(ctx)
+	if err != nil {
+		ctx.Logger.Error(err, "Error occurred when fetching k8sVersion")
+		return err
+	}
+
+	vSphereVersions, err := r.fetchVsphereVersions(ctx, req, vdoConfig)
+	if err != nil {
+		ctx.Logger.Error(err, "Error occurred when fetching vSphereVersions")
+		return err
+	}
+
+	matrix, err := dynclient.ParseMatrixYaml(matrixConfigUrl)
+	if err != nil {
+		ctx.Logger.Error(err, "Error occurred when Parsing the matrix yaml", "Url", matrixConfigUrl)
+		return err
+	}
+
+	err = r.fetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
+	if err != nil {
+		ctx.Logger.Error(err, "Error occurred when fetching the CPI deployment yamls")
+		return err
+	}
+
+	err = r.fetchCsiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
+	if err != nil {
+		ctx.Logger.Error(err, "Error occurred when fetching the CSI deployment yamls")
+		return err
+	}
+
+	return nil
 }
