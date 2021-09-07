@@ -484,11 +484,9 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 
 		Expect(r.Client.Create(vdoctx, &secret)).Should(Succeed())
 
-		It("should create the nodes without error", func() {
-			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node4, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
+		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node4, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
-		})
 
 		It("should reconcile providerID without error", func() {
 			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
@@ -568,11 +566,9 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			return &session.Session{}, nil
 		}
 
-		It("should create the node without error", func() {
-			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node5, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
+		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node5, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
-		})
 		It("should reconcile providerID without error", func() {
 			GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
 				return &session.VirtualMachine{}, nil
@@ -642,11 +638,8 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			return &session.Session{}, nil
 		}
 
-		It("should create the nodes without error", func() {
-			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node6, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
-
-		})
+		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node6, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
 		It("should reconcile providerID with error", func() {
 			GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
@@ -707,13 +700,11 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 		vdoConfig := initializeVDOConfig()
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
-		It("should create the nodes without error", func() {
-			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
+		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
-			_, err = clientSet.CoreV1().Nodes().Create(vdoctx, &node2, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
-		})
+		_, err = clientSet.CoreV1().Nodes().Create(vdoctx, &node2, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
 		It("should reconcile node label without error", func() {
 			err := r.reconcileNodeLabel(vdoctx, req, clientSet, testnodelist)

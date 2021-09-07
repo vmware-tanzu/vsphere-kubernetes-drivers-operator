@@ -18,4 +18,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: vmware.com/vdo
-  newTag: 16bf15d
+  newTag: 196775e
