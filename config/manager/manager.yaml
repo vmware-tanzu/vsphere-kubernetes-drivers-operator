@@ -31,11 +31,18 @@ spec:
         - command:
             - /manager
           env:
+            - name: MATRIX_CONFIG_CONTENT
+              valueFrom:
+                configMapKeyRef:
+                  name: compat-matrix-config
+                  key: versionConfigContent
+                  optional: true
             - name: MATRIX_CONFIG_URL
               valueFrom:
                 configMapKeyRef:
                   name: compat-matrix-config
                   key: versionConfigURL
+                  optional: true
             - name: AUTO_UPGRADE
               valueFrom:
                 configMapKeyRef:

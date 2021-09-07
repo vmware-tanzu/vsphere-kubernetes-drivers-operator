@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
+	"strings"
 
 	"io"
 	"io/ioutil"
@@ -144,7 +145,7 @@ func ParseAndProcessK8sObjects(
 	}
 }
 
-func GenerateYaml(url string) ([]byte, error) {
+func GenerateYamlFromUrl(url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -163,17 +164,37 @@ func GenerateYaml(url string) ([]byte, error) {
 	return bodyBytes, nil
 }
 
-func ParseMatrixYaml(url string) (models.CompatMatrix, error) {
-	fileBytes, err := GenerateYaml(url)
+func GenerateYamlFromFilePath(path string) ([]byte, error) {
+	filePath := strings.Replace(path, "file:/", "", 1)
+	fileBytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return models.CompatMatrix{}, err
+		return nil, err
 	}
 
+	return fileBytes, nil
+}
+
+func ParseMatrixYaml(config string) (models.CompatMatrix, error) {
+	var fileBytes []byte
+	var err error
+
+	if strings.Contains(config, "file://") {
+		fileBytes, err = GenerateYamlFromFilePath(config)
+		if err != nil {
+			return models.CompatMatrix{}, err
+		}
+	} else {
+		fileBytes, err = GenerateYamlFromUrl(config)
+		if err != nil {
+			return models.CompatMatrix{}, err
+		}
+	}
 	var matrix models.CompatMatrix
 
 	err = json.Unmarshal(fileBytes, &matrix)
 	if err != nil {
 		return models.CompatMatrix{}, err
 	}
+
 	return matrix, err
 }

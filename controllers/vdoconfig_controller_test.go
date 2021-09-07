@@ -23,8 +23,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fake2 "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -588,4 +589,59 @@ var _ = Describe("TestfetchDeploymentYamls", func() {
 
 	})
 
+})
+
+var _ = Describe("TestApplyYaml", func() {
+
+	Context("When yaml gets applied successfully", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		DEPLOYMENT_YAML_URL := "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml"
+		FILE_PATH := "/tmp/test_deployment.yaml"
+
+		BeforeEach(func() {
+
+			fileContents := "kind: Deployment\napiVersion: apps/v1\nmetadata:\n  name: vsphere-csi-controller\n  namespace: kube-system\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: vsphere-csi-controller\n  template:\n    metadata:\n      labels:\n        app: vsphere-csi-controller\n        role: vsphere-csi\n    spec:\n      serviceAccountName: vsphere-csi-controller\n      nodeSelector:\n        node-role.kubernetes.io/master: \"\"\n      tolerations:\n        - key: node-role.kubernetes.io/master\n          operator: Exists\n          effect: NoSchedule\n        # uncomment below toleration if you need an aggressive pod eviction in case when\n        # node becomes not-ready or unreachable. Default is 300 seconds if not specified.\n        #- key: node.kubernetes.io/not-ready\n        #  operator: Exists\n        #  effect: NoExecute\n        #  tolerationSeconds: 30\n        #- key: node.kubernetes.io/unreachable\n        #  operator: Exists\n        #  effect: NoExecute\n        #  tolerationSeconds: 30\n      dnsPolicy: \"Default\"\n      containers:\n        - name: csi-attacher\n          image: quay.io/k8scsi/csi-attacher:v3.1.0\n          args:\n            - \"--v=4\"\n            - \"--timeout=300s\"\n            - \"--csi-address=$(ADDRESS)\"\n            - \"--leader-election\"\n          env:\n            - name: ADDRESS\n              value: /csi/csi.sock\n          volumeMounts:\n            - mountPath: /csi\n              name: socket-dir\n        - name: csi-resizer\n          image: quay.io/k8scsi/csi-resizer:v1.1.0\n          args:\n            - \"--v=4\"\n            - \"--timeout=300s\"\n            - \"--handle-volume-inuse-error=false\"\n            - \"--csi-address=$(ADDRESS)\"\n            - \"--kube-api-qps=100\"\n            - \"--kube-api-burst=100\"\n            - \"--leader-election\"\n          env:\n            - name: ADDRESS\n              value: /csi/csi.sock\n          volumeMounts:\n            - mountPath: /csi\n              name: socket-dir\n        - name: vsphere-csi-controller\n          image: gcr.io/cloud-provider-vsphere/csi/release/driver:v2.2.1\n          args:\n            - \"--fss-name=internal-feature-states.csi.vsphere.vmware.com\"\n            - \"--fss-namespace=$(CSI_NAMESPACE)\"\n          imagePullPolicy: \"Always\"\n          env:\n            - name: CSI_ENDPOINT\n              value: unix:///csi/csi.sock\n            - name: X_CSI_MODE\n              value: \"controller\"\n            - name: VSPHERE_CSI_CONFIG\n              value: \"/etc/cloud/csi-vsphere.conf\"\n            - name: LOGGER_LEVEL\n              value: \"PRODUCTION\" # Options: DEVELOPMENT, PRODUCTION\n            - name: INCLUSTER_CLIENT_QPS\n              value: \"100\"\n            - name: INCLUSTER_CLIENT_BURST\n              value: \"100\"\n            - name: CSI_NAMESPACE\n              valueFrom:\n                fieldRef:\n                  fieldPath: metadata.namespace\n            - name: X_CSI_SERIAL_VOL_ACCESS_TIMEOUT\n              value: 3m\n          volumeMounts:\n            - mountPath: /etc/cloud\n              name: vsphere-config-volume\n              readOnly: true\n            - mountPath: /csi\n              name: socket-dir\n          ports:\n            - name: healthz\n              containerPort: 9808\n              protocol: TCP\n            - name: prometheus\n              containerPort: 2112\n              protocol: TCP\n          livenessProbe:\n            httpGet:\n              path: /healthz\n              port: healthz\n            initialDelaySeconds: 10\n            timeoutSeconds: 3\n            periodSeconds: 5\n            failureThreshold: 3\n        - name: liveness-probe\n          image: quay.io/k8scsi/livenessprobe:v2.2.0\n          args:\n            - \"--v=4\"\n            - \"--csi-address=/csi/csi.sock\"\n          volumeMounts:\n            - name: socket-dir\n              mountPath: /csi\n        - name: vsphere-syncer\n          image: gcr.io/cloud-provider-vsphere/csi/release/syncer:v2.2.1\n          args:\n            - \"--leader-election\"\n            - \"--fss-name=internal-feature-states.csi.vsphere.vmware.com\"\n            - \"--fss-namespace=$(CSI_NAMESPACE)\"\n          imagePullPolicy: \"Always\"\n          ports:\n            - containerPort: 2113\n              name: prometheus\n              protocol: TCP\n          env:\n            - name: FULL_SYNC_INTERVAL_MINUTES\n              value: \"30\"\n            - name: VSPHERE_CSI_CONFIG\n              value: \"/etc/cloud/csi-vsphere.conf\"\n            - name: LOGGER_LEVEL\n              value: \"PRODUCTION\" # Options: DEVELOPMENT, PRODUCTION\n            - name: INCLUSTER_CLIENT_QPS\n              value: \"100\"\n            - name: INCLUSTER_CLIENT_BURST\n              value: \"100\"\n            - name: CSI_NAMESPACE\n              valueFrom:\n                fieldRef:\n                  fieldPath: metadata.namespace\n          volumeMounts:\n            - mountPath: /etc/cloud\n              name: vsphere-config-volume\n              readOnly: true\n        - name: csi-provisioner\n          image: quay.io/k8scsi/csi-provisioner:v2.1.0\n          args:\n            - \"--v=4\"\n            - \"--timeout=300s\"\n            - \"--csi-address=$(ADDRESS)\"\n            - \"--kube-api-qps=100\"\n            - \"--kube-api-burst=100\"\n            - \"--leader-election\"\n            - \"--default-fstype=ext4\"\n            # needed only for topology aware setup\n            #- \"--feature-gates=Topology=true\"\n            #- \"--strict-topology\"\n          env:\n            - name: ADDRESS\n              value: /csi/csi.sock\n          volumeMounts:\n            - mountPath: /csi\n              name: socket-dir\n      volumes:\n      - name: vsphere-config-volume\n        secret:\n          secretName: vsphere-config-secret\n      - name: socket-dir\n        emptyDir: {}\n---\napiVersion: v1\ndata:\n  \"csi-migration\": \"false\"\n  \"csi-auth-check\": \"true\"\n  \"online-volume-extend\": \"true\"\nkind: ConfigMap\nmetadata:\n  name: internal-feature-states.csi.vsphere.vmware.com\n  namespace: kube-system\n---\napiVersion: storage.k8s.io/v1 # For k8s 1.17 use storage.k8s.io/v1beta1\nkind: CSIDriver\nmetadata:\n  name: csi.vsphere.vmware.com\nspec:\n  attachRequired: true\n  podInfoOnMount: false\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: vsphere-csi-controller\n  namespace: kube-system\n  labels:\n    app: vsphere-csi-controller\nspec:\n  ports:\n    - name: ctlr\n      port: 2112\n      targetPort: 2112\n      protocol: TCP\n    - name: syncer\n      port: 2113\n      targetPort: 2113\n      protocol: TCP\n  selector:\n    app: vsphere-csi-controller"
+
+			file, err := os.OpenFile(FILE_PATH, os.O_CREATE|os.O_WRONLY, 0644)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = os.Truncate(FILE_PATH, 0)
+			Expect(err).NotTo(HaveOccurred())
+
+			defer file.Close()
+
+			_, err = file.Write([]byte(fileContents))
+			Expect(err).NotTo(HaveOccurred())
+
+		})
+
+		It("should apply the Network path yaml without error", func() {
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should apply the File Path yaml without error", func() {
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false)
+			Expect(err).NotTo(HaveOccurred())
+		})
+	})
 })

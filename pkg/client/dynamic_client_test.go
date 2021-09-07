@@ -50,7 +50,7 @@ func TestMethod(t *testing.T) {
 		Logger:  klogr.New(),
 	}
 
-	yamlBytes, err := GenerateYaml("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/master/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml")
+	yamlBytes, err := GenerateYamlFromUrl("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/master/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml")
 	if err != nil {
 		t.Fatalf("error occurred in test %v", err)
 	}
@@ -61,7 +61,7 @@ func TestMethod(t *testing.T) {
 	Expect(err).To(BeNil())
 
 	//vsphere-cloud-controller-manager-ds.yaml
-	yamlBytes, err = GenerateYaml("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/master/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml")
+	yamlBytes, err = GenerateYamlFromUrl("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/master/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml")
 	Expect(err).To(BeNil())
 	Expect(len(yamlBytes)).NotTo(BeZero())
 
