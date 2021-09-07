@@ -323,25 +323,25 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 		}
 	}
 
+	vdoctx.Logger.Info("reconciling node providerID")
+	updReq, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
+	if err != nil {
+		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
+		return ctrl.Result{}, err
+	}
+
+	if updReq {
+		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, vdoConfig.Status.CPIStatus.NodeStatus)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	vdoctx.Logger.V(4).Info("reconciling node label for CPI")
 	err = r.reconcileNodeLabel(vdoctx, req, clientset, vdoConfig)
 	if err != nil {
 		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
 		return ctrl.Result{}, err
-	}
-
-	vdoctx.Logger.Info("reconciling node providerID")
-	vdoConfig, err = r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
-	if err != nil {
-		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
-		return ctrl.Result{}, err
-	}
-
-	if vdoConfig != nil {
-		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, vdoConfig.Status.CPIStatus.NodeStatus)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 	}
 	return ctrl.Result{}, nil
 }
@@ -691,13 +691,14 @@ nodeloop:
 	return nil
 }
 
-func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (*vdov1alpha1.VDOConfig, error) {
+func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (bool, error) {
 	nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
+	var updReq bool
 
 	cpiStatus := vdov1alpha1.Configured
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return config, errors.Wrapf(err, "Error reconciling the providerID for CPI, unable to fetch list of nodes")
+		return updReq, errors.Wrapf(err, "Error reconciling the providerID for CPI, unable to fetch list of nodes")
 	}
 
 nodeLoop:
@@ -719,7 +720,7 @@ nodeLoop:
 
 				nodeExistsInVC, err := r.checkNodeExistence(ctx, vsphereCloudConfigs, node)
 				if err != nil {
-					return config, errors.Wrapf(err, "Error reconciling the providerID for CPI")
+					return updReq, errors.Wrapf(err, "Error reconciling the providerID for CPI")
 				}
 
 				if nodeExistsInVC {
@@ -730,7 +731,7 @@ nodeLoop:
 
 				err = errors.Errorf(" Cloud Provider is not configured to manage the node %s. Please check your cloud Provider settings. ", node.Name)
 				r.updateCPIStatusForError(ctx, err, config, err.Error())
-				return config, err
+				return updReq, err
 			}
 
 		}
@@ -741,10 +742,10 @@ nodeLoop:
 		!reflect.DeepEqual(config.Status.CPIStatus.NodeStatus, nodeStatus) {
 		config.Status.CPIStatus.NodeStatus = nodeStatus
 		config.Status.CPIStatus.Phase = cpiStatus
-		return config, nil
+		updReq = true
 	}
 
-	return nil, nil
+	return updReq, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
