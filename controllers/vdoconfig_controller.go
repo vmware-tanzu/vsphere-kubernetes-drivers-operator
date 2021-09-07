@@ -324,20 +324,20 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	vdoctx.Logger.Info("reconciling node providerID")
-	vdoConfig, err = r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
+	config, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
 	if err != nil {
 		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
 		return ctrl.Result{}, err
 	}
 
 	vdoctx.Logger.V(4).Info("reconciling node label for CPI")
-	err = r.reconcileNodeLabel(vdoctx, req, clientset, vdoConfig)
+	err = r.reconcileNodeLabel(vdoctx, req, clientset, config)
 	if err != nil {
 		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
 		return ctrl.Result{}, err
 	}
 
-	if vdoConfig != nil {
+	if config != nil {
 		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, vdoConfig.Status.CPIStatus.NodeStatus)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -744,7 +744,7 @@ nodeLoop:
 		return config, nil
 	}
 
-	return config, nil
+	return nil, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
