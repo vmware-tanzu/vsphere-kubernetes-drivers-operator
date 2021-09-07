@@ -19,12 +19,15 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
+	"github.com/vmware/govmomi/object"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -32,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fake2 "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -374,8 +376,9 @@ var _ = Describe("TestReconcileCSISecret", func() {
 
 var _ = Describe("TestReconcileNodeProviderID", func() {
 
-	Context("When reconciling Node ProviderID succeeds", func() {
+	Context("When ProviderID is present on all the nodes", func() {
 		RegisterFailHandler(Fail)
+
 		ctx := context.Background()
 
 		s := scheme.Scheme
@@ -410,26 +413,252 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			Spec:       v12.NodeSpec{ProviderID: "vsphere://testid2"},
 		}
 
-		testnodelist := map[string]bool{
-			node1.Name: true,
-			node2.Name: true,
-		}
-
 		It("should create the nodes without error", func() {
 			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			_, err = clientSet.CoreV1().Nodes().Create(vdoctx, &node2, metav1.CreateOptions{})
 			Expect(err).NotTo(HaveOccurred())
+
 		})
 
 		It("should reconcile providerID without error", func() {
 			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(reflect.DeepEqual(testnodelist, nodelist)).To(BeTrue())
+			val, ok := nodelist[node1.Name]
+			Expect(ok).To(BeTrue())
+			Expect(val).To(BeTrue())
+
 		})
 
 	})
+
+	Context("When both ProviderID and taint are absent", func() {
+		RegisterFailHandler(Fail)
+
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		secret := v12.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-ref",
+				Namespace: "kube-system",
+			},
+			Data: map[string][]byte{
+				"username": []byte("vc_user"),
+				"password": []byte("vc_pwd"),
+			},
+		}
+
+		node4 := v12.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-node4"},
+		}
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		cloudconfiglist := initializeVsphereConfigList()
+		vdoConfig := initializeVDOConfig()
+
+		SessionFn = func(ctx context.Context,
+			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+			return &session.Session{}, nil
+		}
+
+		GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
+			return &session.VirtualMachine{}, nil
+		}
+
+		Expect(r.Client.Create(vdoctx, &secret)).Should(Succeed())
+
+		It("should create the nodes without error", func() {
+			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node4, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+		})
+
+		It("should reconcile providerID without error", func() {
+			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			Expect(err).NotTo(HaveOccurred())
+			_, ok := nodelist[node4.Name]
+			Expect(ok).To(BeFalse())
+
+		})
+
+	})
+
+	Context("When ProviderID is absent while taint is present and the node's DC/VC is mentioned in the vsphereCloudConfig resource", func() {
+		RegisterFailHandler(Fail)
+
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		taint := v12.Taint{
+			Key:       CLOUD_PROVIDER_INIT_TAINT_KEY,
+			Value:     "true",
+			Effect:    TAINT_NOSCHEDULE_KEY,
+			TimeAdded: nil,
+		}
+		node5 := v12.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-node5"},
+			Spec:       v12.NodeSpec{Taints: []v12.Taint{taint}},
+		}
+
+		secret := v12.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-ref",
+				Namespace: "kube-system",
+			},
+			Data: map[string][]byte{
+				"username": []byte("vc_user"),
+				"password": []byte("vc_pwd"),
+			},
+		}
+
+		Expect(r.Client.Create(vdoctx, &secret)).Should(Succeed())
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		cloudConfig := v1alpha1.VsphereCloudConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-resource",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.VsphereCloudConfigSpec{
+				VcIP:        "1.1.1.1",
+				Insecure:    true,
+				Credentials: "secret-ref",
+				DataCenters: []string{"datacenter-1"},
+			},
+			Status: v1alpha1.VsphereCloudConfigStatus{},
+		}
+		cloudconfiglist := []v1alpha1.VsphereCloudConfig{cloudConfig}
+
+		vdoConfig := initializeVDOConfig()
+
+		SessionFn = func(ctx context.Context,
+			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+			return &session.Session{}, nil
+		}
+
+		It("should create the node without error", func() {
+			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node5, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+		})
+		It("should reconcile providerID without error", func() {
+			GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
+				return &session.VirtualMachine{}, nil
+			}
+			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			Expect(err).NotTo(HaveOccurred())
+			val, ok := nodelist[node5.Name]
+			Expect(ok).To(BeTrue())
+			Expect(val).To(BeTrue())
+
+		})
+
+	})
+
+	Context("When taint is present but the node is not mentioned in the vsphereCloudConfigResource", func() {
+		RegisterFailHandler(Fail)
+
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		taint := v12.Taint{
+			Key:       CLOUD_PROVIDER_INIT_TAINT_KEY,
+			Value:     "true",
+			Effect:    TAINT_NOSCHEDULE_KEY,
+			TimeAdded: nil,
+		}
+
+		node6 := v12.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-node6"},
+			Spec:       v12.NodeSpec{Taints: []v12.Taint{taint}},
+		}
+
+		secret := v12.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-ref",
+				Namespace: "kube-system",
+			},
+			Data: map[string][]byte{
+				"username": []byte("vc_user"),
+				"password": []byte("vc_pwd"),
+			},
+		}
+
+		Expect(r.Client.Create(vdoctx, &secret)).Should(Succeed())
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		cloudconfiglist := initializeVsphereConfigList()
+
+		vdoConfig := initializeVDOConfig()
+
+		SessionFn = func(ctx context.Context,
+			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+			return &session.Session{}, nil
+		}
+
+		It("should create the nodes without error", func() {
+			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node6, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+		})
+
+		It("should reconcile providerID with error", func() {
+			GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
+				return nil, nil
+			}
+			_, _, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			Expect(err).To(HaveOccurred())
+
+		})
+
+	})
+
 })
 
 var _ = Describe("TestReconcileNodeLabel", func() {
@@ -440,15 +669,14 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 
 	node2 := v12.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-node2"},
-		Spec:       v12.NodeSpec{ProviderID: "vsphere://testid2"},
 	}
 
 	testnodelist := map[string]bool{
 		node1.Name: true,
-		node2.Name: true,
+		node2.Name: false,
 	}
 
-	Context("When adding node label succeeds", func() {
+	Context("When reconciling node label succeeds", func() {
 		RegisterFailHandler(Fail)
 		ctx := context.Background()
 
@@ -488,7 +716,6 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 		})
 
 		It("should reconcile node label without error", func() {
-
 			err := r.reconcileNodeLabel(vdoctx, req, clientSet, testnodelist)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -496,73 +723,28 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			for _, node := range nodes.Items {
-				Expect(node.Labels[VDO_NODE_LABEL_KEY]).Should(BeEquivalentTo(req.Name))
+				if node.Name == "test-node1" {
+					Expect(node.Labels[VDO_NODE_LABEL_KEY]).Should(BeEquivalentTo(req.Name))
+				}
+			}
+		})
+
+		It("should not add label to the node", func() {
+
+			nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			for _, node := range nodes.Items {
+				if node.Name == "test-node2" {
+					_, ok := node.Labels[VDO_NODE_LABEL_KEY]
+					Expect(ok).To(BeFalse())
+				}
 			}
 
 		})
+
 	})
 })
-
-func initializeVsphereConfigList() []v1alpha1.VsphereCloudConfig {
-	cloudConfig1 := v1alpha1.VsphereCloudConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-resource",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.VsphereCloudConfigSpec{
-			VcIP:        "1.1.1.1",
-			Insecure:    true,
-			Credentials: "secret-ref",
-			DataCenters: []string{"datacenter-1"},
-		},
-		Status: v1alpha1.VsphereCloudConfigStatus{},
-	}
-	cloudConfig2 := v1alpha1.VsphereCloudConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-resource",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.VsphereCloudConfigSpec{
-			VcIP:        "2.2.2.2",
-			Insecure:    true,
-			Credentials: "secret-ref",
-			DataCenters: []string{"datacenter-1"},
-		},
-		Status: v1alpha1.VsphereCloudConfigStatus{},
-	}
-	var cloudconfiglist []v1alpha1.VsphereCloudConfig
-	cloudconfiglist = append(cloudconfiglist, cloudConfig1, cloudConfig2)
-	return cloudconfiglist
-}
-
-func initializeVDOConfig() *v1alpha1.VDOConfig {
-	vdoConfig := &v1alpha1.VDOConfig{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "vdo-sample",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.VDOConfigSpec{
-			CloudProvider: v1alpha1.CloudProviderConfig{
-				VsphereCloudConfigs: []string{"test-resource"},
-				Topology: v1alpha1.TopologyInfo{
-					Zone:   "k8s-zone-A",
-					Region: "k8s-region-A",
-				},
-			},
-			StorageProvider: v1alpha1.StorageProviderConfig{
-				VsphereCloudConfig:  "test-resource",
-				ClusterDistribution: "",
-				FileVolumes:         v1alpha1.FileVolume{},
-			},
-		},
-		Status: v1alpha1.VDOConfigStatus{
-			CPIStatus: v1alpha1.CPIStatus{},
-			CSIStatus: v1alpha1.CSIStatus{},
-		},
-	}
-	return vdoConfig
-}
 
 var _ = Describe("TestfetchDeploymentYamls", func() {
 
@@ -708,3 +890,64 @@ var _ = Describe("TestfetchDeploymentYamls", func() {
 	})
 
 })
+
+func initializeVsphereConfigList() []v1alpha1.VsphereCloudConfig {
+	cloudConfig1 := v1alpha1.VsphereCloudConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-resource",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.VsphereCloudConfigSpec{
+			VcIP:        "1.1.1.1",
+			Insecure:    true,
+			Credentials: "secret-ref",
+			DataCenters: []string{"datacenter-1"},
+		},
+		Status: v1alpha1.VsphereCloudConfigStatus{},
+	}
+	cloudConfig2 := v1alpha1.VsphereCloudConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-resource",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.VsphereCloudConfigSpec{
+			VcIP:        "2.2.2.2",
+			Insecure:    true,
+			Credentials: "secret-ref",
+			DataCenters: []string{"datacenter-1"},
+		},
+		Status: v1alpha1.VsphereCloudConfigStatus{},
+	}
+	var cloudconfiglist []v1alpha1.VsphereCloudConfig
+	cloudconfiglist = append(cloudconfiglist, cloudConfig1, cloudConfig2)
+	return cloudconfiglist
+}
+
+func initializeVDOConfig() *v1alpha1.VDOConfig {
+	vdoConfig := &v1alpha1.VDOConfig{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vdo-sample",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.VDOConfigSpec{
+			CloudProvider: v1alpha1.CloudProviderConfig{
+				VsphereCloudConfigs: []string{"test-resource"},
+				Topology: v1alpha1.TopologyInfo{
+					Zone:   "k8s-zone-A",
+					Region: "k8s-region-A",
+				},
+			},
+			StorageProvider: v1alpha1.StorageProviderConfig{
+				VsphereCloudConfig:  "test-resource",
+				ClusterDistribution: "",
+				FileVolumes:         v1alpha1.FileVolume{},
+			},
+		},
+		Status: v1alpha1.VDOConfigStatus{
+			CPIStatus: v1alpha1.CPIStatus{},
+			CSIStatus: v1alpha1.CSIStatus{},
+		},
+	}
+	return vdoConfig
+}

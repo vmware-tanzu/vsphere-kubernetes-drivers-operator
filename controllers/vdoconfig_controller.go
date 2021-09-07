@@ -81,7 +81,8 @@ type VDOConfigReconciler struct {
 
 var (
 	NodeAvailabilityMap = make(map[string]bool)
-	SessionFunction     = session.GetOrCreate
+	SessionFn           = session.GetOrCreate
+	GetVMFn             = session.GetVMByIP
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -247,7 +248,7 @@ func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config 
 	}
 
 	vcIp := config.Spec.VcIP
-	sess, err := session.GetOrCreate(vdoctx, vcIp, config.Spec.DataCenters, vcUser, vcUserPwd, config.Spec.Thumbprint)
+	sess, err := SessionFn(vdoctx, vcIp, config.Spec.DataCenters, vcUser, vcUserPwd, config.Spec.Thumbprint)
 	if err != nil {
 		config.Status.Config = vdov1alpha1.VsphereConfigFailed
 		config.Status.Message = fmt.Sprintf("Error establishing session with vcenter %s for user %s", vcIp, vcUser)
@@ -724,7 +725,7 @@ nodeLoop:
 					}
 				}
 
-				NodeAvailabilityMap[node.Name], err = r.checkNodeExistence(ctx, config, vsphereCloudConfigs, node)
+				NodeAvailabilityMap[node.Name], err = r.checkNodeExistence(ctx, vsphereCloudConfigs, node)
 				if err != nil {
 					return config, NodeAvailabilityMap, errors.Wrapf(err, "Error reconciling the providerID for CPI")
 				}
@@ -738,9 +739,9 @@ nodeLoop:
 					}
 				}
 
-				error := errors.Errorf(" Cloud Provider is not configured to manage the node %s. Please check your cloud Provider settings. ", node.Name)
-				r.updateCPIStatusForError(ctx, error, config, error.Error())
-				return config, NodeAvailabilityMap, error
+				err := errors.Errorf(" Cloud Provider is not configured to manage the node %s. Please check your cloud Provider settings. ", node.Name)
+				r.updateCPIStatusForError(ctx, err, config, err.Error())
+				return config, NodeAvailabilityMap, err
 			}
 
 		}
@@ -1128,30 +1129,24 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOConte
 	return nil
 }
 
-func (r *VDOConfigReconciler) checkNodeExistence(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig, node v1.Node) (bool, error) {
+func (r *VDOConfigReconciler) checkNodeExistence(ctx vdocontext.VDOContext, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig, node v1.Node) (bool, error) {
 
 	for _, cloudConfig := range *vsphereCloudConfigs {
-		ctx.Logger.V(4).Info("fetching vc credentials for CPI secret", "vsphereCloudConfig", cloudConfig)
-		vcUser, vcUserPwd, err := r.fetchVcCredentials(ctx, cloudConfig)
+		sess, err := r.getVcSession(ctx, &cloudConfig)
 		if err != nil {
-			r.updateCPIStatusForError(ctx, err, config, "Error in fetching vc credentials for CPI configuration")
 			return false, err
 		}
 
-		vcIp := cloudConfig.Spec.VcIP
-		sess, err := SessionFunction(ctx, vcIp, cloudConfig.Spec.DataCenters, vcUser, vcUserPwd, cloudConfig.Spec.Thumbprint)
-		if err != nil {
-			return false, errors.Wrapf(err, "Error establishing session with vcenter %s for user %s", vcIp, vcUser)
-		}
-
 		var nodeIP string
-		for _, address := range node.Status.Addresses {
-			if address.Type == v1.NodeInternalIP {
-				nodeIP = address.Address
+		if len(node.Status.Addresses) > 0 {
+			for _, address := range node.Status.Addresses {
+				if address.Type == v1.NodeInternalIP {
+					nodeIP = address.Address
+				}
 			}
 		}
 
-		vm, err := sess.GetVMByIP(ctx, nodeIP)
+		vm, err := GetVMFn(ctx, nodeIP, sess.Datacenters)
 		if err != nil {
 			return false, err
 		}

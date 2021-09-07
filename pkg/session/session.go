@@ -40,7 +40,7 @@ var sessionMU sync.Mutex
 // Session is a vSphere session with a configured Finder.
 type Session struct {
 	*govmomi.Client
-	datacenters    []*object.Datacenter
+	Datacenters    []*object.Datacenter
 	VsphereVersion string
 }
 
@@ -64,7 +64,7 @@ func GetOrCreate(
 			logger.V(2).Info("found active cached vSphere client session", "server", server)
 
 			var DCListCachedSession []string
-			for _, dc := range cachedSession.datacenters {
+			for _, dc := range cachedSession.Datacenters {
 				DCListCachedSession = append(DCListCachedSession, dc.Name())
 			}
 			if reflect.DeepEqual(datacenters, DCListCachedSession) {
@@ -97,13 +97,12 @@ func GetOrCreate(
 	if len(datacenters) > 0 {
 		for _, datacenter := range datacenters {
 
-			// Assign the datacenter if one was specified.
 			dc, err := finder.Datacenter(ctx, datacenter)
 			if err != nil {
 				return nil, errors.Wrapf(err, "unable to find datacenter %q", datacenter)
 			}
 			if dc != nil {
-				session.datacenters = append(session.datacenters, dc)
+				session.Datacenters = append(session.Datacenters, dc)
 			}
 			logger.V(2).Info("cached vSphere client session", "server", server, "datacenter", datacenter)
 		}
@@ -140,10 +139,10 @@ func newClient(ctx context.Context, url *url.URL, thumbprint string) (*govmomi.C
 	return c, nil
 }
 
-func (s *Session) GetVMByIP(ctx context.Context, ipAddy string) (*VirtualMachine, error) {
-	if len(s.datacenters) > 0 {
+func GetVMByIP(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*VirtualMachine, error) {
+	if len(datacenters) > 0 {
 	dcloop:
-		for _, datacenter := range s.datacenters {
+		for _, datacenter := range datacenters {
 			i := object.NewSearchIndex(datacenter.Client())
 			ipAddy = strings.ToLower(strings.TrimSpace(ipAddy))
 			svm, err := i.FindByIp(ctx, datacenter, ipAddy, true)
