@@ -80,9 +80,8 @@ type VDOConfigReconciler struct {
 }
 
 var (
-	nodeAvailabilityMap = make(map[string]bool)
-	SessionFn           = session.GetOrCreate
-	GetVMFn             = session.GetVMByIP
+	SessionFn = session.GetOrCreate
+	GetVMFn   = session.GetVMByIP
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -325,21 +324,21 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	vdoctx.Logger.Info("reconciling node providerID")
-	config, nodeMap, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
+	vdoConfig, err = r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
 	if err != nil {
 		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
 		return ctrl.Result{}, err
 	}
 
 	vdoctx.Logger.V(4).Info("reconciling node label for CPI")
-	err = r.reconcileNodeLabel(vdoctx, req, clientset, nodeMap)
+	err = r.reconcileNodeLabel(vdoctx, req, clientset, vdoConfig)
 	if err != nil {
 		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
 		return ctrl.Result{}, err
 	}
 
-	if config != nil {
-		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, config.Status.CPIStatus.Phase, config.Status.CPIStatus.NodeStatus)
+	if vdoConfig != nil {
+		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, vdoConfig.Status.CPIStatus.NodeStatus)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -661,7 +660,7 @@ func (r *VDOConfigReconciler) updateVdoConfigWithNodeStatus(ctx context.Context,
 	return nil
 }
 
-func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req ctrl.Request, clientset kubernetes.Interface, nodeAvailabilityMap map[string]bool) error {
+func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req ctrl.Request, clientset kubernetes.Interface, vdoConfig *vdov1alpha1.VDOConfig) error {
 
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -669,23 +668,22 @@ func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req 
 	}
 nodeloop:
 	for _, node := range nodes.Items {
-		if val, ok := nodeAvailabilityMap[node.Name]; ok {
-			if val {
-				if node.Labels == nil {
-					node.Labels = make(map[string]string)
-				}
+		if _, ok := vdoConfig.Status.CPIStatus.NodeStatus[node.Name]; ok {
 
-				if _, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
-					continue nodeloop
-				}
-				r.Logger.Info("adding node label", "name", VDO_NODE_LABEL_KEY, "node", node.Name)
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
+			}
 
-				node.Labels[VDO_NODE_LABEL_KEY] = req.Name
-				_, err := clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{})
+			if _, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
+				continue nodeloop
+			}
+			r.Logger.Info("adding node label", "name", VDO_NODE_LABEL_KEY, "node", node.Name)
 
-				if err != nil {
-					return errors.Wrapf(err, "Unable to update label on node")
-				}
+			node.Labels[VDO_NODE_LABEL_KEY] = req.Name
+			_, err := clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{})
+
+			if err != nil {
+				return errors.Wrapf(err, "Unable to update label on node")
 			}
 		}
 	}
@@ -693,20 +691,19 @@ nodeloop:
 	return nil
 }
 
-func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (*vdov1alpha1.VDOConfig, map[string]bool, error) {
+func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (*vdov1alpha1.VDOConfig, error) {
 	nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
 
 	cpiStatus := vdov1alpha1.Configured
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return config, nodeAvailabilityMap, errors.Wrapf(err, "Error reconciling the providerID for CPI, unable to fetch list of nodes")
+		return config, errors.Wrapf(err, "Error reconciling the providerID for CPI, unable to fetch list of nodes")
 	}
 
 nodeLoop:
 	for _, node := range nodes.Items {
 		if len(node.Spec.ProviderID) > 0 {
 			nodeStatus[node.Name] = vdov1alpha1.NodeStatusReady
-			nodeAvailabilityMap[node.Name] = true
 			r.Logger.Info("Adding to Available nodes", "node", node.Name)
 			continue nodeLoop
 		}
@@ -714,32 +711,26 @@ nodeLoop:
 		for _, taint := range node.Spec.Taints {
 			if taint.Key == CLOUD_PROVIDER_INIT_TAINT_KEY {
 
-				if val, ok := nodeAvailabilityMap[node.Name]; ok {
-					if val {
-						nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
-						cpiStatus = vdov1alpha1.Configuring
-						r.Logger.Info("Adding to Available nodes", "node", node.Name)
-						continue nodeLoop
-					}
+				if _, ok := config.Status.CPIStatus.NodeStatus[node.Name]; ok {
+					nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
+					cpiStatus = vdov1alpha1.Configuring
+					continue nodeLoop
 				}
 
-				nodeAvailabilityMap[node.Name], err = r.checkNodeExistence(ctx, vsphereCloudConfigs, node)
+				nodeExistsInVC, err := r.checkNodeExistence(ctx, vsphereCloudConfigs, node)
 				if err != nil {
-					return config, nodeAvailabilityMap, errors.Wrapf(err, "Error reconciling the providerID for CPI")
+					return config, errors.Wrapf(err, "Error reconciling the providerID for CPI")
 				}
 
-				if val, ok := nodeAvailabilityMap[node.Name]; ok {
-					if val {
-						nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
-						cpiStatus = vdov1alpha1.Configuring
-						r.Logger.Info("Adding to Available nodes", "node", node.Name)
-						continue nodeLoop
-					}
+				if nodeExistsInVC {
+					nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
+					cpiStatus = vdov1alpha1.Configuring
+					continue nodeLoop
 				}
 
-				err := errors.Errorf(" Cloud Provider is not configured to manage the node %s. Please check your cloud Provider settings. ", node.Name)
+				err = errors.Errorf(" Cloud Provider is not configured to manage the node %s. Please check your cloud Provider settings. ", node.Name)
 				r.updateCPIStatusForError(ctx, err, config, err.Error())
-				return config, nodeAvailabilityMap, err
+				return config, err
 			}
 
 		}
@@ -750,10 +741,10 @@ nodeLoop:
 		!reflect.DeepEqual(config.Status.CPIStatus.NodeStatus, nodeStatus) {
 		config.Status.CPIStatus.NodeStatus = nodeStatus
 		config.Status.CPIStatus.Phase = cpiStatus
-		return config, nodeAvailabilityMap, nil
+		return config, nil
 	}
 
-	return nil, nodeAvailabilityMap, nil
+	return config, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

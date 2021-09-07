@@ -413,21 +413,24 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			Spec:       v12.NodeSpec{ProviderID: "vsphere://testid2"},
 		}
 
-		It("should create the nodes without error", func() {
-			_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
+		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
-			_, err = clientSet.CoreV1().Nodes().Create(vdoctx, &node2, metav1.CreateOptions{})
-			Expect(err).NotTo(HaveOccurred())
-
-		})
+		_, err = clientSet.CoreV1().Nodes().Create(vdoctx, &node2, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
 
 		It("should reconcile providerID without error", func() {
-			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			_, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
 			Expect(err).NotTo(HaveOccurred())
-			val, ok := nodelist[node1.Name]
-			Expect(ok).To(BeTrue())
-			Expect(val).To(BeTrue())
+
+			nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			for _, node := range nodes.Items {
+				val, ok := vdoConfig.Status.CPIStatus.NodeStatus[node.Name]
+				Expect(ok).To(BeTrue())
+				Expect(val).Should(BeEquivalentTo(v1alpha1.NodeStatusReady))
+			}
 
 		})
 
@@ -487,11 +490,10 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node4, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-
 		It("should reconcile providerID without error", func() {
-			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			_, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
 			Expect(err).NotTo(HaveOccurred())
-			_, ok := nodelist[node4.Name]
+			_, ok := vdoConfig.Status.CPIStatus.NodeStatus[node4.Name]
 			Expect(ok).To(BeFalse())
 
 		})
@@ -573,12 +575,11 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
 				return &session.VirtualMachine{}, nil
 			}
-			_, nodelist, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			_, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
 			Expect(err).NotTo(HaveOccurred())
-			val, ok := nodelist[node5.Name]
+			val, ok := vdoConfig.Status.CPIStatus.NodeStatus[node5.Name]
 			Expect(ok).To(BeTrue())
-			Expect(val).To(BeTrue())
-
+			Expect(val).Should(BeEquivalentTo(v1alpha1.NodeStatusPending))
 		})
 
 	})
@@ -645,9 +646,8 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 			GetVMFn = func(ctx context.Context, ipAddy string, datacenters []*object.Datacenter) (*session.VirtualMachine, error) {
 				return nil, nil
 			}
-			_, _, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
+			_, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientSet, &cloudconfiglist)
 			Expect(err).To(HaveOccurred())
-
 		})
 
 	})
@@ -662,11 +662,6 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 
 	node2 := v12.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-node2"},
-	}
-
-	testnodelist := map[string]bool{
-		node1.Name: true,
-		node2.Name: false,
 	}
 
 	Context("When reconciling node label succeeds", func() {
@@ -700,6 +695,8 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 		vdoConfig := initializeVDOConfig()
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
+		vdoConfig.Status.CPIStatus.NodeStatus = map[string]v1alpha1.NodeStatus{node1.Name: v1alpha1.NodeStatusReady}
+
 		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
@@ -707,7 +704,7 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		It("should reconcile node label without error", func() {
-			err := r.reconcileNodeLabel(vdoctx, req, clientSet, testnodelist)
+			err := r.reconcileNodeLabel(vdoctx, req, clientSet, vdoConfig)
 			Expect(err).NotTo(HaveOccurred())
 
 			nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
