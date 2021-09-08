@@ -35,11 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	timeout  = time.Second * 10
+	interval = time.Millisecond * 250
+)
+
 var _ = Describe("VsphereCloudConfig controller", func() {
-	const (
-		timeout  = time.Second * 10
-		interval = time.Millisecond * 250
-	)
 
 	Context("When creating vSphereCloudConfig resource", func() {
 		var vc_ip, vc_user, vc_pwd string
