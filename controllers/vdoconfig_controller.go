@@ -129,25 +129,14 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
 	matrixConfigContent := os.Getenv(COMPAT_MATRIX_CONFIG_CONTENT)
 
-	if matrixConfigUrl != "" && matrixConfigContent != "" {
-		err = errors.New("Both Matrix Config URL/Content not provided")
+	matrixConfig, err := r.getMatrixConfig(matrixConfigUrl, matrixConfigContent)
+	if err != nil {
 		vdoctx.Logger.Error(err, "Unable to fetch deployment yamls")
 		return ctrl.Result{}, err
 	}
 
-	if matrixConfigUrl != "" {
-		err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfigUrl)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else if matrixConfigContent != "" {
-		err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfigContent)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else {
-		err = errors.New("Matrix Config URL/Content not provided")
-		vdoctx.Logger.Error(err, "Unable to fetch deployment yamls")
+	err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfig)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -1179,4 +1168,18 @@ func (r *VDOConfigReconciler) checkNodeExistence(ctx vdocontext.VDOContext, vsph
 
 	}
 	return false, nil
+}
+
+func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigContent string) (string, error) {
+
+	var err error
+
+	if matrixConfigUrl != "" && matrixConfigContent == "" {
+		return matrixConfigUrl, nil
+	} else if matrixConfigUrl == "" && matrixConfigContent != "" {
+		return matrixConfigContent, nil
+	} else {
+		err = errors.New("Matrix Config URL/Content not provided in proper format")
+		return "", err
+	}
 }
