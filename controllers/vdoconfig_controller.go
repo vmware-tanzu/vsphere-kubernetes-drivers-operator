@@ -79,6 +79,11 @@ type VDOConfigReconciler struct {
 	CpiDeploymentYamls []string
 }
 
+var (
+	SessionFn = session.GetOrCreate
+	GetVMFn   = session.GetVMByIP
+)
+
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs/finalizers,verbs=update
@@ -233,20 +238,14 @@ func (r *VDOConfigReconciler) fetchVsphereVersions(vdoctx vdocontext.VDOContext,
 }
 
 func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config *vdov1alpha1.VsphereCloudConfig) (*session.Session, error) {
-	var vcUser, vcUserPwd, datacenter string
-
 	vcUser, vcUserPwd, err := r.fetchVcCredentials(vdoctx, *config)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Error fetching vcenter credentials ")
 	}
 
-	if len(config.Spec.DataCenters) > 0 {
-		datacenter = config.Spec.DataCenters[0]
-	}
-
 	vcIp := config.Spec.VcIP
-	sess, err := session.GetOrCreate(vdoctx, vcIp, datacenter, vcUser, vcUserPwd, config.Spec.Thumbprint)
+	sess, err := SessionFn(vdoctx, vcIp, config.Spec.DataCenters, vcUser, vcUserPwd, config.Spec.Thumbprint)
 	if err != nil {
 		config.Status.Config = vdov1alpha1.VsphereConfigFailed
 		config.Status.Message = fmt.Sprintf("Error establishing session with vcenter %s for user %s", vcIp, vcUser)
@@ -295,20 +294,6 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 		return ctrl.Result{}, err
 	}
 
-	vdoctx.Logger.V(4).Info("reconciling node taint for CPI")
-	err = r.reconcileNodeTaint(vdoctx, clientset)
-	if err != nil {
-		r.updateCPIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of node taint for CPI configuration")
-		return ctrl.Result{}, err
-	}
-
-	vdoctx.Logger.V(4).Info("reconciling node label for CPI")
-	err = r.reconcileNodeLabel(vdoctx, req, clientset)
-	if err != nil {
-		r.updateCPIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of node label for CPI configuration")
-		return ctrl.Result{}, err
-	}
-
 	vdoctx.Logger.V(4).Info("reconciling deployment for CPI")
 	updateStatus, err := r.reconcileCPIDeployment(vdoctx)
 	if err != nil {
@@ -339,17 +324,24 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	vdoctx.Logger.Info("reconciling node providerID")
-	config, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset)
+	updReq, err := r.reconcileNodeProviderID(vdoctx, vdoConfig, clientset, &vsphereCloudConfigItems)
 	if err != nil {
-		r.updateCPIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of Provider ID for CPI")
+		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
 		return ctrl.Result{}, err
 	}
 
-	if config != nil {
-		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, config.Status.CPIStatus.Phase, config.Status.CPIStatus.NodeStatus)
+	if updReq {
+		err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, vdoConfig.Status.CPIStatus.NodeStatus)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+
+	vdoctx.Logger.V(4).Info("reconciling node label for CPI")
+	err = r.reconcileNodeLabel(vdoctx, req, clientset, vdoConfig)
+	if err != nil {
+		r.updateCPIStatusForError(vdoctx, err, vdoConfig, err.Error())
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
@@ -547,7 +539,7 @@ func (r *VDOConfigReconciler) verifyCSIDriverRegisteration(ctx vdocontext.VDOCon
 
 }
 
-func (r *VDOConfigReconciler) reconcileCPIDeploymentStatus(ctx vdocontext.VDOContext, clientset *kubernetes.Clientset) error {
+func (r *VDOConfigReconciler) reconcileCPIDeploymentStatus(ctx vdocontext.VDOContext, clientset kubernetes.Interface) error {
 	ctx.Logger.V(4).Info("will attempt to reconcile deployment status of CPI")
 	err := r.fetchDaemonSetPodStatus(ctx, clientset, CPI_DEPLOYMENT_NAME, DEPLOYMENT_NS, CPI_DAEMON_POD_KEY)
 	if err != nil {
@@ -668,51 +660,28 @@ func (r *VDOConfigReconciler) updateVdoConfigWithNodeStatus(ctx context.Context,
 	return nil
 }
 
-func (r *VDOConfigReconciler) reconcileNodeTaint(ctx context.Context, clientset *kubernetes.Clientset) error {
+func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req ctrl.Request, clientset kubernetes.Interface, vdoConfig *vdov1alpha1.VDOConfig) error {
+
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "Unable to fetch list of nodes")
+		return errors.Wrapf(err, "unable to fetch list of nodes")
 	}
-
-nodeLoop:
+nodeloop:
 	for _, node := range nodes.Items {
-		for _, taint := range node.Spec.Taints {
-			if taint.Key == CLOUD_PROVIDER_INIT_TAINT_KEY {
-				continue nodeLoop
+		if _, ok := vdoConfig.Status.CPIStatus.NodeStatus[node.Name]; ok {
+
+			if node.Labels == nil {
+				node.Labels = make(map[string]string)
 			}
-		}
 
-		r.Logger.Info("adding taint", "name", CLOUD_PROVIDER_INIT_TAINT_KEY)
+			if _, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
+				continue nodeloop
+			}
+			r.Logger.Info("adding node label", "name", VDO_NODE_LABEL_KEY, "node", node.Name)
 
-		taint := v1.Taint{
-			Key:       CLOUD_PROVIDER_INIT_TAINT_KEY,
-			Value:     "true",
-			Effect:    TAINT_NOSCHEDULE_KEY,
-			TimeAdded: nil,
-		}
-
-		node.Spec.Taints = append(node.Spec.Taints, taint)
-
-		_, err := clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{})
-		if err != nil {
-			return errors.Wrapf(err, "Error when updating taint %s on node %s", CLOUD_PROVIDER_INIT_TAINT_KEY, node.Name)
-		}
-	}
-
-	return nil
-}
-
-func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req ctrl.Request, clientset *kubernetes.Clientset) error {
-	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return errors.Wrapf(err, "Unable to fetch list of nodes")
-	}
-
-	for _, node := range nodes.Items {
-		if _, ok := node.Labels[VDO_NODE_LABEL_KEY]; !ok {
-			r.Logger.Info("adding node label", "name", VDO_NODE_LABEL_KEY)
 			node.Labels[VDO_NODE_LABEL_KEY] = req.Name
-			_, err = clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{})
+			_, err := clientset.CoreV1().Nodes().Update(ctx, &node, metav1.UpdateOptions{})
+
 			if err != nil {
 				return errors.Wrapf(err, "Unable to update label on node")
 			}
@@ -722,32 +691,61 @@ func (r *VDOConfigReconciler) reconcileNodeLabel(ctx vdocontext.VDOContext, req 
 	return nil
 }
 
-func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (*vdov1alpha1.VDOConfig, error) {
+func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (bool, error) {
 	nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
-	cpiStatus := vdov1alpha1.Configured
+	var updReq bool
 
+	cpiStatus := vdov1alpha1.Configured
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return config, errors.Wrapf(err, "Unable to fetch list of nodes")
+		return updReq, errors.Wrapf(err, "Error reconciling the providerID for CPI, unable to fetch list of nodes")
 	}
 
+nodeLoop:
 	for _, node := range nodes.Items {
 		if len(node.Spec.ProviderID) > 0 {
 			nodeStatus[node.Name] = vdov1alpha1.NodeStatusReady
-		} else {
-			nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
-			cpiStatus = vdov1alpha1.Configuring
+			r.Logger.Info("Adding to Available nodes", "node", node.Name)
+			continue nodeLoop
 		}
+
+		for _, taint := range node.Spec.Taints {
+			if taint.Key == CLOUD_PROVIDER_INIT_TAINT_KEY {
+
+				if _, ok := config.Status.CPIStatus.NodeStatus[node.Name]; ok {
+					nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
+					cpiStatus = vdov1alpha1.Configuring
+					continue nodeLoop
+				}
+
+				nodeExistsInVC, err := r.checkNodeExistence(ctx, vsphereCloudConfigs, node)
+				if err != nil {
+					return updReq, errors.Wrapf(err, "Error reconciling the providerID for CPI")
+				}
+
+				if nodeExistsInVC {
+					nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
+					cpiStatus = vdov1alpha1.Configuring
+					continue nodeLoop
+				}
+
+				err = errors.Errorf(" Cloud Provider is not configured to manage the node %s. Please check your cloud Provider settings. ", node.Name)
+				r.updateCPIStatusForError(ctx, err, config, err.Error())
+				return updReq, err
+			}
+
+		}
+
 	}
 
 	if config.Status.CPIStatus.Phase != cpiStatus ||
 		!reflect.DeepEqual(config.Status.CPIStatus.NodeStatus, nodeStatus) {
 		config.Status.CPIStatus.NodeStatus = nodeStatus
 		config.Status.CPIStatus.Phase = cpiStatus
-		return config, nil
+		updReq = true
 	}
 
-	return nil, nil
+	return updReq, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -807,8 +805,7 @@ func (r *VDOConfigReconciler) reconcileCPISecret(ctx vdocontext.VDOContext, conf
 
 			err = r.Create(ctx, &cpiSecret)
 			if err != nil {
-				config.Status.CPIStatus.Phase = vdov1alpha1.Failed
-				config.Status.CPIStatus.StatusMsg = fmt.Sprintf("could not create cpi secret %s", cpiSecret.Name)
+				r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("could not create cpi secret %s", cpiSecret.Name))
 				return config, errors.Wrap(err, "error creating cpi secret")
 			}
 
@@ -816,9 +813,7 @@ func (r *VDOConfigReconciler) reconcileCPISecret(ctx vdocontext.VDOContext, conf
 			err = r.updateCPIPhase(ctx, config, vdov1alpha1.Configuring, "")
 			return config, err
 		}
-
-		config.Status.CPIStatus.StatusMsg = fmt.Sprintf("unable to fetch secret %s", cpiSecret.Name)
-		config.Status.CPIStatus.Phase = vdov1alpha1.Failed
+		r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("unable to fetch secret %s", cpiSecret.Name))
 		return config, err
 	}
 
@@ -830,8 +825,7 @@ func (r *VDOConfigReconciler) reconcileCPISecret(ctx vdocontext.VDOContext, conf
 		err = r.Update(ctx, &cpiSecret)
 		if err != nil {
 			ctx.Logger.Error(err, "error occurred when updating cpiSecret")
-			config.Status.CPIStatus.Phase = vdov1alpha1.Failed
-			config.Status.CPIStatus.StatusMsg = fmt.Sprintf("could not update cpi secret %s", cpiSecret.Name)
+			r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("could not update cpi secret %s", cpiSecret.Name))
 			return config, err
 		}
 		err = r.updateCPIPhase(ctx, config, vdov1alpha1.Configuring, "")
@@ -850,9 +844,7 @@ func (r *VDOConfigReconciler) reconcileConfigMap(ctx vdocontext.VDOContext, conf
 
 	configDataMap, err := cpi.CreateVsphereConfig(config, *vsphereCloudConfigs, cpiSecretKey)
 	if err != nil {
-		config.Status.CPIStatus.Phase = vdov1alpha1.Failed
-		config.Status.CPIStatus.StatusMsg = fmt.Sprintf("could not create vsphere configmap %s", CONFIGMAP_NAME)
-		ctx.Logger.Error(err, "Error occurred when creating configDataMap for CPI")
+		r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("could not create vsphere configDataMap %s", CONFIGMAP_NAME))
 		return config, err
 	}
 
@@ -865,25 +857,22 @@ func (r *VDOConfigReconciler) reconcileConfigMap(ctx vdocontext.VDOContext, conf
 
 			vsphereConfigMap, err = cpi.CreateConfigMap(configDataMap, configMapKey)
 			if err != nil {
-				config.Status.CPIStatus.Phase = vdov1alpha1.Failed
-				config.Status.CPIStatus.StatusMsg = fmt.Sprintf("could not create vsphere configmap %s", CONFIGMAP_NAME)
-				ctx.Logger.Error(err, "Error occurred when creating configmap for CPI")
+				r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("could not create vsphere configmap %s", CONFIGMAP_NAME))
 				return config, err
 			}
 
 			err := r.Create(ctx, &vsphereConfigMap)
 			if err != nil && !apierrors.IsAlreadyExists(err) {
-				config.Status.CPIStatus.Phase = vdov1alpha1.Failed
-				config.Status.CPIStatus.StatusMsg = fmt.Sprintf("could not create vsphere configmap %s", CONFIGMAP_NAME)
-				return config, errors.Wrap(err, "error creating vsphere ConfigMap")
+				r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("could not create vsphere configmap %s", CONFIGMAP_NAME))
+
+				return config, err
 			}
 
 			err = r.updateCPIPhase(ctx, config, vdov1alpha1.Configuring, "")
 			return config, err
 		}
 
-		config.Status.CPIStatus.Phase = vdov1alpha1.Failed
-		config.Status.CPIStatus.StatusMsg = fmt.Sprintf("could not fetch configmap %s", CONFIGMAP_NAME)
+		r.updateCPIStatusForError(ctx, err, config, fmt.Sprintf("could not fetch configmap %s", CONFIGMAP_NAME))
 		return config, err
 	}
 
@@ -921,7 +910,7 @@ func (r *VDOConfigReconciler) reconcileCSISecret(ctx vdocontext.VDOContext, conf
 	ctx.Logger.V(4).Info("creating CSI secret config")
 	configData, err := csi.CreateCSISecretConfig(config, vsphereCloudConfig, vcUser, vcUserPwd, CSI_SECRET_CONFIG_FILE)
 	if err != nil {
-		ctx.Logger.Error(err, "unable to create csi config")
+		r.updateCSIStatusForError(ctx, err, config, "unable to create csi config")
 		return config, err
 	}
 
@@ -1128,4 +1117,34 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOConte
 	}
 
 	return nil
+}
+
+func (r *VDOConfigReconciler) checkNodeExistence(ctx vdocontext.VDOContext, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig, node v1.Node) (bool, error) {
+
+	for _, cloudConfig := range *vsphereCloudConfigs {
+		sess, err := r.getVcSession(ctx, &cloudConfig)
+		if err != nil {
+			return false, err
+		}
+
+		var nodeIP string
+		if len(node.Status.Addresses) > 0 {
+			for _, address := range node.Status.Addresses {
+				if address.Type == v1.NodeInternalIP {
+					nodeIP = address.Address
+				}
+			}
+		}
+
+		vm, err := GetVMFn(ctx, nodeIP, sess.Datacenters)
+		if err != nil {
+			return false, err
+		}
+
+		if vm != nil {
+			return true, nil
+		}
+
+	}
+	return false, nil
 }

@@ -43,7 +43,7 @@ func TestSession(t *testing.T) {
 
 	authSession, err := GetOrCreate(
 		context.Background(),
-		s.Server.URL, "",
+		s.Server.URL, []string{},
 		s.URL.User.Username(), pass, "")
 	Expect(err).To(BeNil())
 	Expect(authSession).NotTo(BeNil())
