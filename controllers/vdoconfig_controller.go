@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-version"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
@@ -25,6 +26,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
@@ -67,6 +69,7 @@ const (
 	CSI_SECRET_NAME               = "vsphere-config-secret"
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
+	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -124,14 +127,15 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
+	matrixConfigContent := os.Getenv(COMPAT_MATRIX_CONFIG_CONTENT)
 
-	if matrixConfigUrl == "" {
-		err = errors.New("Matrix Config URL not provided")
+	matrixConfig, err := r.getMatrixConfig(matrixConfigUrl, matrixConfigContent)
+	if err != nil {
 		vdoctx.Logger.Error(err, "Unable to fetch deployment yamls")
 		return ctrl.Result{}, err
 	}
 
-	err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfigUrl)
+	err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfig)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -597,23 +601,32 @@ func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext) 
 	return updateStatus, nil
 }
 
-func (r *VDOConfigReconciler) applyYaml(url string, ctx vdocontext.VDOContext, updateStatus bool) (bool, error) {
-	ctx.Logger.V(4).Info("will attempt to apply spec file", "url", url)
+func (r *VDOConfigReconciler) applyYaml(yamlPath string, ctx vdocontext.VDOContext, updateStatus bool) (bool, error) {
+	ctx.Logger.V(4).Info("will attempt to apply spec file", "yamlPath", yamlPath)
 
 	var exists bool
+	var fileBytes []byte
+	var err error
 
-	fileBytes, err := dynclient.GenerateYaml(url)
-	if err != nil {
-		return updateStatus, err
+	if strings.Contains(yamlPath, "file://") {
+		fileBytes, err = dynclient.GenerateYamlFromFilePath(yamlPath)
+		if err != nil {
+			return updateStatus, err
+		}
+	} else {
+		fileBytes, err = dynclient.GenerateYamlFromUrl(yamlPath)
+		if err != nil {
+			return updateStatus, err
+		}
 	}
 
 	_, err = dynclient.ParseAndProcessK8sObjects(ctx, r.Client, fileBytes, "")
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			ctx.Logger.V(4).Info("given spec file already exists", "url", url)
+			ctx.Logger.V(4).Info("given spec file already exists", "yamlPath", yamlPath)
 			exists = true
 		} else {
-			ctx.Logger.V(4).Error(err, "unable to apply spec file", "url", url)
+			ctx.Logger.V(4).Error(err, "unable to apply spec file", "yamlPath", yamlPath)
 			return updateStatus, err
 		}
 	}
@@ -996,7 +1009,6 @@ func (r *VDOConfigReconciler) compareSkewVersions(currentVersion, supportedVersi
 }
 
 func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
-	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
 	var versionList []string
 
 	for ver := range matrix.CSISpecList {
@@ -1041,7 +1053,6 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext,
 }
 
 func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
-	// TODO Support for deployment Yamls to be present locally, at present pulling them from URLs
 	var versionList []string
 
 	for ver := range matrix.CPISpecList {
@@ -1084,7 +1095,9 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 	return nil
 }
 
-func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, matrixConfigUrl string) error {
+func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, matrixConfig string) error {
+
+	var matrix CompatMatrix
 
 	k8sVersion, err := r.fetchk8sVersions(ctx)
 	if err != nil {
@@ -1098,10 +1111,18 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOConte
 		return err
 	}
 
-	matrix, err := dynclient.ParseMatrixYaml(matrixConfigUrl)
-	if err != nil {
-		ctx.Logger.Error(err, "Error occurred when Parsing the matrix yaml", "Url", matrixConfigUrl)
-		return err
+	if matrixConfig == os.Getenv(COMPAT_MATRIX_CONFIG_URL) {
+		matrix, err = dynclient.ParseMatrixYaml(matrixConfig)
+		if err != nil {
+			ctx.Logger.Error(err, "Error occurred when Parsing the matrix yaml", "Path", matrixConfig)
+			return err
+		}
+	} else {
+		err = json.Unmarshal([]byte(matrixConfig), &matrix)
+		if err != nil {
+			ctx.Logger.Error(err, "Error occurred when Parsing the matrix yaml", "Contents", matrixConfig)
+			return err
+		}
 	}
 
 	err = r.fetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
@@ -1147,4 +1168,18 @@ func (r *VDOConfigReconciler) checkNodeExistence(ctx vdocontext.VDOContext, vsph
 
 	}
 	return false, nil
+}
+
+func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigContent string) (string, error) {
+
+	var err error
+
+	if matrixConfigUrl != "" && matrixConfigContent == "" {
+		return matrixConfigUrl, nil
+	} else if matrixConfigUrl == "" && matrixConfigContent != "" {
+		return matrixConfigContent, nil
+	} else {
+		err = errors.New("Matrix Config URL/Content not provided in proper format")
+		return "", err
+	}
 }
