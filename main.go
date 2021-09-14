@@ -93,20 +93,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	vdoConfigReconciler := &controllers.VDOConfigReconciler{
+	if err = (&controllers.VDOConfigReconciler{
 		Client:       mgr.GetClient(),
 		Logger:       ctrllog.Log.WithName("controllers").WithName("VDOConfig"),
 		Scheme:       mgr.GetScheme(),
 		ClientConfig: mgr.GetConfig(),
-	}
-
-	//Start configMap watcher for Compatibility Matrix
-	go vdoConfigReconciler.WatchForConfigMapChanges()
-
-	if err = (vdoConfigReconciler).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VDOConfig")
 		os.Exit(1)
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
