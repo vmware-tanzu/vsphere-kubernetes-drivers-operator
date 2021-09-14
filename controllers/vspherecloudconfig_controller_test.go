@@ -73,7 +73,7 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 
 			cloudConfig := v1alpha1.VsphereCloudConfig{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-resource",
+					Name:      "test-resource1",
 					Namespace: "default",
 				},
 				Spec: v1alpha1.VsphereCloudConfigSpec{
@@ -87,7 +87,7 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 			Expect(k8sClient.Create(ctx, &cloudConfig)).Should(Succeed())
 			config := v1alpha1.VsphereCloudConfig{}
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "default", Name: "test-resource"}, &config)
+				err := k8sClient.Get(ctx, types.NamespacedName{Namespace: "default", Name: "test-resource1"}, &config)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			Expect(config.Spec.VcIP).Should(Equal("1.1.1.1"))
@@ -98,7 +98,7 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 
 			cloudConfig := &v1alpha1.VsphereCloudConfig{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-resource",
+					Name:      "test-resource1",
 					Namespace: "default",
 				},
 				Spec: v1alpha1.VsphereCloudConfigSpec{
@@ -133,7 +133,7 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
-					Name:      "test-resource",
+					Name:      "test-resource1",
 					Namespace: "default",
 				},
 			}
@@ -145,7 +145,7 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 
 			config := v1alpha1.VsphereCloudConfig{}
 			Eventually(func() v1alpha1.ConfigStatus {
-				err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: "test-resource"}, &config)
+				err := client.Get(ctx, types.NamespacedName{Namespace: "default", Name: "test-resource1"}, &config)
 				if err != nil {
 					return ""
 				}
