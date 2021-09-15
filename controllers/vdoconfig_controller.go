@@ -21,20 +21,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-version"
+	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
+	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
+	. "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/discovery"
 	"os"
 	"reflect"
 	"sort"
 	"strings"
-
-	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
-	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
-	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
-	. "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
-	appsv1 "k8s.io/api/apps/v1"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -83,8 +82,15 @@ type VDOConfigReconciler struct {
 }
 
 var (
-	SessionFn = session.GetOrCreate
-	GetVMFn   = session.GetVMByIP
+	SessionFn      = session.GetOrCreate
+	GetVMFn        = session.GetVMByIP
+	isVDOAvailable bool
+)
+
+const (
+	CM_NAME        = "compat-matrix-config"
+	CM_URL_KEY     = "versionConfigURL"
+	CM_CONTENT_KEY = "versionConfigContent"
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -110,24 +116,33 @@ var (
 func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.Logger.Info("Inside VDOConfig reconciler", "name", req.NamespacedName)
 
-	clientset, err := kubernetes.NewForConfig(r.ClientConfig)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
 	vdoctx := vdocontext.VDOContext{
 		Context: ctx,
 		Logger:  r.Logger,
 	}
-	vdoConfig := &vdov1alpha1.VDOConfig{}
-	err = r.Get(ctx, req.NamespacedName, vdoConfig)
+
+	// Check if Reconcile is for ConfigMap Changes
+	err := r.updateMatrixInfo(vdoctx, req)
 	if err != nil {
-		vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
 		return ctrl.Result{}, err
 	}
 
+	vdoConfig := &vdov1alpha1.VDOConfig{}
+	err = r.Get(ctx, req.NamespacedName, vdoConfig)
+	if err != nil {
+		isVDOAvailable = false
+		vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
+		return ctrl.Result{}, err
+	}
+	isVDOAvailable = true
+
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
 	matrixConfigContent := os.Getenv(COMPAT_MATRIX_CONFIG_CONTENT)
+
+	clientset, err := kubernetes.NewForConfig(r.ClientConfig)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	matrixConfig, err := r.getMatrixConfig(matrixConfigUrl, matrixConfigContent)
 	if err != nil {
@@ -152,6 +167,43 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	return result, nil
 
+}
+
+func (r *VDOConfigReconciler) updateMatrixInfo(ctx vdocontext.VDOContext, req ctrl.Request) error {
+
+	if req.NamespacedName.Namespace == VDO_NAMESPACE && req.NamespacedName.Name == CM_NAME {
+		configMap := &v1.ConfigMap{}
+		err := r.Get(ctx, req.NamespacedName, configMap)
+		if err != nil {
+			//Reset the env variables in case ConfigMap is not available
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_URL, "")
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_CONTENT, "")
+			ctx.Logger.Error(err, "Error occurred when fetching ConfigMap resource", "name", req.NamespacedName)
+			return err
+		}
+
+		//Get the modified Value for URL/Content and Set it as env
+		if updatedURLValue, ok := configMap.Data[CM_URL_KEY]; ok {
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_URL, updatedURLValue)
+		}
+		if updatedContentValue, ok := configMap.Data[CM_CONTENT_KEY]; ok {
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_CONTENT, updatedContentValue)
+		}
+
+		// If the ConfigMap is created before VDOConfigResource then skip the reconcile for VDOConfig.
+		if !isVDOAvailable {
+			return errors.New("Skipping the reconcile for VDOConfigReosurce")
+		}
+	}
+	return nil
+}
+
+// setEnvVariables sets the env variables
+func (r *VDOConfigReconciler) setEnvVariables(key string, value string) {
+	err := os.Setenv(key, value)
+	if err != nil {
+		r.Logger.Error(err, fmt.Sprintf("Failed to set the env variable :  %s", key))
+	}
 }
 
 func (r *VDOConfigReconciler) fetchVSphereCloudConfig(ctx vdocontext.VDOContext, vSphereCloudConfigName string, vdoConfigNamespace string) (*vdov1alpha1.VsphereCloudConfig, error) {
@@ -787,6 +839,20 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					}
 				}
 
+				return nil
+			})).
+		Watches(
+			&source.Kind{Type: &v1.ConfigMap{}},
+			handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
+				configMap, _ := object.(*v1.ConfigMap)
+				if configMap.Namespace == VDO_NAMESPACE && configMap.Name == CM_NAME {
+					return []ctrl.Request{{
+						NamespacedName: types.NamespacedName{
+							Namespace: VDO_NAMESPACE,
+							Name:      configMap.Name,
+						}},
+					}
+				}
 				return nil
 			})).
 		Complete(r)
