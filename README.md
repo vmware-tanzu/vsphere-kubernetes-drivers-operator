@@ -1,6 +1,8 @@
 # vSphere Kubernetes Drivers Operator  
 
 [![Build](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/actions/workflows/BuildAndDeploy.yml/badge.svg)](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/actions/workflows/BuildAndDeploy.yml)
+[![codecov](https://codecov.io/gh/vmware-tanzu/vsphere-kubernetes-drivers-operator/branch/main/graph/badge.svg?token=PPCTBLPLWJ)](https://codecov.io/gh/vmware-tanzu/vsphere-kubernetes-drivers-operator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator)](https://goreportcard.com/report/github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator)
 
 ## Overview
 
