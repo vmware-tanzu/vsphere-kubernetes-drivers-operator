@@ -1103,6 +1103,128 @@ var _ = Describe("TestGetMatrixConfig", func() {
 	})
 })
 
+var _ = Describe("TestupdateMatrixInfo", func() {
+
+	Context("When creating new Matrix", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		expect := version.Info{
+			Major:     "1",
+			Minor:     "21",
+			GitCommit: "v1.21.1",
+		}
+		// get server object with expected version info
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			output, err := json.Marshal(expect)
+			Expect(err).NotTo(HaveOccurred())
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, err = w.Write(output)
+			Expect(err).NotTo(HaveOccurred())
+		}))
+
+		r := VDOConfigReconciler{
+			Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme:       s,
+			ClientConfig: &restclient.Config{Host: server.URL},
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      CM_NAME,
+				Namespace: VDO_NAMESPACE,
+			},
+		}
+
+		SessionFn = func(ctx context.Context,
+			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+			return &session.Session{
+				Client:         nil,
+				Datacenters:    nil,
+				VsphereVersion: "7.0.3",
+			}, nil
+
+		}
+		vdoConfig := initializeVDOConfig()
+		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
+
+		It("should create the resources without error", func() {
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte("test_user"),
+					"password": []byte("test_password"),
+				},
+			}
+			Expect(r.Create(ctx, secret)).Should(Succeed())
+
+			configMapObject := &v12.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      CM_NAME,
+					Namespace: VDO_NAMESPACE,
+				},
+				Data: map[string]string{
+					"auto-upgrade":     "disabled",
+					"versionConfigURL": "https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml",
+				},
+			}
+
+			Expect(r.Create(ctx, configMapObject)).Should(Succeed())
+		})
+
+		It("Should set the env variables", func() {
+			isVDOAvailable = true
+			err := r.updateMatrixInfo(vdoctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(os.Getenv(COMPAT_MATRIX_CONFIG_URL)).Should(Equal("https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml"))
+			defer server.Close()
+		})
+
+		It("Should give error if VDOConfig not available", func() {
+			isVDOAvailable = false
+			err := r.updateMatrixInfo(vdoctx, req)
+			Expect(err).To(HaveOccurred())
+			defer server.Close()
+		})
+
+		It("Should unset env variables when Configmap is deleted", func() {
+			isVDOAvailable = true
+			configMapObject := &v12.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      CM_NAME,
+					Namespace: VDO_NAMESPACE,
+				},
+				Data: map[string]string{
+					"auto-upgrade":     "disabled",
+					"versionConfigURL": "https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml",
+				},
+			}
+			Expect(r.Delete(ctx, configMapObject)).Should(Succeed())
+			err := r.updateMatrixInfo(vdoctx, req)
+			Expect(os.Getenv(COMPAT_MATRIX_CONFIG_URL)).Should(Equal(""))
+			Expect(err).To(HaveOccurred())
+			defer server.Close()
+		})
+	})
+})
+
 var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 
 	Context("When fetching deployment yamls", func() {
