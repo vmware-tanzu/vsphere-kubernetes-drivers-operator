@@ -171,31 +171,23 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 func (r *VDOConfigReconciler) updateMatrixInfo(ctx vdocontext.VDOContext, req ctrl.Request) error {
 
-	if req.NamespacedName.Namespace == VDO_NAMESPACE && req.Name == CM_NAME {
+	if req.NamespacedName.Namespace == VDO_NAMESPACE && req.NamespacedName.Name == CM_NAME {
 		configMap := &v1.ConfigMap{}
 		err := r.Get(ctx, req.NamespacedName, configMap)
 		if err != nil {
-			ctx.Logger.Error(err, "Error occurred when fetching ConfigMap-- resource", "name", req.NamespacedName)
+			//Reset the env variables in case ConfigMap is not available
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_URL, "")
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_CONTENT, "")
+			ctx.Logger.Error(err, "Error occurred when fetching ConfigMap resource", "name", req.NamespacedName)
 			return err
 		}
 
-		// Checkonly for ConfigMap with name as compat-matrix-config
-		if configMap.Name == CM_NAME {
-			//Get the modified Value for URL/Content and Set it as env
-			if updatedURLValue, ok := configMap.Data[CM_URL_KEY]; ok {
-				err := os.Setenv(COMPAT_MATRIX_CONFIG_URL, updatedURLValue)
-				if err != nil {
-					ctx.Logger.Error(err, fmt.Sprintf("Failed to set the env variable :  %s", COMPAT_MATRIX_CONFIG_URL))
-					return err
-				}
-			}
-			if updatedContentValue, ok := configMap.Data[CM_CONTENT_KEY]; ok {
-				err := os.Setenv(COMPAT_MATRIX_CONFIG_CONTENT, updatedContentValue)
-				if err != nil {
-					ctx.Logger.Error(err, fmt.Sprintf("Failed to set the env variable :  %s", COMPAT_MATRIX_CONFIG_CONTENT))
-					return err
-				}
-			}
+		//Get the modified Value for URL/Content and Set it as env
+		if updatedURLValue, ok := configMap.Data[CM_URL_KEY]; ok {
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_URL, updatedURLValue)
+		}
+		if updatedContentValue, ok := configMap.Data[CM_CONTENT_KEY]; ok {
+			r.setEnvVariables(COMPAT_MATRIX_CONFIG_CONTENT, updatedContentValue)
 		}
 
 		// If the ConfigMap is created before VDOConfigResource then skip the reconcile for VDOConfig.
@@ -204,6 +196,14 @@ func (r *VDOConfigReconciler) updateMatrixInfo(ctx vdocontext.VDOContext, req ct
 		}
 	}
 	return nil
+}
+
+// setEnvVariables sets the env variables
+func (r *VDOConfigReconciler) setEnvVariables(key string, value string) {
+	err := os.Setenv(key, value)
+	if err != nil {
+		r.Logger.Error(err, fmt.Sprintf("Failed to set the env variable :  %s", key))
+	}
 }
 
 func (r *VDOConfigReconciler) fetchVSphereCloudConfig(ctx vdocontext.VDOContext, vSphereCloudConfigName string, vdoConfigNamespace string) (*vdov1alpha1.VsphereCloudConfig, error) {
