@@ -104,6 +104,9 @@ test: manifests generate fmt vet ## Run tests.
 build: generate fmt vet lint ## Build manager binary.
 	go build -o bin/manager main.go
 
+build-vdoctl: generate fmt vet lint ## Build manager binary.
+	go build -o bin/vdoctl vdoctl/main.go
+
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
