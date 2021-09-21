@@ -21,6 +21,7 @@ BINARY_NAME			= vspheredriver-operator
 IMAGE_TAG         	?= latest
 BUILD_NUMBER 	  	?= 00000000 # from gobuild
 BUILD_VERSION 		?= $(shell git describe --always 2>/dev/null)
+ARTIFACTS_DIR		?= artifacts
 
 # DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
@@ -83,6 +84,8 @@ help: ## Display this help.
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) output:rbac:dir=./config/rbac rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	@mkdir -p $(ARTIFACTS_DIR)
+	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/vdo-spec.yaml
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -126,7 +129,6 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 deploy: manifests kustomize deploy-local-kind ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > spec.yaml
 	kubectl apply -f spec.yaml
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.

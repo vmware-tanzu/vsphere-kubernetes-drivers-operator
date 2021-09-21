@@ -7,152 +7,31 @@
 ## Overview
 
 The vSphere Kubernetes Drivers Operator project is designed to simplify and
-automate the lifecycle management of CNI, CSI and CPI drivers in a Kubernetes
-cluster running on vSphere. It will do this by following the Kubernetes operator
-model in which desired state and configuration is defined in a custom resource
-and the operator(s) running in Kubernetes will attempt to reconcile the drivers
-to satisfy the desired state.
+automate the lifecycle management of CSI and CPI drivers in a Kubernetes
+cluster running on vSphere. The operator exposes Custom Resources to configure
+CPI and CSI drivers.
+
+![](docs/vdo-topology.png)
 
 ## Goals
 
 Our goal is to make vSphere the best place to run any Kubernetes and to vastly
 simplify the experience of deploying Kubernetes to vSphere.
 
-### Phase 1
-
-- Improve the resiliance, error reporting and state transition status of the
-  existing drivers
-- Provide a single point of reference to the information necessary to perform
-  a manual install of the vSphere drivers
-- Ensure that the existing documentation for a manual install is up to date
-  and correct
-- Ensure that common error conditions are tested, feedback from the driver
-  is clear and remediation information is available
-- Document how to contribute
-
-### Phase 2
-
-- Design a consolidated configuration format - the Spec of the custom
-  resource(s) - that covers the config needed for all of the drivers
-- Come up with a design spec for the operator, including but not exclusive to:
-  - The topology - should it be a single operator with a controller per
-    driver or multiple operators?
-  - Build depedencies - are the existing drivers statically linked
-    into the new operator or does it load them dynamically?
-  - How do the drivers consume the new CRD format? Should it be cloned?
-    Should the config format be pluggable?
-  - Control flow for each driver. What are the preconditions that have
-    to be met before it can be installed?
-  - Interdependencies between drivers. How are state transitions managed?
-  - What Status would users expect to be able to see from the drivers operator?
-  - What CNI implementations are we supporting?
-  - How should we define health and liveness?
-  - What metrics might we want to export for monitoring?
-  - How is compatibility defined and enforced? Between the drivers themselves,
-    the K8S version in use and the target vSphere
-  - Define common expected failure conditions and how these should be
-    reported to the user
-  - Ensure that requirements for specific distributions such as OpenShift
-    are properly captured
-- Define basic driver framework, including makefiles, build and test.
-  Include proposed framework(s) Eg. Kubebuilder
-- Create controllers with stubs that assert the defined state transitions,
-  status reporting and basic lifecycle functions work
-- Build out controllers for each of the drivers incrementally ensuring
-  integration tests are added where necessary
-- End goal of Phase 2 is to have a functioning drivers operator for
-  upstream K8S that installs and deletes drivers
-
-### Phase 3
-
-- Deliver any additional requirements for specific distributions, such as OpenShift
-
-vSphere Kubernetes Drivers Operator (VDO) is a kubernetes operator
-responsible for installing CPI and CSI vSphere drivers
-enabling k8s workloads to run on vSphere
-
 ## Prerequisites
 
-VDO can run on vanilla as well as OpenShift k8s clusters
-It is expected that the kubernetes master/worker vms are setup to work on vSphere
+VDO has been tested on k8s cluster running versions 1.21 or later. VDO can run on vanilla
+as well as openshift k8s clusters
+
+1. vSphere 6.7U3(or later) is supported for VDO
+2. Virtual Machine hardware version should be version 15(or later)
+3. K8s master nodes should be able to communicate with vcenter management interface
+4. Disable Swap(`swapoff -a`) on all nodes
+5. Enable Disk UUID(disk.EnableUUID) on all node vm's
 
 ## Getting Started
 
-VDO operator is built out of operator-sdk.
-The operator is configured to run on master node, with a single replica deployment.
-
-Refer the [MakeFile](Makefile) to build and deploy the operator.
-The operator can be deployed
-
-1. locally on a kind cluster `make deploy`
-
-2.remotely on a live k8s cluster `make deploy-k8s-cluster`
-
-Run `make generate` to generate the scaffolding code from the provided base types
-
-Run `make manifests` to generate the spec files required to deploy the operator
-
-### Configuration
-
-Pre-requisite for deploying operator
-
-1. Create Configmap
-2. Configuration of VDO
-
-The following steps help in configuring VDO to install/configure the drivers
-
-1. configure compatibility
-
-   - `cat <<EOF | sudo tee comp-matrix-config.yaml
-     apiVersion: v1
-     kind: ConfigMap
-     metadata:
-     name: comp-matrix-config
-     namespace: vmware-system-vdo
-     data:
-     versionConfigURL: "matrix-url"
-     auto-upgrade: "disabled"`
-
-     `kubectl apply -f comp-matrix-config.yaml`
-
-2. create secret
-
-    - `cat <<EOF | sudo tee secret.yaml
-      apiVersion: v1
-      kind: Secret
-      metadata:
-      name: vc-name-creds
-      namespace: kube-system
-      type: kubernetes.io/basic-auth
-      stringData:
-      username: "vc-username"
-      password: "vc-password"`
-
-      `kubectl apply -f secret.yaml`
-
-3. create VsphereCloudConfig resource
-    - credentials field in the resource refers to the name of the secret
-4. create VDOconfig resource
-   - Cloud Provider can take multiple instances of VsphereCloudConfig resource
-   - Storage provider takes a single VsphereCLoudConfig resource
-
-### Deploy to kind cluster
-
-Run `make deploy` target to `generate`, `build` and `deploy`
-the operator in local kind cluster
-
-### Deploy to K8S cluster
-
-Following environment variables need to be set before invoking the target
-
-1. K8S_MASTER_IP - IP of K8s Master
-
-2. K8S_MASTER_SSH_USER - username to ssh into k8smaster
-
-3. K8S_MASTER_SSH_PWD - password to ssh into k8smaster
-
-Run `make deploy-k8s-cluster` target to build container and
-deploy the container image in the given k8s cluster
+Getting started with VDO is simple and straightforward. Please head to [Getting Started](docs/getting-started.md)
 
 ## Community
 
