@@ -11,7 +11,7 @@ automate the lifecycle management of CSI and CPI drivers in a Kubernetes
 cluster running on vSphere. The operator exposes Custom Resources to configure
 CPI and CSI drivers.
 
-![](docs/vdo-topology.png)
+![topology](docs/vdo-topology.png)
 
 ## Goals
 
@@ -20,8 +20,8 @@ simplify the experience of deploying Kubernetes to vSphere.
 
 ## Prerequisites
 
-VDO has been tested on k8s cluster running versions 1.21 or later. VDO can run on vanilla
-as well as openshift k8s clusters
+VDO has been tested on k8s cluster running versions 1.21 or later.
+VDO can run on vanilla as well as openshift k8s clusters
 
 1. vSphere 6.7U3(or later) is supported for VDO
 2. Virtual Machine hardware version should be version 15(or later)

@@ -82,7 +82,7 @@ help: ## Display this help.
 
 ##@ Development
 
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) output:rbac:dir=./config/rbac rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	@mkdir -p $(ARTIFACTS_DIR)
 	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/vdo-spec.yaml
