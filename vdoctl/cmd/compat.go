@@ -20,8 +20,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg"
-
 	//"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -141,10 +139,6 @@ func promptGetCompatMat(cm compatMatrix) string {
 	validate := func(input string) error {
 		if len(input) <= 0 {
 			return errors.New(cm.errorMsg)
-		}
-
-		if cm.input == "filepath" && !pkg.IsUrl(input) {
-			return errors.New("Please provide valid URL")
 		}
 
 		return nil

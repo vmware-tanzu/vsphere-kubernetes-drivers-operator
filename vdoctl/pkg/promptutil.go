@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"errors"
 	"fmt"
 	"github.com/manifoldco/promptui"
 	"net"
@@ -9,7 +10,7 @@ import (
 	"strings"
 )
 
-func IsUrl(str string) bool {
+func CheckIfUrl(str string) bool {
 	url, err := url.ParseRequestURI(str)
 	if err != nil {
 		return false
@@ -25,14 +26,25 @@ func IsUrl(str string) bool {
 	return true
 }
 
-//func checkIPAddress(ip string) bool {
-//	return net.ParseIP(ip) != nil
-//}
+//ds:///vmfs/volumes/6127d203-83712bb4-f4ae-02000c01829c/
 
-func PromptGetInput(label string, err error) string {
+func checkIPAddress(ip string) bool {
+	return net.ParseIP(ip) != nil
+}
+
+func PromptGetInput(label string, err error, isUrl bool, isPwd bool, isIP bool) string {
 	validate := func(input string) error {
 		if len(input) <= 0 {
 			return err
+		}
+
+		if isUrl && !CheckIfUrl(input) {
+			return errors.New("Please provide a valid URL")
+
+		}
+
+		if isIP && !checkIPAddress(input) {
+			return errors.New("Please provide a valid IP address")
 		}
 		return nil
 	}
@@ -48,6 +60,9 @@ func PromptGetInput(label string, err error) string {
 		Label:     label,
 		Templates: templates,
 		Validate:  validate,
+	}
+	if isPwd {
+		prompt.Mask = '*'
 	}
 
 	res, err := prompt.Run()
