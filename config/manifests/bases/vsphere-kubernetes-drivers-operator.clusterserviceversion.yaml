@@ -1,0 +1,55 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: vsphere-kubernetes-drivers-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: VDOConfig is the Schema for the vdoconfigs API
+      displayName: VDOConfig
+      kind: VDOConfig
+      name: vdoconfigs.vdo.vmware.com
+      version: v1alpha1
+    - description: VsphereCloudConfig is the Schema for the vspherecloudconfigs API
+      displayName: Vsphere Cloud Config
+      kind: VsphereCloudConfig
+      name: vspherecloudconfigs.vdo.vmware.com
+      version: v1alpha1
+  description: vSphere Kubernetes Drivers Operator a.k.a VDO is responsible for install/manage
+    of vsphere drivers such as CPI and CSI that help run k8s workloads on vSphere.
+    This operator exposes two Custom Resource Definitions VsphereCloudConfig and VDOConfig.
+    These resources help to configure VDO thereby configuring the vSphhere drivers
+  displayName: vSphere Kubernetes Drivers Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: false
+    type: AllNamespaces
+  keywords:
+  - vdo
+  - cpi
+  - csi
+  - vSphere
+  links:
+  - name: Vsphere Kubernetes Drivers Operator
+    url: https://vsphere-kubernetes-drivers-operator.domain
+  maturity: alpha
+  provider:
+    name: vmware
+  version: 0.0.0
