@@ -22,6 +22,7 @@ IMAGE_TAG         	?= latest
 BUILD_NUMBER 	  	?= 00000000 # from gobuild
 BUILD_VERSION 		?= $(shell git describe --always 2>/dev/null)
 ARTIFACTS_DIR		?= artifacts
+SPEC_FILE			?= vdo-spec.yaml
 
 # DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
@@ -85,7 +86,8 @@ help: ## Display this help.
 manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) output:rbac:dir=./config/rbac rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	@mkdir -p $(ARTIFACTS_DIR)
-	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/vdo-spec.yaml
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/$(SPEC_FILE)
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -128,8 +130,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 deploy: manifests kustomize deploy-local-kind ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	kubectl apply -f $(ARTIFACTS_DIR)/vdo-spec.yaml
+	kubectl apply -f $(ARTIFACTS_DIR)/$(SPEC_FILE)
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
@@ -149,8 +150,6 @@ deploy-local-kind: kind-cluster build docker-build  ## Build manager and Deploy 
 deploy-k8s-cluster: manifests kustomize build ## Build manager and Deploy the deployment to kind cluster.
 	mkdir -p export
 	docker build -t ${IMG} --output type=tar,dest=export/vdo.tar .
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > spec.yaml
 	./hack/deploy-vdo-cluster.sh ${IMG}
 
 # Create a kind cluster

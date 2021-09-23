@@ -8,7 +8,7 @@ IS_DOCKER=$(which docker &> /dev/null && echo false || echo true)
 IMG_EXPORT_DIR="export"
 SSHARGS="-q -o PubkeyAuthentication=no -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 imgName=$1
-SPEC_FILE="spec.yaml"
+SPEC_FILE="artifacts/vdo-spec.yaml"
 REMOTE_DEST_DIR="/tmp"
 
 function verifyEnvironmentVariables() {
