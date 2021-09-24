@@ -1,4 +1,4 @@
-package pkg
+package utils
 
 import (
 	"errors"
@@ -18,6 +18,8 @@ const (
 	IsIP     ValidationFlags = "isIP"
 	IsString ValidationFlags = "isString"
 )
+
+type CPIState string
 
 func CheckIfUrl(str string) bool {
 	url, err := url.ParseRequestURI(str)

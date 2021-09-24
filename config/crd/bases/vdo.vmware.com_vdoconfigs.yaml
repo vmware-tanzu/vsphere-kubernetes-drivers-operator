@@ -58,8 +58,6 @@ spec:
                     items:
                       type: string
                     type: array
-                required:
-                - vsphereCloudConfigs
                 type: object
               storageProvider:
                 description: StorageProvider refers to the section of config that

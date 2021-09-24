@@ -18,8 +18,7 @@ package cmd
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,7 +42,6 @@ var compatCmd = &cobra.Command{
 	Short: "Compatibility matrix of VDO",
 	Long:  `This command helps to configure compatiblity matrix for VDO`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("compat called")
 		ctx := context.Background()
 
 		config, err := buildConfig()
@@ -63,13 +61,13 @@ var compatCmd = &cobra.Command{
 			panic(err)
 		}
 
-		item := pkg.PromptGetSelect([]string{"local filepath", "fileURL"}, "Please select the mode for providing compat-matrix")
+		item := utils.PromptGetSelect([]string{"local filepath", "fileURL"}, "Please select the mode for providing compat-matrix")
 
-		flag := pkg.IsString
+		flag := utils.IsString
 		if item == "fileURL" {
-			flag = pkg.IsURL
+			flag = utils.IsURL
 		}
-		filePath := pkg.PromptGetInput(item, errors.New("invalid input"), flag)
+		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
 
 		err = CreateConfigMap(filePath, client, ctx)
 		if err != nil {

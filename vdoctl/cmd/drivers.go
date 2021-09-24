@@ -20,10 +20,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 	"strings"
 
 	"github.com/thanhpk/randstr"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg"
 	"k8s.io/client-go/rest"
 
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
@@ -71,6 +71,7 @@ const (
 	KubeSystemNamespace = "kube-system"
 	vdoConfigName       = "vdo-config"
 	secretType          = "kubernetes.io/basic-auth"
+	ClusterDistribution = "OpenShift"
 )
 
 var (
@@ -78,6 +79,7 @@ var (
 	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
 	AddToScheme        = SchemeBuilder.AddToScheme
 )
+
 
 // driversCmd represents the drivers command
 var driversCmd = &cobra.Command{
@@ -125,20 +127,16 @@ var driversCmd = &cobra.Command{
 			thumbprint: "SSL Thumbprint",
 		}
 
-		isCPIRequired := pkg.PromptGetInput("Do you want to configure Cloud Provider ? (Y/N)", errors.New("invalid input"), pkg.IsString)
+		isCPIRequired := utils.PromptGetInput("Do you want to configure Cloud Provider ? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if isCPIRequired == "Y" || isCPIRequired == "y" {
-			getVCIP(&cpi, labels, "Cloud Provider")
+			fetchVCIP(&cpi, labels, "Cloud Provider")
 			vcIPList = append(vcIPList, cpi.vcIp)
 
 		multivcloop:
 			for {
-				fmt.Println("Please provide the credentials")
 
-				cpi.username = pkg.PromptGetInput(labels.username, errors.New("unable to get the username"), pkg.IsString)
-				cpi.password = pkg.PromptGetInput(labels.password, errors.New("unable to get the password"), pkg.IsPwd)
-				dc := pkg.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), pkg.IsString)
-				cpi.datacenters = strings.SplitAfter(dc, ",")
+				fetchCredentials(&cpi, labels, "Cloud Provider")
 
 				secret, err := createSecret(client, ctx, cpi, "cpi")
 				if err != nil {
@@ -150,13 +148,14 @@ var driversCmd = &cobra.Command{
 					panic(err)
 				}
 				vsphereCloudConfigList = append(vsphereCloudConfigList, vcc.Name)
-				multiVC := pkg.PromptGetInput("Do you want to configure another VC for CPI? (Y/N)", errors.New("invalid input"), pkg.IsString)
+
+				multiVC := utils.PromptGetInput("Do you want to configure another VC for CPI? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 				if multiVC == "Y" || multiVC == "y" {
 					isCPIMultiVC = true
 					cpi = credentials{}
 
-					getVCIP(&cpi, labels, "Cloud Provider")
+					fetchVCIP(&cpi, labels, "Cloud Provider")
 					vcIPList = append(vcIPList, cpi.vcIp)
 					continue multivcloop
 
@@ -166,11 +165,11 @@ var driversCmd = &cobra.Command{
 
 			}
 
-			topology := pkg.PromptGetInput("Do you want to configure zones/regions for CPI? (Y/N)", errors.New("invalid input"), pkg.IsString)
+			topology := utils.PromptGetInput("Do you want to configure zones/regions for CPI? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 			if topology == "Y" || topology == "y" {
-				cpi.topology.Zone = pkg.PromptGetInput(labels.topology.Zone, errors.New("unable to get the zones"), pkg.IsString)
-				cpi.topology.Region = pkg.PromptGetInput(labels.topology.Region, errors.New("unable to get the regions"), pkg.IsString)
+				cpi.topology.Zone = utils.PromptGetInput(labels.topology.Zone, errors.New("unable to get the zones"), utils.IsString)
+				cpi.topology.Region = utils.PromptGetInput(labels.topology.Region, errors.New("unable to get the regions"), utils.IsString)
 			}
 
 			fmt.Println("You have now completed configuration of Cloud Provider. We will now proceed to configure Storage Provider. ")
@@ -178,23 +177,23 @@ var driversCmd = &cobra.Command{
 		}
 
 		if isCPIMultiVC {
-			csi.vcIp = pkg.PromptGetSelect(vcIPList, "Please select vcenter for configuring Storage Provider?")
+			csi.vcIp = utils.PromptGetSelect(vcIPList, "Please select vcenter for configuring Storage Provider?")
 			if _, ok := thumbprintMap[csi.vcIp]; ok {
 				csi.thumbprint = thumbprintMap[csi.vcIp]
+				csi.insecure = false
+			} else {
+				csi.insecure = true
 			}
+
+		} else if isCPIRequired == "Y" || isCPIRequired == "y" {
+			csi.vcIp = cpi.vcIp
+			csi.insecure = cpi.insecure
+			csi.thumbprint = cpi.thumbprint
 		} else {
-			getVCIP(&csi, labels, "Storage Provider")
+			fetchVCIP(&csi, labels, "Storage Provider")
 		}
 
-		fmt.Println("Please provide the credentials for Storage Provider")
-
-		csi.username = pkg.PromptGetInput(labels.username, errors.New("unable to get the username"), pkg.IsString)
-
-		csi.password = pkg.PromptGetInput(labels.password, errors.New("unable to get the password"), pkg.IsPwd)
-
-		dc := pkg.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), pkg.IsString)
-
-		csi.datacenters = strings.SplitAfter(dc, ",")
+		fetchCredentials(&csi, labels, "Storage Provider")
 
 		secret, err := createSecret(client, ctx, csi, "csi")
 
@@ -208,32 +207,32 @@ var driversCmd = &cobra.Command{
 		}
 		csi.vsphereCloudConfig = vcc.Name
 
-		advConfig := pkg.PromptGetInput("Do you wish to configure File Volumes? (Y/N)", errors.New("invalid input"), pkg.IsString)
+		advConfig := utils.PromptGetInput("Do you wish to configure File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if advConfig == "Y" || advConfig == "y" {
 
-			vsanDSurl := pkg.PromptGetInput("vSANDataStoresUrl", errors.New("unable to get the vSANDataStoresUrl"), pkg.IsString)
+			vsanDSurl := utils.PromptGetInput("vSANDataStoresUrl", errors.New("unable to get the vSANDataStoresUrl"), utils.IsString)
 			csi.vSANDataStoresUrl = strings.SplitAfter(vsanDSurl, ",")
 
-			netPerms := pkg.PromptGetInput("Do you wish to configure netPermission? (Y/N)", errors.New("invalid input"), pkg.IsString)
+			netPerms := utils.PromptGetInput("Do you wish to configure netPermission? (Y/N)", errors.New("invalid input"), utils.IsString)
 			if netPerms == "Y" || netPerms == "y" {
 
 				for {
 					netPermission := v1alpha1.NetPermission{}
 
 					fmt.Println("Please provide the IP Subnet/Range for volumes")
-					netPermission.Ip = pkg.PromptGetInput("IP", errors.New("unable to get the IP"), pkg.IsString)
+					netPermission.Ip = utils.PromptGetInput("IP", errors.New("unable to get the IP"), utils.IsString)
 
-					netPermission.Permission = pkg.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Please select the permission type to access the volume?")
+					netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Please select the permission type to access the volume?")
 
-					rs := pkg.PromptGetInput("Do you want to provide access for root user to the volumes? (Y/N)", errors.New("invalid input"), pkg.IsString)
+					rs := utils.PromptGetInput("Do you want to provide access for root user to the volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 					if rs == "Y" || rs == "y" {
 						netPermission.RootSquash = true
 					}
 
 					csi.netPermissions = append(csi.netPermissions, netPermission)
-					netPerms = pkg.PromptGetInput("Do you want to configure another Net permissions (Y/N)", errors.New("invalid input"), pkg.IsString)
+					netPerms = utils.PromptGetInput("Do you want to configure another Net permissions (Y/N)", errors.New("invalid input"), utils.IsString)
 
 					if netPerms == "Y" || netPerms == "y" {
 						continue
@@ -341,21 +340,16 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 		Spec: v1alpha1.VDOConfigSpec{
 			StorageProvider: v1alpha1.StorageProviderConfig{
 				VsphereCloudConfig:  csi.vsphereCloudConfig,
-				ClusterDistribution: "",
+				ClusterDistribution: ClusterDistribution,
 				FileVolumes: v1alpha1.FileVolume{
 					VSanDataStoreUrl: csi.vSANDataStoresUrl,
 					NetPermissions:   csi.netPermissions,
 				},
 			},
 		},
-		Status: v1alpha1.VDOConfigStatus{
-			CPIStatus: v1alpha1.CPIStatus{},
-			CSIStatus: v1alpha1.CSIStatus{},
-		},
 	}
 
 	if len(cpi.vsphereCloudConfigs) > 0 {
-		fmt.Println("in VDOCONFIG")
 		vdoConfig.Spec.CloudProvider = v1alpha1.CloudProviderConfig{
 			VsphereCloudConfigs: cpi.vsphereCloudConfigs,
 			Topology:            cpi.topology,
@@ -391,18 +385,36 @@ func buildConfig() (*rest.Config, error) {
 	return config, err
 }
 
-func getVCIP(cred *credentials, labels credentials, driver string) {
+func fetchVCIP(cred *credentials, labels credentials, driver string) {
 	fmt.Printf("Please provide the VC_IP for configuring %s \n", driver)
 
-	vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), pkg.IsIP)
+	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), utils.IsIP)
 	cred.vcIp = vcIp
 
-	res := pkg.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), pkg.IsString)
+	res := utils.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), utils.IsString)
 	if res == "Y" || res == "y" {
 		fmt.Println("Please provide the SSL Thumbprint")
-		thumbprint := pkg.PromptGetInput(labels.thumbprint, errors.New("invalid input"), pkg.IsString)
+		thumbprint := utils.PromptGetInput(labels.thumbprint, errors.New("invalid input"), utils.IsString)
+		cred.insecure = false
 		cred.thumbprint = thumbprint
+
 	} else {
 		cred.insecure = true
 	}
 }
+
+func fetchCredentials(cred *credentials, labels credentials, driver string) {
+	fmt.Printf("Please provide the credentials for configuring %s \n", driver)
+
+	cred.username = utils.PromptGetInput(labels.username, errors.New("unable to get the username"), utils.IsString)
+
+	cred.password = utils.PromptGetInput(labels.password, errors.New("unable to get the password"), utils.IsPwd)
+
+	dc := utils.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), utils.IsString)
+
+	cred.datacenters = strings.SplitAfter(dc, ",")
+
+}
+
+//TODO Add loggers and validations for IP login
+
