@@ -4,11 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/manifoldco/promptui"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
 	"net"
 	"net/url"
 	"os"
 	"strings"
+)
+
+type ValidationFlags string
+
+const (
+	IsPwd    ValidationFlags = "isPwd"
+	IsURL    ValidationFlags = "isURL"
+	IsIP     ValidationFlags = "isIP"
+	IsString ValidationFlags = "isString"
 )
 
 func CheckIfUrl(str string) bool {
@@ -27,24 +35,22 @@ func CheckIfUrl(str string) bool {
 	return true
 }
 
-//ds:///vmfs/volumes/6127d203-83712bb4-f4ae-02000c01829c/
-
 func checkIPAddress(ip string) bool {
 	return net.ParseIP(ip) != nil
 }
 
-func PromptGetInput(label string, err error, flag cmd.ValidationFlags) string {
+func PromptGetInput(label string, err error, flag ValidationFlags) string {
 	validate := func(input string) error {
 		if len(input) <= 0 {
 			return err
 		}
 
-		if flag == cmd.IsURL && !CheckIfUrl(input) {
+		if flag == IsURL && !CheckIfUrl(input) {
 			return errors.New("Please provide a valid URL")
 
 		}
 
-		if flag == cmd.IsIP && !checkIPAddress(input) {
+		if flag == IsIP && !checkIPAddress(input) {
 			return errors.New("Please provide a valid IP address")
 		}
 		return nil
@@ -62,7 +68,7 @@ func PromptGetInput(label string, err error, flag cmd.ValidationFlags) string {
 		Templates: templates,
 		Validate:  validate,
 	}
-	if flag == cmd.IsPwd {
+	if flag == IsPwd {
 		prompt.Mask = '*'
 	}
 
@@ -72,4 +78,30 @@ func PromptGetInput(label string, err error, flag cmd.ValidationFlags) string {
 		os.Exit(1)
 	}
 	return res
+}
+
+func PromptGetSelect(items []string, label string) string {
+	index := -1
+	var result string
+	var err error
+
+	for index < 0 {
+		prompt := promptui.SelectWithAdd{
+			Label: label,
+			Items: items,
+		}
+
+		index, result, err = prompt.Run()
+
+		if index == -1 {
+			items = append(items, result)
+		}
+	}
+
+	if err != nil {
+		fmt.Printf("Prompt failed %v\n", err)
+		os.Exit(1)
+	}
+
+	return result
 }
