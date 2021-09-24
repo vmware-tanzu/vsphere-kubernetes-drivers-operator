@@ -20,7 +20,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/thanhpk/randstr"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg"
+	"k8s.io/client-go/rest"
 	"strings"
 
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
@@ -48,28 +50,28 @@ import (
 )
 
 type credentials struct {
-	errorMsg          string
-	username          string
-	password          string
-	vcIp              string
-	insecure          bool
-	datacenters       []string
-	vSANDataStoresUrl []string
-	topology          v1alpha1.TopologyInfo
-	netPermissions    []v1alpha1.NetPermission
+	errorMsg            string
+	username            string
+	password            string
+	vcIp                string
+	insecure            bool
+	datacenters         []string
+	vSANDataStoresUrl   []string
+	vsphereCloudConfig  string
+	topology            v1alpha1.TopologyInfo
+	netPermissions      []v1alpha1.NetPermission
+	vsphereCloudConfigs []string
+	thumbprint          string
 }
 
-//type cloudProvider struct {
-//	credentials credentials
-//	topology          v1alpha1.TopologyInfo
-//}
-//
-//type storageProvider struct {
-//	credentials credentials
-//	vSANDataStoresUrl []string
-//	netPermissions    []v1alpha1.NetPermission
-//
-//}
+type ValidationFlags bool
+
+const (
+	IsPwd ValidationFlags = true
+	IsURL ValidationFlags = true
+	IsIP  ValidationFlags = true
+	IsString ValidationFlags = true
+)
 
 const (
 	VdoNamespace = "vmware-system-vdo"
@@ -95,15 +97,12 @@ a vcenter.`,
 		cpi := credentials{}
 		csi := credentials{}
 
-		var kubeconfig *string
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "absolute path to the kubeconfig file")
-		} else {
-			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-		}
-		flag.Parse()
+		thumbprintMap := make(map[string]string)
 
-		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+
+		var isCPIMultiVC bool
+
+		config, err := buildConfig()
 		if err != nil {
 			panic(err)
 		}
@@ -117,7 +116,7 @@ a vcenter.`,
 			Scheme: scheme.Scheme,
 		})
 
-		err = SchemeBuilder.AddToScheme(scheme.Scheme)
+		err = AddToScheme(scheme.Scheme)
 		if err != nil {
 			panic(err)
 		}
@@ -131,38 +130,40 @@ a vcenter.`,
 				Zone:   "Zones",
 				Region: "Regions",
 			},
-		}
-		fmt.Println("Please provide the VC_IP")
-		vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), false, false, true)
-		csi.vcIp = vcIp
-
-		res := pkg.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), false, false, false)
-
-		if res == "Y" || res == "y" {
-			cpi.insecure = false
-			csi.insecure = false
+			thumbprint: "SSL Thumbprint",
 		}
 
-		if err != nil {
-			panic(err)
-		}
-
-		isCPIRequired := pkg.PromptGetInput("Do you want this VC to be Cloud Provider configured? (Y/N)", errors.New("invalid input"), false, false, false)
-
-		var vsphereCloudConfigList []string
+		isCPIRequired := pkg.PromptGetInput("Do you want to configure Cloud Provider ? (Y/N)", errors.New("invalid input"), IsString)
 
 		if isCPIRequired == "Y" || isCPIRequired == "y" {
+
+			fmt.Println("Please provide the VCenter IP")
+
+			vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("invalid input"), IsIP)
 			cpi.vcIp = vcIp
-			vsphereCloudConfigList = []string{vcIp}
+
+			res := pkg.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), IsString)
+
+			if res == "Y" || res == "y" {
+				fmt.Println("Please provide the SSL Thumbprint")
+				thumbprint := pkg.PromptGetInput(labels.thumbprint, errors.New("invalid input"), IsString)
+				cpi.thumbprint = thumbprint
+				thumbprintMap[cpi.vcIp] = thumbprint
+
+			} else {
+				cpi.insecure = true
+			}
 
 		multivcloop:
 			for {
-				fmt.Println("Please provide the credentials for CPI")
-				cpi.username = pkg.PromptGetInput(labels.username, errors.New("unable to get the username"), false, false, false)
+				fmt.Println("Please provide the credentials")
+				cpi.username = pkg.PromptGetInput(labels.username, errors.New("unable to get the username"), IsString)
 
-				cpi.password = pkg.PromptGetInput(labels.password, errors.New("unable to get the password"), false, true, false)
+				cpi.password = pkg.PromptGetInput(labels.password, errors.New("unable to get the password"), IsPwd)
 
-				dc := pkg.PromptGetInput("Datacenters", errors.New("unable to get the datacenters"), false, false, false)
+				fmt.Println("Please provide the list of datacenters")
+
+				dc := pkg.PromptGetInput("Datacenters", errors.New("unable to get the datacenters"), IsString)
 
 				cpi.datacenters = strings.SplitAfter(dc, ",")
 
@@ -171,25 +172,31 @@ a vcenter.`,
 					panic(err)
 				}
 
-				err = createVsphereCloudConfig(cl, ctx, cpi, secret.Name, "cpi")
+				vcc, err := createVsphereCloudConfig(cl, ctx, cpi, secret.Name, "cpi")
 				if err != nil {
 					panic(err)
 				}
+				cpi.vsphereCloudConfigs = append(cpi.vsphereCloudConfigs, vcc.Name)
 
-				multiVC := pkg.PromptGetInput("Do you want to configure another VC for CPI? (Y/N)", errors.New("invalid input"), false, false, false)
+				multiVC := pkg.PromptGetInput("Do you want to configure another VC for CPI? (Y/N)", errors.New("invalid input"), IsString)
 
 				if multiVC == "Y" || multiVC == "y" {
+					isCPIMultiVC = true
 					cpi = credentials{}
 
 					fmt.Println("Please provide the VC_IP")
-					vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), false, false, true)
+					vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), IsIP)
 					cpi.vcIp = vcIp
 
-					vsphereCloudConfigList = append(vsphereCloudConfigList, vcIp)
-
-					res := pkg.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), false, false, false)
+					res := pkg.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), IsString)
 					if res == "Y" || res == "y" {
-						cpi.insecure = false
+						fmt.Println("Please provide the SSL Thumbprint")
+						thumbprint := pkg.PromptGetInput(labels.thumbprint, errors.New("invalid input"), IsString)
+						cpi.thumbprint = thumbprint
+						thumbprintMap[cpi.vcIp] = thumbprint
+
+					} else {
+						cpi.insecure = true
 					}
 
 					continue multivcloop
@@ -199,22 +206,44 @@ a vcenter.`,
 
 			}
 
-			topology := pkg.PromptGetInput("Do you want to configure zones/regions for CPI? (Y/N)", errors.New("invalid input"), false, false, false)
+			topology := pkg.PromptGetInput("Do you want to configure zones/regions for CPI? (Y/N)", errors.New("invalid input"), IsString)
 
 			if topology == "Y" || topology == "y" {
-				cpi.topology.Zone = pkg.PromptGetInput(labels.topology.Zone, errors.New("unable to get the zones"), false, false, false)
-				cpi.topology.Region = pkg.PromptGetInput(labels.topology.Region, errors.New("unable to get the regions"), false, false, false)
+				cpi.topology.Zone = pkg.PromptGetInput(labels.topology.Zone, errors.New("unable to get the zones"), IsString)
+				cpi.topology.Region = pkg.PromptGetInput(labels.topology.Region, errors.New("unable to get the regions"), IsString)
 			}
+
+			fmt.Println("You have now completed configuration of Cloud Provider. We will now proceed to configure Storage Provider. ")
 
 		}
 
-		fmt.Println("You have now completed configuration of Cloud Provider. We will now proceed to configure Storage Provider. \n Please provide the credentials for Storage Provider")
+		if isCPIMultiVC {
+			csi.vcIp = promptGetSelect(cpi.vsphereCloudConfigs, "Please select vcenter for configuring Storage Provider?")
+			if _, ok := thumbprintMap[csi.vcIp]; ok {
+				csi.thumbprint = thumbprintMap[csi.vcIp]
+			}
+		} else {
+			fmt.Println("Please provide the VC_IP for configuring Storage Provider")
+			vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), IsIP)
+			csi.vcIp = vcIp
 
-		csi.username = pkg.PromptGetInput(labels.username, errors.New("unable to get the username"), false, false, false)
+			res := pkg.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), IsString)
+			if res == "Y" || res == "y" {
+				fmt.Println("Please provide the SSL Thumbprint")
+				thumbprint := pkg.PromptGetInput(labels.thumbprint, errors.New("invalid input"), IsString)
+				csi.thumbprint = thumbprint
+			} else {
+				csi.insecure = true
+			}
+		}
 
-		csi.password = pkg.PromptGetInput(labels.password, errors.New("unable to get the password"), false, true, false)
+		fmt.Println("Please provide the credentials for Storage Provider")
 
-		dc := pkg.PromptGetInput("Datacenters", errors.New("unable to get the datacenters"), false, false, false)
+		csi.username = pkg.PromptGetInput(labels.username, errors.New("unable to get the username"), IsString)
+
+		csi.password = pkg.PromptGetInput(labels.password, errors.New("unable to get the password"), IsPwd)
+
+		dc := pkg.PromptGetInput("Datacenters", errors.New("unable to get the datacenters"), IsString)
 
 		csi.datacenters = strings.SplitAfter(dc, ",")
 
@@ -224,42 +253,50 @@ a vcenter.`,
 			panic(err)
 		}
 
-		err = createVsphereCloudConfig(cl, ctx, csi, secret.Name, "csi")
+		vcc, err := createVsphereCloudConfig(cl, ctx, csi, secret.Name, "csi")
 		if err != nil {
 			panic(err)
 		}
+		csi.vsphereCloudConfig = vcc.Name
 
-		advConfig := pkg.PromptGetInput("Do you want advanced configuration for CSI? (Y/N)", errors.New("invalid input"), false, false, false)
+		advConfig := pkg.PromptGetInput("Do you wish to configure File Volumes? (Y/N)", errors.New("invalid input"), IsString)
 
 		if advConfig == "Y" || advConfig == "y" {
-			vsanDSurl := pkg.PromptGetInput("vSANDataStoresUrl", errors.New("unable to get the vSANDataStoresUrl"), false, false, false)
+
+			vsanDSurl := pkg.PromptGetInput("vSANDataStoresUrl", errors.New("unable to get the vSANDataStoresUrl"), IsString)
 			csi.vSANDataStoresUrl = strings.SplitAfter(vsanDSurl, ",")
 
-			for {
-				netpermission := v1alpha1.NetPermission{}
-				netpermission.Ip = pkg.PromptGetInput("IP", errors.New("unable to get the IP"), false, false, true)
+			netPerms := pkg.PromptGetInput("Do you wish to configure netPermission? (Y/N)", errors.New("invalid input"), IsString)
+			if netPerms == "Y" || netPerms == "y" {
 
-				netpermission.Permission = promptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Please select the permission type to access the volume?")
+				for {
+					netPermission := v1alpha1.NetPermission{}
+					fmt.Println("Please provide the IP Subnet or Range for volumes")
+					netPermission.Ip = pkg.PromptGetInput("IP", errors.New("unable to get the IP"), IsString)
 
-				rs := pkg.PromptGetInput("Do you want to provide access for root user to the volumes? (Y/N)", errors.New("invalid input"), false, false, false)
+					netPermission.Permission = promptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Please select the permission type to access the volume?")
 
-				if rs == "Y" || rs == "y" {
-					netpermission.RootSquash = true
+					rs := pkg.PromptGetInput("Do you want to provide access for root user to the volumes? (Y/N)", errors.New("invalid input"), IsString)
+
+					if rs == "Y" || rs == "y" {
+						netPermission.RootSquash = true
+					}
+
+					csi.netPermissions = append(csi.netPermissions, netPermission)
+					netPerms = pkg.PromptGetInput("Do you want to configure another netpermissions (Y/N)", errors.New("invalid input"), IsString)
+
+					if netPerms == "Y" || netPerms == "y" {
+						continue
+					}
+					break
 				}
-
-				csi.netPermissions = append(csi.netPermissions, netpermission)
-				netPerms := pkg.PromptGetInput("Do you want to configure another netpermissions (Y/N)", errors.New("invalid input"), false, false, false)
-
-				if netPerms == "Y" || netPerms == "y" {
-					continue
-				}
-				break
 			}
 		}
-		err = createVDOConfig(cl, ctx, vsphereCloudConfigList, cpi, csi)
+		err = createVDOConfig(cl, ctx, cpi, csi)
 		if err != nil {
 			panic(err)
 		}
+		fmt.Println("Thanks For configuring VDO. The drivers should be installed/configured soon")
 
 	},
 }
@@ -303,31 +340,33 @@ func createSecret(clientset *kubernetes.Clientset, ctx context.Context, cred cre
 
 }
 
-func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred credentials, secretName string, driver string) error {
+func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred credentials, secretName string, driver string) (v1alpha1.VsphereCloudConfig, error) {
 	vcc := &v1alpha1.VsphereCloudConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
 			Namespace: VdoNamespace,
 		},
 		Spec: v1alpha1.VsphereCloudConfigSpec{
-			VcIP:        fmt.Sprintf(cred.vcIp),
+			VcIP:        cred.vcIp,
 			Insecure:    cred.insecure,
 			Credentials: secretName,
+			Thumbprint:  cred.thumbprint,
 			DataCenters: cred.datacenters,
 		},
 		Status: v1alpha1.VsphereCloudConfigStatus{},
 	}
 
 	err := cl.Create(ctx, vcc, &runtimeclient.CreateOptions{})
+
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil
+			return *vcc, nil
 		}
 		fmt.Printf("Prompt failed %v\n", err)
 		os.Exit(1)
 
 	}
-	return err
+	return *vcc, err
 }
 
 func addKnownTypes(scheme *runtime.Scheme) error {
@@ -340,21 +379,17 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
-func createVDOConfig(cl client.Client, ctx context.Context, vsphereCloudConfigList []string, cpi credentials, csi credentials) error {
+func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi credentials) error {
 
 	vdoConfig := &v1alpha1.VDOConfig{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "vdo-config",
+			Name:      "vdo-config" + randstr.Hex(4),
 			Namespace: VdoNamespace,
 		},
 		Spec: v1alpha1.VDOConfigSpec{
-			CloudProvider: v1alpha1.CloudProviderConfig{
-				VsphereCloudConfigs: vsphereCloudConfigList,
-				Topology:            cpi.topology,
-			},
 			StorageProvider: v1alpha1.StorageProviderConfig{
-				VsphereCloudConfig:  csi.vcIp,
+				VsphereCloudConfig:  csi.vsphereCloudConfig,
 				ClusterDistribution: "",
 				FileVolumes: v1alpha1.FileVolume{
 					VSanDataStoreUrl: csi.vSANDataStoresUrl,
@@ -368,6 +403,13 @@ func createVDOConfig(cl client.Client, ctx context.Context, vsphereCloudConfigLi
 		},
 	}
 
+	if len(cpi.vsphereCloudConfigs) > 0 {
+		vdoConfig.Spec.CloudProvider = v1alpha1.CloudProviderConfig{
+			VsphereCloudConfigs: cpi.vsphereCloudConfigs,
+			Topology:            cpi.topology,
+		}
+	}
+
 	err := cl.Create(ctx, vdoConfig, &runtimeclient.CreateOptions{})
 
 	if err != nil {
@@ -379,4 +421,20 @@ func createVDOConfig(cl client.Client, ctx context.Context, vsphereCloudConfigLi
 
 	}
 	return err
+}
+
+func buildConfig() ( *rest.Config, error){
+	var kubeconfig *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	flag.Parse()
+
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	return config, err
 }

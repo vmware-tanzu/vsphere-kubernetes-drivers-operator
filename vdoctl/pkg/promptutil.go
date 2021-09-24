@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/manifoldco/promptui"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
 	"net"
 	"net/url"
 	"os"
@@ -32,18 +33,18 @@ func checkIPAddress(ip string) bool {
 	return net.ParseIP(ip) != nil
 }
 
-func PromptGetInput(label string, err error, isUrl bool, isPwd bool, isIP bool) string {
+func PromptGetInput(label string, err error, flag cmd.ValidationFlags) string {
 	validate := func(input string) error {
 		if len(input) <= 0 {
 			return err
 		}
 
-		if isUrl && !CheckIfUrl(input) {
+		if flag == cmd.IsURL && !CheckIfUrl(input) {
 			return errors.New("Please provide a valid URL")
 
 		}
 
-		if isIP && !checkIPAddress(input) {
+		if flag == cmd.IsIP && !checkIPAddress(input) {
 			return errors.New("Please provide a valid IP address")
 		}
 		return nil
@@ -61,7 +62,7 @@ func PromptGetInput(label string, err error, isUrl bool, isPwd bool, isIP bool) 
 		Templates: templates,
 		Validate:  validate,
 	}
-	if isPwd {
+	if flag == cmd.IsPwd {
 		prompt.Mask = '*'
 	}
 
