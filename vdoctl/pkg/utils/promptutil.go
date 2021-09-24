@@ -19,7 +19,6 @@ const (
 	IsString ValidationFlags = "isString"
 )
 
-type CPIState string
 
 func CheckIfUrl(str string) bool {
 	url, err := url.ParseRequestURI(str)
