@@ -103,6 +103,8 @@ var driversCmd = &cobra.Command{
 			panic(err)
 		}
 
+		//TODO remove code for creating client
+
 		client, err := runtimeclient.New(config, client.Options{
 			Scheme: scheme.Scheme,
 		})
@@ -253,15 +255,6 @@ var driversCmd = &cobra.Command{
 func init() {
 	configureCmd.AddCommand(driversCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// vcCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// vcCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func createSecret(cl client.Client, ctx context.Context, cred credentials, driver string) (v1.Secret, error) {
