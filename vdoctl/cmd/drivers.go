@@ -47,7 +47,6 @@ import (
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type credentials struct {
@@ -71,6 +70,7 @@ const (
 	GroupVersion        = "v1alpha1"
 	KubeSystemNamespace = "kube-system"
 	vdoConfigName       = "vdo-config"
+	secretType          = "kubernetes.io/basic-auth"
 )
 
 var (
@@ -101,14 +101,12 @@ var driversCmd = &cobra.Command{
 			panic(err)
 		}
 
-		clientset, err := kubernetes.NewForConfig(config)
+		client, err := runtimeclient.New(config, client.Options{
+			Scheme: scheme.Scheme,
+		})
 		if err != nil {
 			panic(err)
 		}
-
-		cl, _ := runtimeclient.New(config, client.Options{
-			Scheme: scheme.Scheme,
-		})
 
 		err = SchemeBuilder.AddToScheme(scheme.Scheme)
 		if err != nil {
@@ -142,12 +140,12 @@ var driversCmd = &cobra.Command{
 				dc := pkg.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), pkg.IsString)
 				cpi.datacenters = strings.SplitAfter(dc, ",")
 
-				secret, err := createSecret(clientset, ctx, cpi, "cpi")
+				secret, err := createSecret(client, ctx, cpi, "cpi")
 				if err != nil {
 					panic(err)
 				}
 
-				vcc, err := createVsphereCloudConfig(cl, ctx, cpi, secret.Name, "cpi")
+				vcc, err := createVsphereCloudConfig(client, ctx, cpi, secret.Name, "cpi")
 				if err != nil {
 					panic(err)
 				}
@@ -198,13 +196,13 @@ var driversCmd = &cobra.Command{
 
 		csi.datacenters = strings.SplitAfter(dc, ",")
 
-		secret, err := createSecret(clientset, ctx, csi, "csi")
+		secret, err := createSecret(client, ctx, csi, "csi")
 
 		if err != nil {
 			panic(err)
 		}
 
-		vcc, err := createVsphereCloudConfig(cl, ctx, csi, secret.Name, "csi")
+		vcc, err := createVsphereCloudConfig(client, ctx, csi, secret.Name, "csi")
 		if err != nil {
 			panic(err)
 		}
@@ -244,7 +242,7 @@ var driversCmd = &cobra.Command{
 				}
 			}
 		}
-		err = createVDOConfig(cl, ctx, cpi, csi)
+		err = createVDOConfig(client, ctx, cpi, csi)
 		if err != nil {
 			panic(err)
 		}
@@ -267,14 +265,14 @@ func init() {
 	// vcCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func createSecret(clientset *kubernetes.Clientset, ctx context.Context, cred credentials, driver string) (v1.Secret, error) {
+func createSecret(cl client.Client, ctx context.Context, cred credentials, driver string) (v1.Secret, error) {
 
 	secret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-creds-%s", cred.vcIp, driver),
 			Namespace: KubeSystemNamespace,
 		},
-		Type: "kubernetes.io/basic-auth",
+		Type: secretType,
 
 		Data: map[string][]byte{
 			"username": []byte(cred.username),
@@ -282,7 +280,7 @@ func createSecret(clientset *kubernetes.Clientset, ctx context.Context, cred cre
 		},
 	}
 
-	_, err := clientset.CoreV1().Secrets(KubeSystemNamespace).Create(ctx, &secret, metav1.CreateOptions{})
+	err := cl.Create(ctx, &secret, &runtimeclient.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return secret, nil
@@ -357,6 +355,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 	}
 
 	if len(cpi.vsphereCloudConfigs) > 0 {
+		fmt.Println("in VDOCONFIG")
 		vdoConfig.Spec.CloudProvider = v1alpha1.CloudProviderConfig{
 			VsphereCloudConfigs: cpi.vsphereCloudConfigs,
 			Topology:            cpi.topology,
@@ -394,6 +393,7 @@ func buildConfig() (*rest.Config, error) {
 
 func getVCIP(cred *credentials, labels credentials, driver string) {
 	fmt.Printf("Please provide the VC_IP for configuring %s \n", driver)
+
 	vcIp := pkg.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), pkg.IsIP)
 	cred.vcIp = vcIp
 
