@@ -102,8 +102,6 @@ func initConfig() {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 
-	fmt.Printf("kubeconfig value is %s", kubeconfig)
-
 	if len(kubeconfig) <= 0 {
 		kubeconfig = os.Getenv("KUBECONFIG")
 		if len(kubeconfig) <= 0 {
