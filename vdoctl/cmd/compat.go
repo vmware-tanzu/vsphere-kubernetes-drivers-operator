@@ -18,21 +18,10 @@ package cmd
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	//"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	//"github.com/stretchr/testify/assert"
-
-	"path/filepath"
-
-	"os"
-
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
-
-	"github.com/manifoldco/promptui"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -41,12 +30,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type compatMatrix struct {
-	errorMsg string
-	input    string
-}
-
-var kubeconfig *string
+const (
+	CompatMatrixConfigMAp = "compat-matrix-config"
+)
 
 // compatCmd represents the compat command
 var compatCmd = &cobra.Command{
@@ -57,14 +43,7 @@ var compatCmd = &cobra.Command{
 		fmt.Println("compat called")
 		ctx := context.Background()
 
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "absolute path to the kubeconfig file")
-		} else {
-			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-		}
-
-		flag.Parse()
-		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		config, err := buildConfig()
 		if err != nil {
 			panic(err)
 		}
@@ -79,13 +58,13 @@ var compatCmd = &cobra.Command{
 			panic(err)
 		}
 
-		item := promptGetSelect([]string{"local filepath", "fileURL"}, "Please select the mode for providing compat-matrix")
+		item := pkg.PromptGetSelect([]string{"local filepath", "fileURL"}, "Please select the mode for providing compat-matrix")
 
-		fmt.Print(item)
-		filePath := promptGetCompatMat(compatMatrix{
-			errorMsg: fmt.Sprintf("unable to fetch compat-matrix %s", item),
-			input:    item,
-		})
+		flag := pkg.IsString
+		if item == "fileURL" {
+			flag = pkg.IsURL
+		}
+		filePath := pkg.PromptGetInput(item, errors.New("invalid input"), flag)
 
 		err = CreateConfigMap(filePath, clientset, ctx)
 		if err != nil {
@@ -109,68 +88,11 @@ func init() {
 	// compatCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func promptGetSelect(items []string, label string) string {
-	index := -1
-	var result string
-	var err error
-
-	for index < 0 {
-		prompt := promptui.SelectWithAdd{
-			Label: label,
-			Items: items,
-		}
-
-		index, result, err = prompt.Run()
-
-		if index == -1 {
-			items = append(items, result)
-		}
-	}
-
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
-		os.Exit(1)
-	}
-
-	return result
-}
-
-func promptGetCompatMat(cm compatMatrix) string {
-	validate := func(input string) error {
-		if len(input) <= 0 {
-			return errors.New(cm.errorMsg)
-		}
-
-		return nil
-	}
-
-	templates := &promptui.PromptTemplates{
-		Prompt:  "{{ . }} ",
-		Valid:   "{{ . | green }} ",
-		Invalid: "{{ . | red }} ",
-		Success: "{{ . | bold }} ",
-	}
-
-	prompt := promptui.Prompt{
-		Label:     cm.input,
-		Templates: templates,
-		Validate:  validate,
-	}
-
-	res, err := prompt.Run()
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
-		os.Exit(1)
-	}
-
-	return res
-}
-
 func CreateConfigMap(filepath string, clientset *kubernetes.Clientset, ctx context.Context) error {
 
 	configMapKey := types.NamespacedName{
 		Namespace: VdoNamespace,
-		Name:      "compat-matrix-config",
+		Name:      CompatMatrixConfigMAp,
 	}
 
 	data := map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}

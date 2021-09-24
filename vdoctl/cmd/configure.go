@@ -27,7 +27,7 @@ var configureCmd = &cobra.Command{
 	Short: "command to configure VDO",
 	Long: `This command is used to configure VDO.
 This command has other subcommands that help in configuration of VDO
-vdoctl configure vc
+vdoctl configure drivers
 vdoctl configure compat`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("configure called")
