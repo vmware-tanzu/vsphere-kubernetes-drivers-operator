@@ -34,6 +34,8 @@ import (
 
 const (
 	CompatMatrixConfigMAp = "compat-matrix-config"
+	LocalFilepath         = "Local filepath"
+	WebURL                = "Web URL"
 )
 
 // compatCmd represents the compat command
@@ -61,10 +63,10 @@ var compatCmd = &cobra.Command{
 			panic(err)
 		}
 
-		item := utils.PromptGetSelect([]string{"local filepath", "fileURL"}, "Please select the mode for providing compat-matrix")
+		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
 
 		flag := utils.IsString
-		if item == "fileURL" {
+		if item == WebURL {
 			flag = utils.IsURL
 		}
 		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
