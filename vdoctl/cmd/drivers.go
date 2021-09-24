@@ -80,7 +80,6 @@ var (
 	AddToScheme        = SchemeBuilder.AddToScheme
 )
 
-
 // driversCmd represents the drivers command
 var driversCmd = &cobra.Command{
 	Use:   "drivers",
@@ -129,7 +128,7 @@ var driversCmd = &cobra.Command{
 			thumbprint: "SSL Thumbprint",
 		}
 
-		isCPIRequired := utils.PromptGetInput("Do you want to configure Cloud Provider ? (Y/N)", errors.New("invalid input"), utils.IsString)
+		isCPIRequired := utils.PromptGetInput("Do you want to configure Cloud Provider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if isCPIRequired == "Y" || isCPIRequired == "y" {
 			fetchVCIP(&cpi, labels, "Cloud Provider")
@@ -379,7 +378,7 @@ func buildConfig() (*rest.Config, error) {
 }
 
 func fetchVCIP(cred *credentials, labels credentials, driver string) {
-	fmt.Printf("Please provide the VC_IP for configuring %s \n", driver)
+	fmt.Printf("Please provide the vcenter IP for configuring %s \n", driver)
 
 	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), utils.IsIP)
 	cred.vcIp = vcIp
@@ -410,4 +409,3 @@ func fetchCredentials(cred *credentials, labels credentials, driver string) {
 }
 
 //TODO Add loggers and validations for IP login
-
