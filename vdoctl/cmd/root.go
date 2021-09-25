@@ -16,14 +16,37 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+const (
+	VdoNamespace = "vmware-system-vdo"
+	GroupName    = "vdo.vmware.com"
+	GroupVersion = "v1alpha1"
+)
+
+var (
+	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme        = SchemeBuilder.AddToScheme
+	cfgFile            string
+	kubeconfig         string
+	K8sClientset       *kubernetes.Clientset
+	K8sClient          client.Client
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -51,15 +74,9 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vdoctl.yaml)")
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "points to the kubeconfig file of the target k8s cluster")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -84,4 +101,52 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+
+	if len(kubeconfig) <= 0 {
+		kubeconfig = os.Getenv("KUBECONFIG")
+		if len(kubeconfig) <= 0 {
+			cobra.CheckErr(errors.New("could not detect a target kubernetes cluster. " +
+				"Either use --kubeconfig flag or set KUBECONFIG environment variable"))
+		}
+	}
+
+	err := generateK8sClient(kubeconfig)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+
+}
+
+func generateK8sClient(kubeconfig string) error {
+	clientConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		return errors.New("Failed to generate client from provided kubeconfig")
+	}
+
+	K8sClientset, err = kubernetes.NewForConfig(clientConfig)
+	if err != nil {
+		return err
+	}
+
+	K8sClient, _ = client.New(clientConfig, client.Options{
+		Scheme: scheme.Scheme,
+	})
+
+	err = AddToScheme(scheme.Scheme)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&v1alpha1.VsphereCloudConfig{},
+		&v1alpha1.VsphereCloudConfigList{},
+		&v1alpha1.VDOConfig{},
+	)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	return nil
 }
