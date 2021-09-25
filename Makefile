@@ -22,7 +22,9 @@ IMAGE_TAG         	?= latest
 BUILD_NUMBER 	  	?= 00000000 # from gobuild
 BUILD_VERSION 		?= $(shell git describe --always 2>/dev/null)
 ARTIFACTS_DIR		?= artifacts
+CRC					?= crc
 SPEC_FILE			?= vdo-spec.yaml
+CRC					?= crc
 
 # DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
@@ -39,6 +41,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # vmware.com/vspheredriveroperator-bundle:$VERSION and vmware.com/vspheredriveroperator-catalog:$VERSION.
+# default-route-openshift-image-registry.apps-crc.testing/vmware-system-vdo
+# for openshift crc clusters pass the IMAGE_TAG_BASE=<private-registry> along with make manifests-openshift
 IMAGE_TAG_BASE ?= vmware.com/vdo
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
@@ -85,9 +89,18 @@ help: ## Display this help.
 
 manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) output:rbac:dir=./config/rbac rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	@mkdir -p $(ARTIFACTS_DIR)
+	@mkdir -p $(ARTIFACTS_DIR)/vanilla
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/$(SPEC_FILE)
+	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/vanilla/vdo-spec.yaml
+
+manifests-openshift: kustomize
+	@mkdir -p $(ARTIFACTS_DIR)/openshift
+	$(KUSTOMIZE) build config/rbac > config/openshift/rbac/rbac.yaml
+	$(KUSTOMIZE) build config/crd > $(ARTIFACTS_DIR)/openshift/crd.yaml
+	$(KUSTOMIZE) build config/crd > $(ARTIFACTS_DIR)/openshift/crd.yaml
+	cd config/openshift/rbac && $(KUSTOMIZE) edit set nameprefix vdo-
+	$(KUSTOMIZE) build config/openshift/rbac > $(ARTIFACTS_DIR)/openshift/rbac.yaml
+	@cp config/openshift/csv/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/openshift/
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -121,25 +134,38 @@ docker-build: test ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-##@ Deployment
-
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+deploy-crc: build ## Builds and deploys the operator to a CRC cluster. Pass the url of internal registry as varaible IMAGE_TAG_BASE=<url>
+	@echo "**** Ensure you have setup crc cluster and internal registry ***** "
+	$(eval $(crc oc-env))
+	oc new-project vmware-system-vdo
+	@echo "**** Completed Setup of new project ***** "
+	$(MAKE) docker-build
+	$(MAKE) docker-push
+	@echo "**** Built and pushed operator image ***** "
+	$(MAKE) manifests-openshift
+	@echo "**** Generated manifests required to deploy operator using OLM ***** "
+	$(MAKE) bundle-build
+	$(MAKE) bundle-push
+	@echo "**** Built and pushed bundle image to repo ***** "
+	$(MAKE) catalog-build
+	$(MAKE) catalog-push
+	@echo "**** Built and pushed catalog image to repo ***** "
+	$(MAKE) index-build
+	$(MAKE) index-push
+	@echo "**** Built and pushed index image to repo ***** "
+	oc apply -f artifacts/openshift/crd.yaml
+	oc apply -f artifacts/openshift/rbac.yaml
+	@echo "**** Applied CRD and RBAC manifests ***** "
+	oc adm policy add-scc-to-user privileged -z vdo-controller-manager -n vmware-system-vdo
+	oc apply -f config/openshift/misc/operator-group.yaml
+	oc apply -f config/openshift/misc/catalog_source.yaml
+	oc apply -f artifacts/openshift/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml
+	@echo "**** Applied misc and CSV manifests ***** "
 
 deploy: manifests kustomize deploy-local-kind ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	kubectl apply -f $(ARTIFACTS_DIR)/$(SPEC_FILE)
-
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
-
-# build and deploy container in kind cluster
-.PHONY: deploy-local-kind
-deploy-local-kind: kind-cluster build docker-build  ## Build manager and Deploy the deployment to kind cluster.
-	@echo "Kubeconfig file: ${KUBECONFIG}"
-	kind load docker-image $(IMG) --name ${KIND_CLUSTER_NAME} --loglevel debug
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	kind get kubeconfig > kind-kubeconfig
+	kubectl --kubeconfig ./kind-kubeconfig apply -f $(ARTIFACTS_DIR)/vanilla/vdo-spec.yaml
 
 # build and deploy container in k8s cluster
 # this target expects the following environment variables to be set
@@ -150,7 +176,25 @@ deploy-local-kind: kind-cluster build docker-build  ## Build manager and Deploy 
 deploy-k8s-cluster: manifests kustomize build ## Build manager and Deploy the deployment to kind cluster.
 	mkdir -p export
 	docker build -t ${IMG} --output type=tar,dest=export/vdo.tar .
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > spec.yaml
 	./hack/deploy-vdo-cluster.sh ${IMG}
+
+undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+
+install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+
+uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+
+# build and deploy container in kind cluster
+.PHONY: deploy-local-kind
+deploy-local-kind: kind-cluster build docker-build  ## Build manager and Deploy the deployment to kind cluster.
+	@echo "Kubeconfig file: ${KUBECONFIG}"
+	kind load docker-image $(IMG) --name ${KIND_CLUSTER_NAME} --loglevel debug
 
 # Create a kind cluster
 .PHONY: kind-cluster
@@ -170,7 +214,7 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
-bundle-build: ## Build the bundle image.
+bundle-build: ## Build the bundle image for OLM
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
@@ -186,7 +230,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.15.1/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.15.3/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -201,6 +245,8 @@ BUNDLE_IMGS ?= $(BUNDLE_IMG)
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
 CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
 
+INDEX_IMG ?= $(IMAGE_TAG_BASE)-index:v$(VERSION)
+
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)
 FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
@@ -210,13 +256,21 @@ endif
 # This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
-catalog-build: opm ## Build a catalog image.
+catalog-build: opm ## Build a catalog image for OLM
 	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+.PHONY: index-build
+index-build: opm ## Build a index image for OLM
+	$(OPM) index add --container-tool docker --mode semver --tag $(INDEX_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+
+.PHONY: index-push
+index-push: ## Push a index image.
+	$(MAKE) docker-push IMG=$(INDEX_IMG)
 
 ## --------------------------------------
 ## Linting and fixing linter errors

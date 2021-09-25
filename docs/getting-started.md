@@ -12,7 +12,7 @@ Refer the [MakeFile](Makefile) to build and deploy the operator.
 Run `make generate` to generate the scaffolding code from the provided base types
 
 Run `make manifests` to generate the spec files required to deploy the operator.
-The spec file to deploy the operator will be available at [vdo-spec.yaml](../artifacts/vdo-spec.yaml)
+The spec file to deploy the operator will be available at [vdo-spec.yaml](../artifacts/vanilla/vdo-spec.yaml)
 
 The operator can be deployed
 

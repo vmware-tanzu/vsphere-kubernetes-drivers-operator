@@ -1,0 +1,11 @@
+# Adds namespace to all resources.
+namespace: vmware-system-vdo
+
+resources:
+  - vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: default-route-openshift-image-registry.apps-crc.testing/vmware-system-vdo/vdo
+    newName: default-route-openshift-image-registry.apps-crc.testing/vmware-system-vdo/vdo
+    newTag: 08e3b3b
