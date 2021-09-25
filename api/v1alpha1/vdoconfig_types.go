@@ -22,7 +22,7 @@ import (
 
 type CloudProviderConfig struct {
 	// VsphereCloudConfigs refers to the collection of the vSphereCloudConfig resource that holds the vSphere configuration
-	VsphereCloudConfigs []string `json:"vsphereCloudConfigs"`
+	VsphereCloudConfigs []string `json:"vsphereCloudConfigs,omitempty"`
 	// Topology represents the information required for configuring CPI with zone and region
 	Topology TopologyInfo `json:"topology,omitempty"`
 }
