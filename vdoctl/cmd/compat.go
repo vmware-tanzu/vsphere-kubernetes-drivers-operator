@@ -19,12 +19,10 @@ import (
 	"context"
 	"errors"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
-	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -46,18 +44,6 @@ var compatCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		config, err := buildConfig()
-		if err != nil {
-			panic(err)
-		}
-
-		client, err := runtimeclient.New(config, client.Options{
-			Scheme: scheme.Scheme,
-		})
-		if err != nil {
-			panic(err)
-		}
-
 		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
 
 		flag := utils.IsString
@@ -66,12 +52,12 @@ var compatCmd = &cobra.Command{
 		}
 		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
 
-		err = CreateNamespace(client, ctx)
+		err := CreateNamespace(K8sClient, ctx)
 		if err != nil {
 			panic(err)
 		}
 
-		err = CreateConfigMap(filePath, client, ctx)
+		err = CreateConfigMap(filePath, K8sClient, ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -81,19 +67,9 @@ var compatCmd = &cobra.Command{
 
 func init() {
 	configureCmd.AddCommand(compatCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// compatCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// compatCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func CreateConfigMap(filepath string, clientset client.Client, ctx context.Context) error {
+func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context) error {
 
 	configMapKey := types.NamespacedName{
 		Namespace: VdoNamespace,
@@ -105,7 +81,7 @@ func CreateConfigMap(filepath string, clientset client.Client, ctx context.Conte
 	configMapObj := metav1.ObjectMeta{Name: configMapKey.Name, Namespace: configMapKey.Namespace}
 	vsphereConfigMap := v1.ConfigMap{Data: data, ObjectMeta: configMapObj}
 
-	err := clientset.Create(ctx, &vsphereConfigMap, &runtimeclient.CreateOptions{})
+	err := client.Create(ctx, &vsphereConfigMap, &runtimeclient.CreateOptions{})
 
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -115,14 +91,16 @@ func CreateConfigMap(filepath string, clientset client.Client, ctx context.Conte
 	return err
 }
 
-func CreateNamespace(clientset client.Client, ctx context.Context) error {
+func CreateNamespace(client runtimeclient.Client, ctx context.Context) error {
 
 	nsSpec := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: VdoNamespace,
 		},
 	}
-	err := clientset.Create(ctx, nsSpec, &runtimeclient.CreateOptions{})
+
+	err := client.Create(ctx, nsSpec, &runtimeclient.CreateOptions{})
+
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return nil

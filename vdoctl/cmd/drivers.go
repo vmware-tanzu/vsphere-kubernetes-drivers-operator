@@ -18,31 +18,19 @@ package cmd
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 	"strings"
 
 	"github.com/thanhpk/randstr"
-	"k8s.io/client-go/rest"
-
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"k8s.io/client-go/kubernetes/scheme"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"path/filepath"
-
 	"os"
-
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -65,19 +53,10 @@ type credentials struct {
 }
 
 const (
-	VdoNamespace        = "vmware-system-vdo"
-	GroupName           = "vdo.vmware.com"
-	GroupVersion        = "v1alpha1"
 	KubeSystemNamespace = "kube-system"
 	vdoConfigName       = "vdo-config"
 	secretType          = "kubernetes.io/basic-auth"
 	ClusterDistribution = "OpenShift"
-)
-
-var (
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
-	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme        = SchemeBuilder.AddToScheme
 )
 
 // driversCmd represents the drivers command
@@ -96,25 +75,6 @@ var driversCmd = &cobra.Command{
 
 		var isCPIMultiVC bool
 		var vsphereCloudConfigList, vcIPList []string
-
-		config, err := buildConfig()
-		if err != nil {
-			panic(err)
-		}
-
-		//TODO remove code for creating client
-
-		client, err := runtimeclient.New(config, client.Options{
-			Scheme: scheme.Scheme,
-		})
-		if err != nil {
-			panic(err)
-		}
-
-		err = SchemeBuilder.AddToScheme(scheme.Scheme)
-		if err != nil {
-			panic(err)
-		}
 
 		labels := credentials{
 			errorMsg: "unable to get VC creds",
@@ -142,12 +102,12 @@ var driversCmd = &cobra.Command{
 
 				fetchCredentials(&cpi, labels, "Cloud Provider")
 
-				secret, err := createSecret(client, ctx, cpi, "cpi")
+				secret, err := createSecret(K8sClient, ctx, cpi, "cpi")
 				if err != nil {
 					panic(err)
 				}
 
-				vcc, err := createVsphereCloudConfig(client, ctx, cpi, secret.Name, "cpi")
+				vcc, err := createVsphereCloudConfig(K8sClient, ctx, cpi, secret.Name, "cpi")
 				if err != nil {
 					panic(err)
 				}
@@ -202,13 +162,13 @@ var driversCmd = &cobra.Command{
 
 		fetchCredentials(&csi, labels, "Storage Provider")
 
-		secret, err := createSecret(client, ctx, csi, "csi")
+		secret, err := createSecret(K8sClient, ctx, csi, "csi")
 
 		if err != nil {
 			panic(err)
 		}
 
-		vcc, err := createVsphereCloudConfig(client, ctx, csi, secret.Name, "csi")
+		vcc, err := createVsphereCloudConfig(K8sClient, ctx, csi, secret.Name, "csi")
 		if err != nil {
 			panic(err)
 		}
@@ -248,7 +208,8 @@ var driversCmd = &cobra.Command{
 				}
 			}
 		}
-		err = createVDOConfig(client, ctx, cpi, csi)
+
+		err = createVDOConfig(K8sClient, ctx, cpi, csi)
 		if err != nil {
 			panic(err)
 		}
@@ -316,17 +277,6 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 	return *vcc, err
 }
 
-func addKnownTypes(scheme *runtime.Scheme) error {
-	scheme.AddKnownTypes(SchemeGroupVersion,
-		&v1alpha1.VsphereCloudConfig{},
-		&v1alpha1.VsphereCloudConfigList{},
-		&v1alpha1.VDOConfig{},
-	)
-	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
-
-	return nil
-}
-
 func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi credentials) error {
 
 	vdoConfig := &v1alpha1.VDOConfig{
@@ -365,22 +315,6 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 
 	}
 	return err
-}
-
-func buildConfig() (*rest.Config, error) {
-	var kubeconfig *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	return config, err
 }
 
 func fetchVCIP(cred *credentials, labels credentials, driver string) {
