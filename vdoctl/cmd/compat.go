@@ -58,11 +58,6 @@ var compatCmd = &cobra.Command{
 			panic(err)
 		}
 
-		err = CreateNamespace(client, ctx)
-		if err != nil {
-			panic(err)
-		}
-
 		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
 
 		flag := utils.IsString
@@ -70,6 +65,11 @@ var compatCmd = &cobra.Command{
 			flag = utils.IsURL
 		}
 		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
+
+		err = CreateNamespace(client, ctx)
+		if err != nil {
+			panic(err)
+		}
 
 		err = CreateConfigMap(filePath, client, ctx)
 		if err != nil {

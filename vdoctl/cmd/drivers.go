@@ -133,6 +133,9 @@ var driversCmd = &cobra.Command{
 		if isCPIRequired == "Y" || isCPIRequired == "y" {
 			fetchVCIP(&cpi, labels, "Cloud Provider")
 			vcIPList = append(vcIPList, cpi.vcIp)
+			if !cpi.insecure {
+				thumbprintMap[cpi.vcIp] = cpi.thumbprint
+			}
 
 		multivcloop:
 			for {
@@ -158,6 +161,9 @@ var driversCmd = &cobra.Command{
 
 					fetchVCIP(&cpi, labels, "Cloud Provider")
 					vcIPList = append(vcIPList, cpi.vcIp)
+					if !cpi.insecure {
+						thumbprintMap[cpi.vcIp] = cpi.thumbprint
+					}
 					continue multivcloop
 
 				}

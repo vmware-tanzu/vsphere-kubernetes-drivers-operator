@@ -19,7 +19,6 @@ const (
 	IsString ValidationFlags = "isString"
 )
 
-
 func CheckIfUrl(str string) bool {
 	url, err := url.ParseRequestURI(str)
 	if err != nil {
