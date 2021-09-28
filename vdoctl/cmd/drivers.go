@@ -19,8 +19,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 	"strings"
+
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 
 	"github.com/thanhpk/randstr"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
@@ -29,8 +31,6 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	"os"
 
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -63,7 +63,7 @@ const (
 var driversCmd = &cobra.Command{
 	Use:   "drivers",
 	Short: "Command to configure VDO",
-	Long:  `This command helps to specify the details required to configure CloudProvider and Storage Provider drivers.`,
+	Long:  `This command helps to specify the details required to configure CloudProvider and StorageProvider drivers.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
@@ -88,63 +88,68 @@ var driversCmd = &cobra.Command{
 			thumbprint: "SSL Thumbprint",
 		}
 
-		isCPIRequired := utils.PromptGetInput("Do you want to configure Cloud Provider? (Y/N)", errors.New("invalid input"), utils.IsString)
+		isCPIRequired := utils.PromptGetInput("Do you want to configure CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
-		if isCPIRequired == "Y" || isCPIRequired == "y" {
-			fetchVCIP(&cpi, labels, "Cloud Provider")
-			vcIPList = append(vcIPList, cpi.vcIp)
-			if !cpi.insecure {
-				thumbprintMap[cpi.vcIp] = cpi.thumbprint
-			}
+		if strings.EqualFold(isCPIRequired, "Y") {
 
 		multivcloop:
 			for {
+				fetchVCIP(&cpi, labels, "CloudProvider")
+				vcIPList = append(vcIPList, cpi.vcIp)
+				if !cpi.insecure {
+					thumbprintMap[cpi.vcIp] = cpi.thumbprint
+				}
 
-				fetchCredentials(&cpi, labels, "Cloud Provider")
+				fmt.Print("Please provide the credentials for configuring CloudProvider\n")
+			cpiCredsLoop:
+				for {
+					fetchCredentials(&cpi, labels)
+
+					_, err := session.GetOrCreate(ctx, cpi.vcIp, cpi.datacenters, cpi.username, cpi.password, cpi.thumbprint)
+					if err != nil {
+						fmt.Printf("invalid credentials for VC: %s. Error: %v\nPlease provide the input again\n", cpi.vcIp, err)
+
+						continue cpiCredsLoop
+					}
+					break
+				}
 
 				secret, err := createSecret(K8sClient, ctx, cpi, "cpi")
 				if err != nil {
-					panic(err)
+					cobra.CheckErr(err)
 				}
 
 				vcc, err := createVsphereCloudConfig(K8sClient, ctx, cpi, secret.Name, "cpi")
 				if err != nil {
-					panic(err)
+					cobra.CheckErr(err)
 				}
 				vsphereCloudConfigList = append(vsphereCloudConfigList, vcc.Name)
 
-				multiVC := utils.PromptGetInput("Do you want to configure another VC for CPI? (Y/N)", errors.New("invalid input"), utils.IsString)
+				multiVC := utils.PromptGetInput("Do you want to configure another vcenter for CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
-				if multiVC == "Y" || multiVC == "y" {
+				if strings.EqualFold(multiVC, "Y") {
 					isCPIMultiVC = true
 					cpi = credentials{}
-
-					fetchVCIP(&cpi, labels, "Cloud Provider")
-					vcIPList = append(vcIPList, cpi.vcIp)
-					if !cpi.insecure {
-						thumbprintMap[cpi.vcIp] = cpi.thumbprint
-					}
 					continue multivcloop
 
 				}
 				cpi.vsphereCloudConfigs = vsphereCloudConfigList
 				break
-
 			}
 
-			topology := utils.PromptGetInput("Do you want to configure zones/regions for CPI? (Y/N)", errors.New("invalid input"), utils.IsString)
+			topology := utils.PromptGetInput("Do you want to configure zones/regions for CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
-			if topology == "Y" || topology == "y" {
+			if strings.EqualFold(topology, "Y") {
 				cpi.topology.Zone = utils.PromptGetInput(labels.topology.Zone, errors.New("unable to get the zones"), utils.IsString)
 				cpi.topology.Region = utils.PromptGetInput(labels.topology.Region, errors.New("unable to get the regions"), utils.IsString)
 			}
 
-			fmt.Println("You have now completed configuration of Cloud Provider. We will now proceed to configure Storage Provider. ")
+			fmt.Println("You have now completed configuration of CloudProvider. We will now proceed to configure StorageProvider.")
 
 		}
 
 		if isCPIMultiVC {
-			csi.vcIp = utils.PromptGetSelect(vcIPList, "Please select vcenter for configuring Storage Provider?")
+			csi.vcIp = utils.PromptGetSelect(vcIPList, "Please select vcenter for configuring StorageProvider?")
 			if _, ok := thumbprintMap[csi.vcIp]; ok {
 				csi.thumbprint = thumbprintMap[csi.vcIp]
 				csi.insecure = false
@@ -152,56 +157,68 @@ var driversCmd = &cobra.Command{
 				csi.insecure = true
 			}
 
-		} else if isCPIRequired == "Y" || isCPIRequired == "y" {
+		} else if strings.EqualFold(isCPIRequired, "Y") {
 			csi.vcIp = cpi.vcIp
 			csi.insecure = cpi.insecure
 			csi.thumbprint = cpi.thumbprint
 		} else {
-			fetchVCIP(&csi, labels, "Storage Provider")
+			fetchVCIP(&csi, labels, "StorageProvider")
 		}
 
-		fetchCredentials(&csi, labels, "Storage Provider")
+		fmt.Print("Please provide the credentials for configuring StorageProvider\n")
+	credentialsLoop:
+		for {
+			fetchCredentials(&csi, labels)
+			_, err := session.GetOrCreate(ctx, csi.vcIp, csi.datacenters, csi.username, csi.password, csi.thumbprint)
+			if err != nil {
+				fmt.Printf("invalid credentials for VC: %s. Error: %v\nPlease provide the input again\n", csi.vcIp, err)
+				continue credentialsLoop
+			}
+			break
+		}
 
 		secret, err := createSecret(K8sClient, ctx, csi, "csi")
-
 		if err != nil {
-			panic(err)
+			cobra.CheckErr(err)
 		}
 
 		vcc, err := createVsphereCloudConfig(K8sClient, ctx, csi, secret.Name, "csi")
 		if err != nil {
-			panic(err)
+			cobra.CheckErr(err)
 		}
 		csi.vsphereCloudConfig = vcc.Name
 
 		advConfig := utils.PromptGetInput("Do you wish to configure File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
 
-		if advConfig == "Y" || advConfig == "y" {
+		if strings.EqualFold(advConfig, "Y") {
 
-			vsanDSurl := utils.PromptGetInput("vSANDataStoresUrl", errors.New("unable to get the vSANDataStoresUrl"), utils.IsString)
-			csi.vSANDataStoresUrl = strings.SplitAfter(vsanDSurl, ",")
+			vsanDSurl := utils.PromptGetInput("Do you wish to provide for vSAN DataStore Url for File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
+			if strings.EqualFold(vsanDSurl, "Y") {
+				res := utils.PromptGetInput("vSAN DataStore Url(s)", errors.New("unable to get the vSAN DataStore Url"), utils.IsString)
+				csi.vSANDataStoresUrl = strings.SplitAfter(res, ",")
+			}
 
-			netPerms := utils.PromptGetInput("Do you wish to configure netPermission? (Y/N)", errors.New("invalid input"), utils.IsString)
-			if netPerms == "Y" || netPerms == "y" {
+			netPerms := utils.PromptGetInput("Do you wish to configure Net File permissions for File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
+			if strings.EqualFold(netPerms, "Y") {
 
 				for {
 					netPermission := v1alpha1.NetPermission{}
 
 					fmt.Println("Please provide the IP Subnet/Range for volumes")
-					netPermission.Ip = utils.PromptGetInput("IP", errors.New("unable to get the IP"), utils.IsString)
+					netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address"), utils.IsString)
 
 					netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Please select the permission type to access the volume?")
 
-					rs := utils.PromptGetInput("Do you want to provide access for root user to the volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
+					rs := utils.PromptGetInput("Allow Root Access? (Y/N)", errors.New("invalid input"), utils.IsString)
 
-					if rs == "Y" || rs == "y" {
+					if strings.EqualFold(rs, "Y") {
 						netPermission.RootSquash = true
 					}
 
 					csi.netPermissions = append(csi.netPermissions, netPermission)
 					netPerms = utils.PromptGetInput("Do you want to configure another Net permissions (Y/N)", errors.New("invalid input"), utils.IsString)
 
-					if netPerms == "Y" || netPerms == "y" {
+					if strings.EqualFold(netPerms, "Y") {
 						continue
 					}
 					break
@@ -211,7 +228,7 @@ var driversCmd = &cobra.Command{
 
 		err = createVDOConfig(K8sClient, ctx, cpi, csi)
 		if err != nil {
-			panic(err)
+			cobra.CheckErr(err)
 		}
 		fmt.Println("Thanks For configuring VDO. The drivers should be installed/configured soon")
 
@@ -270,9 +287,6 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 		if apierrors.IsAlreadyExists(err) {
 			return *vcc, nil
 		}
-		fmt.Printf("Prompt failed %v\n", err)
-		os.Exit(1)
-
 	}
 	return *vcc, err
 }
@@ -310,9 +324,6 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 		if apierrors.IsAlreadyExists(err) {
 			return nil
 		}
-		fmt.Printf("Prompt failed %v\n", err)
-		os.Exit(1)
-
 	}
 	return err
 }
@@ -324,7 +335,7 @@ func fetchVCIP(cred *credentials, labels credentials, driver string) {
 	cred.vcIp = vcIp
 
 	res := utils.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), utils.IsString)
-	if res == "Y" || res == "y" {
+	if strings.EqualFold(res, "Y") {
 		fmt.Println("Please provide the SSL Thumbprint")
 		thumbprint := utils.PromptGetInput(labels.thumbprint, errors.New("invalid input"), utils.IsString)
 		cred.insecure = false
@@ -335,9 +346,7 @@ func fetchVCIP(cred *credentials, labels credentials, driver string) {
 	}
 }
 
-func fetchCredentials(cred *credentials, labels credentials, driver string) {
-	fmt.Printf("Please provide the credentials for configuring %s \n", driver)
-
+func fetchCredentials(cred *credentials, labels credentials) {
 	cred.username = utils.PromptGetInput(labels.username, errors.New("unable to get the username"), utils.IsString)
 
 	cred.password = utils.PromptGetInput(labels.password, errors.New("unable to get the password"), utils.IsPwd)
@@ -348,4 +357,4 @@ func fetchCredentials(cred *credentials, labels credentials, driver string) {
 
 }
 
-//TODO Add loggers and validations for IP login
+//TODO Add validations for File Volumes and zones/regions input
