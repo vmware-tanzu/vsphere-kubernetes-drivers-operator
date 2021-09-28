@@ -77,7 +77,7 @@ func updateConfigMap(filepath string, ctx context.Context) error {
 		Name:      CompatMatrixConfigMap,
 	}
 
-	if strings.Contains(filepath, "https://") || strings.Contains(filepath, "http://") {
+	if strings.HasPrefix(filepath, "https://") || strings.HasPrefix(filepath, "http://") {
 		data = map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
 	} else {
 		fileBytes, err := vdoClient.GenerateYamlFromFilePath(filepath)
