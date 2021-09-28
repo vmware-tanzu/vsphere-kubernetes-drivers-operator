@@ -98,7 +98,7 @@ although support for vanilla Kubernetes should mean that it will just work
 
 Here is a high-level diagram of the architecture showing the net new components with a shadow
 
-![](arch-diagram-1.png "Proposed Architecture")
+![](images/arch-diagram-1.png "Proposed Architecture")
 
 ### VDO Command-line tool
 
@@ -220,7 +220,7 @@ would use different vSphereConnection and Secret instances.
 
 ### Compatibility Matrix, Configuration and Container Images
 
-<img src="arch-diagram-2.png" alt="Compatibility Matrix" width="373"/>
+<img src="images/arch-diagram-2.png" alt="Compatibility Matrix" width="373"/>
 
 One of the most important functions of VDO is its ability to automate the selection of driver versions that are appropriate
 to the version of Kubernetes and vSphere in use. Version information needs to be selected both for initial install and
