@@ -146,6 +146,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&v1alpha1.VsphereCloudConfig{},
 		&v1alpha1.VsphereCloudConfigList{},
 		&v1alpha1.VDOConfig{},
+		&v1alpha1.VDOConfigList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
