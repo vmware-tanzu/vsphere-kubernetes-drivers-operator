@@ -279,9 +279,9 @@ index-push: ## Push a index image.
 .PHONY: lint
 lint: ## Run all the lint targets
 	$(MAKE) lint-go-full
-	$(MAKE) lint-markdown
+	#$(MAKE) lint-markdown
 
-GOLANGCI_LINT_FLAGS ?= --fast=true
+GOLANGCI_LINT_FLAGS ?= --fast=true --skip-dirs=docs
 .PHONY: lint-go
 lint-go: golangci_lint ## Lint codebase
 	$(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_FLAGS)

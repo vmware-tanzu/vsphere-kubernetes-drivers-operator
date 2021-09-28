@@ -48,8 +48,8 @@ var (
 	K8sClient          client.Client
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &cobra.Command{
 	Use:   "vdoctl",
 	Short: "VDO Command Line",
 	Long: `vdoctl is a command line interface for vSphere Kubernetes Drivers Operator.
@@ -68,15 +68,15 @@ vdoctl configure vc
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	cobra.CheckErr(RootCmd.Execute())
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vdoctl.yaml)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vdoctl.yaml)")
 
-	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "points to the kubeconfig file of the target k8s cluster")
+	RootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "points to the kubeconfig file of the target k8s cluster")
 }
 
 // initConfig reads in config file and ENV variables if set.

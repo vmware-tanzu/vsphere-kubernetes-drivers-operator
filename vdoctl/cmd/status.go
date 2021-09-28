@@ -83,7 +83,7 @@ func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, c
 }
 
 func init() {
-	rootCmd.AddCommand(statusCmd)
+	RootCmd.AddCommand(statusCmd)
 
 	// Here you will define your flags and configuration settings.
 

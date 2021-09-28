@@ -35,7 +35,7 @@ vdoctl configure compat`,
 }
 
 func init() {
-	rootCmd.AddCommand(configureCmd)
+	RootCmd.AddCommand(configureCmd)
 
 	// Here you will define your flags and configuration settings.
 
