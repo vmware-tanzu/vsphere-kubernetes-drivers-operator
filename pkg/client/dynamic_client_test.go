@@ -70,7 +70,6 @@ var _ = Describe("Dynamic Client Tests", func() {
 			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "")
 			Expect(err).NotTo(HaveOccurred())
 
-			//vsphere-cloud-controller-manager-ds.yaml
 			yamlBytes, err = GenerateYamlFromUrl("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/master/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(yamlBytes)).NotTo(BeZero())
