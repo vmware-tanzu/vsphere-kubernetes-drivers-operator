@@ -1,4 +1,5 @@
 cover.xml
+kind-kubeconfig
 bin
 .idea
 api/.DS_Store
