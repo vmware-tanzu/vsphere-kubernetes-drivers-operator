@@ -78,7 +78,6 @@ var driversCmd = &cobra.Command{
 		var vsphereCloudConfigList, vcIPList []string
 
 		labels := credentials{
-			errorMsg: "unable to get VC creds",
 			username: "Username",
 			password: "Password",
 			vcIp:     "VC_IP",
@@ -108,7 +107,7 @@ var driversCmd = &cobra.Command{
 						fetchCredentials(&cpi, labels)
 					dcloop:
 						for {
-							fetchDatacenters(&cpi, labels)
+							fetchDatacenters(&cpi)
 							_, err := session.GetOrCreate(ctx, cpi.vcIp, cpi.datacenters, cpi.username, cpi.password, cpi.thumbprint)
 							if err != nil {
 								fmt.Printf("Invalid input for VC: %s. Error: %v\nPlease provide the input again\n", cpi.vcIp, err)
@@ -367,7 +366,7 @@ func fetchCredentials(cred *credentials, labels credentials) {
 
 }
 
-func fetchDatacenters(cred *credentials, labels credentials) {
+func fetchDatacenters(cred *credentials) {
 	dc := utils.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), utils.IsString)
 	cred.datacenters = strings.SplitAfter(dc, ",")
 }
