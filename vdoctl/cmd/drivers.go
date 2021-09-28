@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
@@ -95,25 +96,37 @@ var driversCmd = &cobra.Command{
 		multivcloop:
 			for {
 				fetchVCIP(&cpi, labels, "CloudProvider")
-				vcIPList = append(vcIPList, cpi.vcIp)
-				if !cpi.insecure {
-					thumbprintMap[cpi.vcIp] = cpi.thumbprint
-				}
-
-				fmt.Print("Please provide the credentials for configuring CloudProvider\n")
-			cpiCredsLoop:
+			thumbprintloop:
 				for {
-					fetchCredentials(&cpi, labels)
-
-					_, err := session.GetOrCreate(ctx, cpi.vcIp, cpi.datacenters, cpi.username, cpi.password, cpi.thumbprint)
-					if err != nil {
-						fmt.Printf("invalid credentials for VC: %s. Error: %v\nPlease provide the input again\n", cpi.vcIp, err)
-
-						continue cpiCredsLoop
+					if !cpi.insecure {
+						fetchThumbprint(&cpi, labels)
+						thumbprintMap[cpi.vcIp] = cpi.thumbprint
+					}
+					fmt.Print("Please provide the credentials for configuring CloudProvider\n")
+				cpiCredsLoop:
+					for {
+						fetchCredentials(&cpi, labels)
+					dcloop:
+						for {
+							fetchDatacenters(&cpi, labels)
+							_, err := session.GetOrCreate(ctx, cpi.vcIp, cpi.datacenters, cpi.username, cpi.password, cpi.thumbprint)
+							if err != nil {
+								fmt.Printf("Invalid input for VC: %s. Error: %v\nPlease provide the input again\n", cpi.vcIp, err)
+								if checkPattern("unable to find datacenter", err) {
+									continue dcloop
+								} else if checkPattern("incorrect user name or password", err) {
+									continue cpiCredsLoop
+								} else if checkPattern("thumbprint does not match", err) {
+									continue thumbprintloop
+								}
+							}
+							break
+						}
+						break
 					}
 					break
 				}
-
+				vcIPList = append(vcIPList, cpi.vcIp)
 				secret, err := createSecret(K8sClient, ctx, cpi, "cpi")
 				if err != nil {
 					cobra.CheckErr(err)
@@ -334,14 +347,17 @@ func fetchVCIP(cred *credentials, labels credentials, driver string) {
 
 	res := utils.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), utils.IsString)
 	if strings.EqualFold(res, "Y") {
-		fmt.Println("Please provide the SSL Thumbprint")
-		thumbprint := utils.PromptGetInput(labels.thumbprint, errors.New("invalid input"), utils.IsString)
 		cred.insecure = false
-		cred.thumbprint = thumbprint
 
 	} else {
 		cred.insecure = true
 	}
+}
+
+func fetchThumbprint(cred *credentials, labels credentials) {
+	thumbprint := utils.PromptGetInput(labels.thumbprint, errors.New("invalid input"), utils.IsString)
+	cred.thumbprint = thumbprint
+
 }
 
 func fetchCredentials(cred *credentials, labels credentials) {
@@ -349,10 +365,16 @@ func fetchCredentials(cred *credentials, labels credentials) {
 
 	cred.password = utils.PromptGetInput(labels.password, errors.New("unable to get the password"), utils.IsPwd)
 
+}
+
+func fetchDatacenters(cred *credentials, labels credentials) {
 	dc := utils.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), utils.IsString)
-
 	cred.datacenters = strings.SplitAfter(dc, ",")
+}
 
+func checkPattern(pattern string, err error) bool {
+	MyRegex, _ := regexp.Compile(pattern)
+	return MyRegex.MatchString(err.Error())
 }
 
 //TODO Add validations for File Volumes and zones/regions input
