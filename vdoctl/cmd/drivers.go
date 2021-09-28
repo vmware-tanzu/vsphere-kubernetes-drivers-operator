@@ -203,11 +203,9 @@ var driversCmd = &cobra.Command{
 
 				for {
 					netPermission := v1alpha1.NetPermission{}
-
-					fmt.Println("Please provide the IP Subnet/Range for volumes")
 					netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address"), utils.IsString)
 
-					netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Please select the permission type to access the volume?")
+					netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Permissions")
 
 					rs := utils.PromptGetInput("Allow Root Access? (Y/N)", errors.New("invalid input"), utils.IsString)
 
