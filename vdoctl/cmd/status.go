@@ -75,7 +75,7 @@ func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, c
 			if vsphereCloudConfig.Status.Config == vdov1alpha1.VsphereConfigVerified {
 				fmt.Printf("\n\t\t%s  (%s)\n", vsphereCloudConfig.Spec.VcIP, "Credentials Verified")
 			} else {
-				fmt.Printf("%s : %s\n", vsphereCloudConfig.Spec.VcIP, vsphereCloudConfig.Status.Message)
+				fmt.Printf("\n\t\t%s  (%s)\n", vsphereCloudConfig.Spec.VcIP, vsphereCloudConfig.Status.Message)
 			}
 			break
 		}
