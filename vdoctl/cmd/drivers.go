@@ -228,17 +228,7 @@ var driversCmd = &cobra.Command{
 			if strings.EqualFold(netPerms, "Y") {
 
 				for {
-					netPermission := v1alpha1.NetPermission{}
-					netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address"), utils.IsString)
-
-					netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Permissions")
-
-					rs := utils.PromptGetInput("Allow Root Access? (Y/N)", errors.New("invalid input"), utils.IsString)
-
-					if strings.EqualFold(rs, "Y") {
-						netPermission.RootSquash = true
-					}
-
+					netPermission := fetchNetPermissions()
 					csi.netPermissions = append(csi.netPermissions, netPermission)
 					netPerms = utils.PromptGetInput("Do you want to configure another Net permissions (Y/N)", errors.New("invalid input"), utils.IsString)
 
@@ -388,6 +378,20 @@ func fetchDatacenters(cred *credentials) {
 func checkPattern(pattern string, err error) bool {
 	MyRegex, _ := regexp.Compile(pattern)
 	return MyRegex.MatchString(err.Error())
+}
+
+func fetchNetPermissions() v1alpha1.NetPermission {
+	netPermission := v1alpha1.NetPermission{}
+	netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address"), utils.IsString)
+
+	netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Permissions")
+
+	rs := utils.PromptGetInput("Allow Root Access? (Y/N)", errors.New("invalid input"), utils.IsString)
+
+	if strings.EqualFold(rs, "Y") {
+		netPermission.RootSquash = true
+	}
+	return netPermission
 }
 
 //TODO Add validations for File Volumes and zones/regions input
