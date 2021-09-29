@@ -39,7 +39,6 @@ import (
 )
 
 type credentials struct {
-	errorMsg            string
 	username            string
 	password            string
 	vcIp                string
@@ -175,16 +174,31 @@ var driversCmd = &cobra.Command{
 			csi.thumbprint = cpi.thumbprint
 		} else {
 			fetchVCIP(&csi, labels, "StorageProvider")
+			if !csi.insecure {
+				fetchThumbprint(&csi, labels)
+			}
 		}
 
 		fmt.Print("Please provide the credentials for configuring StorageProvider\n")
-	credentialsLoop:
+	csiCredsLoop:
 		for {
 			fetchCredentials(&csi, labels)
-			_, err := session.GetOrCreate(ctx, csi.vcIp, csi.datacenters, csi.username, csi.password, csi.thumbprint)
-			if err != nil {
-				fmt.Printf("invalid credentials for VC: %s. Error: %v\nPlease provide the input again\n", csi.vcIp, err)
-				continue credentialsLoop
+		csidcloop:
+			for {
+				fetchDatacenters(&csi)
+				_, err := session.GetOrCreate(ctx, csi.vcIp, csi.datacenters, csi.username, csi.password, csi.thumbprint)
+				if err != nil {
+					fmt.Printf("Invalid input for VC: %s. Error: %v\nPlease provide the input again\n", csi.vcIp, err)
+					if checkPattern("unable to find datacenter", err) {
+						continue csidcloop
+					} else if checkPattern("incorrect user name or password", err) {
+						continue csiCredsLoop
+					} else if checkPattern("thumbprint does not match", err) {
+						fetchThumbprint(&csi, labels)
+						continue csiCredsLoop
+					}
+				}
+				break
 			}
 			break
 		}
