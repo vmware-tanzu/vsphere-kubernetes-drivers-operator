@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,8 +49,8 @@ var (
 	K8sClient          client.Client
 )
 
-// RootCmd represents the base command when called without any subcommands
-var RootCmd = &cobra.Command{
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
 	Use:   "vdoctl",
 	Short: "VDO Command Line",
 	Long: `vdoctl is a command line interface for vSphere Kubernetes Drivers Operator.
@@ -68,15 +69,17 @@ vdoctl configure vc
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	cobra.CheckErr(RootCmd.Execute())
+	cobra.CheckErr(rootCmd.Execute())
+	GenerateMarkdownDoc()
+
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vdoctl.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vdoctl.yaml)")
 
-	RootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "points to the kubeconfig file of the target k8s cluster")
+	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "points to the kubeconfig file of the target k8s cluster")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -150,4 +153,12 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
+}
+
+func GenerateMarkdownDoc() {
+	rootCmd.DisableAutoGenTag = true
+	err := doc.GenMarkdownTree(rootCmd, "docs/vdoctl")
+	if err != nil {
+		cobra.CheckErr(err)
+	}
 }

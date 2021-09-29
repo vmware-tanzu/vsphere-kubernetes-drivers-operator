@@ -38,6 +38,6 @@ vdoctl update matrix https://sample/sample.yaml
 }
 
 func init() {
-	RootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(updateCmd)
 
 }

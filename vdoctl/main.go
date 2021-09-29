@@ -16,20 +16,9 @@ limitations under the License.
 package main
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/spf13/cobra/doc"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
 )
 
 func main() {
 	cmd.Execute()
-	GenerateMarkdownDoc()
-}
-
-func GenerateMarkdownDoc() {
-	cmd.RootCmd.DisableAutoGenTag = true
-	err := doc.GenMarkdownTree(cmd.RootCmd, "docs/vdoctl")
-	if err != nil {
-		cobra.CheckErr(err)
-	}
 }

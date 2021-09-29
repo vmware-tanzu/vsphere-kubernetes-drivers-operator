@@ -75,7 +75,7 @@ func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, c
 			if vsphereCloudConfig.Status.Config == vdov1alpha1.VsphereConfigVerified {
 				fmt.Printf("\n\t\t%s  (%s)\n", vsphereCloudConfig.Spec.VcIP, "Credentials Verified")
 			} else {
-				fmt.Printf("%s : %s\n", vsphereCloudConfig.Spec.VcIP, "Incorrect credentials/error connecting to the VC")
+				fmt.Printf("%s : %s\n", vsphereCloudConfig.Spec.VcIP, vsphereCloudConfig.Status.Message)
 			}
 			break
 		}
@@ -83,7 +83,7 @@ func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, c
 }
 
 func init() {
-	RootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(statusCmd)
 
 	// Here you will define your flags and configuration settings.
 
