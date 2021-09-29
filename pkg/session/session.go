@@ -65,7 +65,7 @@ func GetOrCreate(
 
 			var DCListCachedSession []string
 			for _, dc := range cachedSession.Datacenters {
-				DCListCachedSession = append(DCListCachedSession, dc.Name())
+				DCListCachedSession = append(DCListCachedSession, dc.InventoryPath)
 			}
 			if reflect.DeepEqual(datacenters, DCListCachedSession) {
 				return &cachedSession, nil
@@ -96,10 +96,9 @@ func GetOrCreate(
 
 	if len(datacenters) > 0 {
 		for _, datacenter := range datacenters {
-
 			dc, err := finder.Datacenter(ctx, datacenter)
 			if err != nil {
-				return nil, errors.Wrapf(err, "unable to find datacenter %q", datacenter)
+				return nil, err
 			}
 			if dc != nil {
 				session.Datacenters = append(session.Datacenters, dc)

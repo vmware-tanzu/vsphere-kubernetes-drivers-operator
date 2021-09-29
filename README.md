@@ -11,7 +11,7 @@ automate the lifecycle management of CSI and CPI drivers in a Kubernetes
 cluster running on vSphere. The operator exposes Custom Resources to configure
 CPI and CSI drivers.
 
-![topology](docs/vdo-topology.png)
+![topology](docs/images/VDOTopology.svg)
 
 ## Goals
 
