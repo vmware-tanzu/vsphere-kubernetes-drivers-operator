@@ -296,6 +296,7 @@ lint-markdown: ## Lint the project's markdown
 .PHONY: vdoctl-docgen
 vdoctl-docgen: build-vdoctl
 	@mkdir -p "docs/vdoctl"
+	-rm -f docs/vdoctl/*.md
 	bin/vdoctl generate-doc 'docs/vdoctl'
 
 .PHONY: fix

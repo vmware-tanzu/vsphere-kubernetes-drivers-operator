@@ -30,5 +30,4 @@ vdoctl configure [flags]
 
 * [vdoctl](vdoctl.md)	 - VDO Command Line
 * [vdoctl configure compat](vdoctl_configure_compat.md)	 - Compatibility matrix of VDO
-* [vdoctl configure vc](vdoctl_configure_vc.md)	 - command to configure VC
 
