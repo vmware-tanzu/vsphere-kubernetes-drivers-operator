@@ -18,7 +18,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 )
@@ -39,12 +38,12 @@ var statusCmd = &cobra.Command{
 
 		err := K8sClient.List(ctx, &vsphereCloudConfigList)
 		if err != nil {
-			panic(errors.New("Unable to fetch the status of VDO, VDO may not be configured"))
+			cobra.CheckErr(err)
 		}
 
 		err = K8sClient.List(ctx, &vdoConfigList)
 		if err != nil {
-			panic(errors.New("Unable to fetch the status of VDO, VDO may not be configured"))
+			cobra.CheckErr(err)
 		}
 
 		// Fetch the first element from vdoConfigList, since we have a single vdoConfig

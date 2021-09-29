@@ -15,9 +15,7 @@ limitations under the License.
 */
 package main
 
-import (
-	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
-)
+import "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
 
 func main() {
 	cmd.Execute()
