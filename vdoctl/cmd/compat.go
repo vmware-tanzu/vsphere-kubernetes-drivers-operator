@@ -16,9 +16,24 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
+	"context"
+	"errors"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+)
+
+const (
+	CompatMatrixConfigMAp = "compat-matrix-config"
+	LocalFilepath         = "Local filepath"
+	WebURL                = "Web URL"
 )
 
 // compatCmd represents the compat command
@@ -27,20 +42,69 @@ var compatCmd = &cobra.Command{
 	Short: "Compatibility matrix of VDO",
 	Long:  `This command helps to configure compatiblity matrix for VDO`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("compat called")
+		ctx := context.Background()
+
+		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
+
+		flag := utils.IsString
+		if item == WebURL {
+			flag = utils.IsURL
+		}
+		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
+
+		err := CreateNamespace(K8sClient, ctx)
+		if err != nil {
+			panic(err)
+		}
+
+		err = CreateConfigMap(filePath, K8sClient, ctx)
+		if err != nil {
+			panic(err)
+		}
+
 	},
 }
 
 func init() {
 	configureCmd.AddCommand(compatCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context) error {
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// compatCmd.PersistentFlags().String("foo", "", "A help for foo")
+	configMapKey := types.NamespacedName{
+		Namespace: VdoNamespace,
+		Name:      CompatMatrixConfigMAp,
+	}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// compatCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	data := map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
+
+	configMapObj := metav1.ObjectMeta{Name: configMapKey.Name, Namespace: configMapKey.Namespace}
+	vsphereConfigMap := v1.ConfigMap{Data: data, ObjectMeta: configMapObj}
+
+	err := client.Create(ctx, &vsphereConfigMap, &runtimeclient.CreateOptions{})
+
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return nil
+		}
+	}
+	return err
+}
+
+func CreateNamespace(client runtimeclient.Client, ctx context.Context) error {
+
+	nsSpec := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: VdoNamespace,
+		},
+	}
+
+	err := client.Create(ctx, nsSpec, &runtimeclient.CreateOptions{})
+
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return nil
+		}
+	}
+	return err
 }
