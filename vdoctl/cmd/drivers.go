@@ -109,8 +109,8 @@ var driversCmd = &cobra.Command{
 							fetchDatacenters(&cpi)
 							_, err := session.GetOrCreate(ctx, cpi.vcIp, cpi.datacenters, cpi.username, cpi.password, cpi.thumbprint)
 							if err != nil {
-								fmt.Printf("Invalid input for VC: %s. Error: %v\nPlease provide the input again\n", cpi.vcIp, err)
-								if checkPattern("unable to find datacenter", err) {
+								fmt.Printf("Configuration of VC %s is invalid. Error: %v\n", cpi.vcIp, err)
+								if checkPattern("datacenter.*not found", err) {
 									continue dcloop
 								} else if checkPattern("incorrect user name or password", err) {
 									continue cpiCredsLoop
@@ -188,8 +188,8 @@ var driversCmd = &cobra.Command{
 				fetchDatacenters(&csi)
 				_, err := session.GetOrCreate(ctx, csi.vcIp, csi.datacenters, csi.username, csi.password, csi.thumbprint)
 				if err != nil {
-					fmt.Printf("Invalid input for VC: %s. Error: %v\nPlease provide the input again\n", csi.vcIp, err)
-					if checkPattern("unable to find datacenter", err) {
+					fmt.Printf("Configuration of VC %s is invalid. Error: %v\n", csi.vcIp, err)
+					if checkPattern("datacenter.*not found", err) {
 						continue csidcloop
 					} else if checkPattern("incorrect user name or password", err) {
 						continue csiCredsLoop
@@ -218,13 +218,13 @@ var driversCmd = &cobra.Command{
 
 		if strings.EqualFold(advConfig, "Y") {
 
-			vsanDSurl := utils.PromptGetInput("Do you wish to provide for vSAN DataStore Url for File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
+			vsanDSurl := utils.PromptGetInput("Do you wish to configure vSAN DataStores for File Volumes (Y/N)", errors.New("invalid input"), utils.IsString)
 			if strings.EqualFold(vsanDSurl, "Y") {
 				res := utils.PromptGetInput("vSAN DataStore Url(s)", errors.New("unable to get the vSAN DataStore Url"), utils.IsString)
 				csi.vSANDataStoresUrl = strings.SplitAfter(res, ",")
 			}
 
-			netPerms := utils.PromptGetInput("Do you wish to configure Net File permissions for File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
+			netPerms := utils.PromptGetInput("Do you wish to configure Net permissions for File Volumes (Y/N)", errors.New("invalid input"), utils.IsString)
 			if strings.EqualFold(netPerms, "Y") {
 
 				for {
@@ -244,7 +244,7 @@ var driversCmd = &cobra.Command{
 		if err != nil {
 			cobra.CheckErr(err)
 		}
-		fmt.Println("Thanks For configuring VDO. The drivers should be installed/configured soon")
+		fmt.Println("Thanks For configuring VDO. The drivers will now be installed.")
 
 	},
 }
@@ -345,7 +345,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 func fetchVCIP(cred *credentials, labels credentials, driver string) {
 	fmt.Printf("Please provide the vcenter IP for configuring %s \n", driver)
 
-	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the VC_IP"), utils.IsIP)
+	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the IP Address - Invalid input"), utils.IsIP)
 	cred.vcIp = vcIp
 
 	res := utils.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), utils.IsString)
@@ -364,14 +364,13 @@ func fetchThumbprint(cred *credentials, labels credentials) {
 }
 
 func fetchCredentials(cred *credentials, labels credentials) {
-	cred.username = utils.PromptGetInput(labels.username, errors.New("unable to get the username"), utils.IsString)
-
-	cred.password = utils.PromptGetInput(labels.password, errors.New("unable to get the password"), utils.IsPwd)
+	cred.username = utils.PromptGetInput(labels.username, errors.New("unable to get the username - Invalid input"), utils.IsString)
+	cred.password = utils.PromptGetInput(labels.password, errors.New("unable to get the password - Invalid input"), utils.IsPwd)
 
 }
 
 func fetchDatacenters(cred *credentials) {
-	dc := utils.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters"), utils.IsString)
+	dc := utils.PromptGetInput("Datacenter(s)", errors.New("unable to get the datacenters - Invalid input"), utils.IsString)
 	cred.datacenters = strings.SplitAfter(dc, ",")
 }
 
@@ -382,7 +381,7 @@ func checkPattern(pattern string, err error) bool {
 
 func fetchNetPermissions() v1alpha1.NetPermission {
 	netPermission := v1alpha1.NetPermission{}
-	netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address"), utils.IsString)
+	netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address - Invalid input"), utils.IsString)
 
 	netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Permissions")
 
