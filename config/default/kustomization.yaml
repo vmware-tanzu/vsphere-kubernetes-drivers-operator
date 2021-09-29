@@ -9,8 +9,8 @@ namespace: vmware-system-vdo
 namePrefix: vdo-
 
 # Labels to add to all resources and selectors.
-#commonLabels:
-#  someName: someValue
+commonLabels:
+  vdo.vmware.com/managed-by: "vdo"
 
 bases:
 - ../crd

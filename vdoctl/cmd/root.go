@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -69,6 +70,14 @@ vdoctl configure vc
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
+}
+
+func GenerateMarkdownDoc(docPath string) {
+	rootCmd.DisableAutoGenTag = true
+	err := doc.GenMarkdownTree(rootCmd, docPath)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
 }
 
 func init() {
