@@ -35,6 +35,9 @@ Currently the command supports vanilla k8s cluster`,
 			cobra.CheckErr(fmt.Errorf("Error occurred deleting VDO,  %v", err))
 		}
 
+		//retns := &corev1.Namespace{}
+		//err = K8sClient.Get(ctx, client.ObjectKey{Name: ns.Name}, retns)
+
 		clusterRBList := rbacv1.ClusterRoleBindingList{}
 		clusterRoleList := rbacv1.ClusterRoleList{}
 		labelSelector, _ := labels.Parse("managedby=vdo")
