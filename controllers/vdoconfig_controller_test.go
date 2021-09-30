@@ -921,12 +921,12 @@ var _ = Describe("TestApplyYaml", func() {
 		})
 
 		It("should apply the Network path yaml without error", func() {
-			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false)
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, CREATE_DEPLOYMENT)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should apply the File Path yaml without error", func() {
-			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false)
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, CREATE_DEPLOYMENT)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -963,12 +963,12 @@ var _ = Describe("TestApplyYaml", func() {
 		})
 
 		It("should throw error while applying the Network path yaml", func() {
-			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false)
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, CREATE_DEPLOYMENT)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should throw error while applying the File Path yaml", func() {
-			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false)
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, CREATE_DEPLOYMENT)
 			Expect(err).To(HaveOccurred())
 		})
 	})
@@ -1190,22 +1190,19 @@ var _ = Describe("TestupdateMatrixInfo", func() {
 		})
 
 		It("Should set the env variables", func() {
-			isVDOAvailable = true
 			err := r.updateMatrixInfo(vdoctx, req)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(os.Getenv(COMPAT_MATRIX_CONFIG_URL)).Should(Equal("https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml"))
 			defer server.Close()
 		})
 
-		It("Should give error if VDOConfig not available", func() {
-			isVDOAvailable = false
+		It("Should not give error if VDOConfig not available", func() {
 			err := r.updateMatrixInfo(vdoctx, req)
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 			defer server.Close()
 		})
 
 		It("Should unset env variables when Configmap is deleted", func() {
-			isVDOAvailable = true
 			configMapObject := &v12.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      CM_NAME,

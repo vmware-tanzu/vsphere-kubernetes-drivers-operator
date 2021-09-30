@@ -69,22 +69,27 @@ const (
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
 	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
+	CREATE_DEPLOYMENT             = "CREATE"
+	DELETE_DEPLOYMENT             = "DELETE"
+	UPDATE_DEPLOYMENT             = "UPDATE"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
 type VDOConfigReconciler struct {
 	client.Client
-	Logger             logr.Logger
-	Scheme             *runtime.Scheme
-	ClientConfig       *restclient.Config
-	CsiDeploymentYamls []string
-	CpiDeploymentYamls []string
+	Logger                    logr.Logger
+	Scheme                    *runtime.Scheme
+	ClientConfig              *restclient.Config
+	CsiDeploymentYamls        []string
+	CpiDeploymentYamls        []string
+	currentCSIDeployedVersion string
+	currentCPIDeployedVersion string
 }
 
 var (
-	SessionFn      = session.GetOrCreate
-	GetVMFn        = session.GetVMByIP
-	isVDOAvailable bool
+	SessionFn                = session.GetOrCreate
+	GetVMFn                  = session.GetVMByIP
+	vdoConfigResourceTracker types.NamespacedName
 )
 
 const (
@@ -98,20 +103,20 @@ const (
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vspherecloudconfigs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vspherecloudconfigs/status,verbs=get
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=create;get;list;watch;update
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;update;patch;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=create;get;list;watch;update;delete;
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;update;patch;watch;delete;
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings,verbs=*
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=roles,verbs=*
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=*
 // +kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=*
 // +kubebuilder:rbac:groups="storage.k8s.io",resources=csinodes,verbs=create;get;list;watch
 // +kubebuilder:rbac:groups="storage.k8s.io",resources=csidrivers,verbs=create;update;patch;get;list;watch
-// +kubebuilder:rbac:groups="apps",resources=deployments,verbs=create;update;patch;get;list;watch
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;create;update;patch;
-// +kubebuilder:rbac:groups="apps",resources=daemonsets,verbs=get;list;create;update;patch;
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;create;update;patch;
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch
+// +kubebuilder:rbac:groups="apps",resources=deployments,verbs=create;update;patch;get;list;watch;delete;
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;delete;
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;create;update;patch;delete;
+// +kubebuilder:rbac:groups="apps",resources=daemonsets,verbs=get;list;create;update;patch;delete;
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;create;update;patch;delete;
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch;delete;
 
 func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.Logger.Info("Inside VDOConfig reconciler", "name", req.NamespacedName)
@@ -130,11 +135,25 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	vdoConfig := &vdov1alpha1.VDOConfig{}
 	err = r.Get(ctx, req.NamespacedName, vdoConfig)
 	if err != nil {
-		isVDOAvailable = false
-		vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
-		return ctrl.Result{}, err
+		// Check if the VDOConfig Resource is available,
+		// If Yes the get the correct VDOConfigResource using the last namespaced and continue the reconcile.
+		// This assumes we always have only 1 VDOConfigResource in the cluster
+		if vdoConfigResourceTracker.Name != "" {
+			err = r.Get(ctx, vdoConfigResourceTracker, vdoConfig)
+			if err != nil {
+				vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
+				return ctrl.Result{}, err
+			}
+			req.NamespacedName = vdoConfigResourceTracker
+		} else {
+			vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
+			return ctrl.Result{}, err
+		}
+
 	}
-	isVDOAvailable = true
+
+	// Update the tracker with the successful Request to get VDOConfigResource
+	vdoConfigResourceTracker = req.NamespacedName
 
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
 	matrixConfigContent := os.Getenv(COMPAT_MATRIX_CONFIG_CONTENT)
@@ -188,11 +207,6 @@ func (r *VDOConfigReconciler) updateMatrixInfo(ctx vdocontext.VDOContext, req ct
 		}
 		if updatedContentValue, ok := configMap.Data[CM_CONTENT_KEY]; ok {
 			r.setEnvVariables(COMPAT_MATRIX_CONFIG_CONTENT, updatedContentValue)
-		}
-
-		// If the ConfigMap is created before VDOConfigResource then skip the reconcile for VDOConfig.
-		if !isVDOAvailable {
-			return errors.New("Skipping the reconcile for VDOConfigReosurce")
 		}
 	}
 	return nil
@@ -631,7 +645,7 @@ func (r *VDOConfigReconciler) reconcileCPIDeployment(ctx vdocontext.VDOContext) 
 	var updateStatus bool //maintaining the variable updateStatus for all yaml deployments
 
 	for _, deploymentYaml := range r.CpiDeploymentYamls {
-		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus)
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, CREATE_DEPLOYMENT)
 		if err != nil {
 			return updateStatus, err
 		}
@@ -644,7 +658,7 @@ func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext) 
 	var updateStatus bool //maintaining the variable updateStatus for all yaml deployments
 
 	for _, deploymentYaml := range r.CsiDeploymentYamls {
-		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus)
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, CREATE_DEPLOYMENT)
 		if err != nil {
 			return updateStatus, err
 		}
@@ -653,7 +667,32 @@ func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext) 
 	return updateStatus, nil
 }
 
-func (r *VDOConfigReconciler) applyYaml(yamlPath string, ctx vdocontext.VDOContext, updateStatus bool) (bool, error) {
+// deleteCPIDeployment deletes the currently deployed CPI Drivers
+func (r *VDOConfigReconciler) deleteCPIDeployment(ctx vdocontext.VDOContext) (bool, error) {
+	var updateStatus bool
+	for _, deploymentYaml := range r.CpiDeploymentYamls {
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, DELETE_DEPLOYMENT)
+		if err != nil {
+			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CPI : ", deploymentYaml, updateStatus)
+		}
+	}
+	return updateStatus, nil
+}
+
+// deleteCSIDeployment deletes the currently deployed CSI Drivers
+func (r *VDOConfigReconciler) deleteCSIDeployment(ctx vdocontext.VDOContext) (bool, error) {
+	var updateStatus bool
+
+	for _, deploymentYaml := range r.CsiDeploymentYamls {
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, DELETE_DEPLOYMENT)
+		if err != nil {
+			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CSI : ", deploymentYaml, updateStatus)
+		}
+	}
+	return updateStatus, nil
+}
+
+func (r *VDOConfigReconciler) applyYaml(yamlPath string, ctx vdocontext.VDOContext, updateStatus bool, action string) (bool, error) {
 	ctx.Logger.V(4).Info("will attempt to apply spec file", "yamlPath", yamlPath)
 
 	var exists bool
@@ -672,7 +711,7 @@ func (r *VDOConfigReconciler) applyYaml(yamlPath string, ctx vdocontext.VDOConte
 		}
 	}
 
-	_, err = dynclient.ParseAndProcessK8sObjects(ctx, r.Client, fileBytes, "")
+	_, err = dynclient.ParseAndProcessK8sObjects(ctx, r.Client, fileBytes, "", action)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			ctx.Logger.V(4).Info("given spec file already exists", "yamlPath", yamlPath)
@@ -1107,6 +1146,19 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext,
 		}
 	}
 
+	// If the current evaluated versions is not equals to deployed version
+	// then delete the current deployment
+	if csiVersion != r.currentCSIDeployedVersion && r.currentCSIDeployedVersion != "" {
+		ctx.Logger.V(4).Info("Deleting the CSI Deployment for the version : ", r.currentCSIDeployedVersion)
+
+		_, err := r.deleteCSIDeployment(ctx)
+		if err != nil {
+			return err
+		}
+		// Re-initialize the Deployment Yamls
+		r.CsiDeploymentYamls = []string{}
+	}
+
 	if len(csiVersion) <= 0 {
 		return errors.New("could not fetch compatible CSI version for vSphere version and k8s version ")
 	}
@@ -1114,6 +1166,7 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext,
 	ctx.Logger.V(4).Info("Corresponding CSI Version ", "version", csiVersion)
 
 	r.CsiDeploymentYamls = matrix.CSISpecList[csiVersion].DeploymentPaths
+	r.currentCSIDeployedVersion = csiVersion
 
 	return nil
 }
@@ -1150,6 +1203,19 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 		}
 	}
 
+	// If the current evaluated versions is not equals to deployed version
+	// then delete the current deployment
+	if cpiVersion != r.currentCPIDeployedVersion && r.currentCPIDeployedVersion != "" {
+		ctx.Logger.V(4).Info("Deleting the CPI Deployment for the version : ", r.currentCPIDeployedVersion)
+
+		_, err := r.deleteCPIDeployment(ctx)
+		if err != nil {
+			return err
+		}
+		// Re-initialize the deployment yamls
+		r.CpiDeploymentYamls = []string{}
+	}
+
 	if len(cpiVersion) <= 0 {
 		return errors.New("could not fetch compatible CPI version for vSphere version and k8s version ")
 	}
@@ -1157,6 +1223,7 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 	ctx.Logger.V(4).Info("Corresponding CPI Version ", "version", cpiVersion)
 
 	r.CpiDeploymentYamls = matrix.CPISpecList[cpiVersion].DeploymentPaths
+	r.currentCPIDeployedVersion = cpiVersion
 
 	return nil
 }

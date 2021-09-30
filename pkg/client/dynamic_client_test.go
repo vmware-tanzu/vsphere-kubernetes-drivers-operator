@@ -67,14 +67,14 @@ var _ = Describe("Dynamic Client Tests", func() {
 
 			Expect(yamlBytes).ShouldNot(BeEmpty())
 
-			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "")
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", "CREATE")
 			Expect(err).NotTo(HaveOccurred())
 
 			yamlBytes, err = GenerateYamlFromUrl("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/master/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(yamlBytes)).NotTo(BeZero())
 
-			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "")
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", "CREATE")
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})

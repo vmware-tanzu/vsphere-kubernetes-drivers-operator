@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/controllers"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -64,7 +65,7 @@ Currently the command supports deployment on vanilla k8s cluster`,
 			cobra.CheckErr(fmt.Sprintf("unable to read deployment spec from %s", specfile))
 		}
 
-		_, applyErr := dynclient.ParseAndProcessK8sObjects(ctx, K8sClient, fileBytes, "")
+		_, applyErr := dynclient.ParseAndProcessK8sObjects(ctx, K8sClient, fileBytes, "", controllers.CREATE_DEPLOYMENT)
 		if applyErr != nil {
 			cobra.CheckErr(applyErr)
 		}

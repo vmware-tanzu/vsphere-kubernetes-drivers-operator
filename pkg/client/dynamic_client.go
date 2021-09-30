@@ -43,7 +43,7 @@ var (
 	ApplyYamlFunc = applyYamlSpec
 )
 
-func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstructured.Unstructured, namespace string) error {
+func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstructured.Unstructured, namespace string, action string) error {
 	if specObj == nil {
 		return nil
 	}
@@ -56,10 +56,26 @@ func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstruct
 	}
 
 	ctx.Logger.V(4).Info("will create object with", "name", specObj.GetName(), "kind", specObj.GetKind())
-	err := c.Create(ctx, specObj)
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return errors.Wrapf(err, "Error when creating object with %s name, %s kind",
-			specObj.GetName(), specObj.GetKind())
+	switch action {
+	case "CREATE":
+		err := c.Create(ctx, specObj)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "Error when creating object with %s name, %s kind",
+				specObj.GetName(), specObj.GetKind())
+		}
+	case "DELETE":
+		err := c.Delete(ctx, specObj)
+		if err != nil {
+			return errors.Wrapf(err, "Error when deleting object with %s name, %s kind",
+				specObj.GetName(), specObj.GetKind())
+		}
+
+	case "UPDATE":
+		err := c.Update(ctx, specObj)
+		if err != nil {
+			return errors.Wrapf(err, "Error when updating object with %s name, %s kind",
+				specObj.GetName(), specObj.GetKind())
+		}
 	}
 
 	return nil
@@ -71,11 +87,7 @@ func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstruct
 // When a non-empty namespace is provided then all objects are assigned the
 // the namespace prior to any other actions being performed with or to the
 // object.
-func ParseAndProcessK8sObjects(
-	ctx vdocontext.VDOContext,
-	c client.Client,
-	data []byte,
-	namespace string) (appliedSpec bool, err error) {
+func ParseAndProcessK8sObjects(ctx vdocontext.VDOContext, c client.Client, data []byte, namespace, action string) (appliedSpec bool, err error) {
 	var (
 		multidocReader = utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
 	)
@@ -115,7 +127,7 @@ func ParseAndProcessK8sObjects(
 					return false, errors.Wrap(err, "failed to unmarshal yaml data")
 				}
 
-				if err := ApplyYamlFunc(ctx, c, obj, namespace); err != nil {
+				if err := ApplyYamlFunc(ctx, c, obj, namespace, action); err != nil {
 					if !apierrors.IsAlreadyExists(err) {
 						return false, err
 					}
@@ -134,7 +146,7 @@ func ParseAndProcessK8sObjects(
 				return false, errors.Wrap(err, "failed to unmarshal yaml data")
 			}
 
-			if err := ApplyYamlFunc(ctx, c, obj, namespace); err != nil {
+			if err := ApplyYamlFunc(ctx, c, obj, namespace, action); err != nil {
 				if !apierrors.IsAlreadyExists(err) {
 					return false, err
 				}
