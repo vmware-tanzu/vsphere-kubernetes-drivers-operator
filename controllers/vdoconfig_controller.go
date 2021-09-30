@@ -84,9 +84,8 @@ type VDOConfigReconciler struct {
 }
 
 var (
-	SessionFn                = session.GetOrCreate
-	GetVMFn                  = session.GetVMByIP
-	vdoConfigResourceTracker types.NamespacedName
+	SessionFn = session.GetOrCreate
+	GetVMFn   = session.GetVMByIP
 )
 
 const (
@@ -130,27 +129,27 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	vdoConfig := &vdov1alpha1.VDOConfig{}
-	err = r.Get(ctx, req.NamespacedName, vdoConfig)
-	if err != nil {
-		// Check if the VDOConfig Resource is available,
-		// If Yes the get the correct VDOConfigResource using the last namespaced and continue the reconcile.
-		// This assumes we always have only 1 VDOConfigResource in the cluster
-		if vdoConfigResourceTracker.Name != "" {
-			err = r.Get(ctx, vdoConfigResourceTracker, vdoConfig)
-			if err != nil {
-				vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
-				return ctrl.Result{}, err
-			}
-			req.NamespacedName = vdoConfigResourceTracker
-		} else {
+
+	if req.NamespacedName.Name == CM_NAME {
+		vdoConfigListItems := &vdov1alpha1.VDOConfigList{}
+		err = r.List(ctx, vdoConfigListItems)
+		if err != nil {
+			vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", vdoConfigListItems)
+			return ctrl.Result{}, err
+		}
+		vdoConfigList := vdoConfigListItems.Items
+		if len(vdoConfigList) <= 0 || len(vdoConfigList) > 1 {
+			vdoctx.Logger.Error(err, "Skipping Reconcile for vdoConfig resource as no/multiple resources found", "name", vdoConfigListItems.ListMeta)
+			return ctrl.Result{}, err
+		}
+		vdoConfig = &vdoConfigList[0]
+	} else {
+		err = r.Get(ctx, req.NamespacedName, vdoConfig)
+		if err != nil {
 			vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
 			return ctrl.Result{}, err
 		}
-
 	}
-
-	// Update the tracker with the successful Request to get VDOConfigResource
-	vdoConfigResourceTracker = req.NamespacedName
 
 	matrixConfigUrl := os.Getenv(COMPAT_MATRIX_CONFIG_URL)
 	matrixConfigContent := os.Getenv(COMPAT_MATRIX_CONFIG_CONTENT)
