@@ -43,7 +43,15 @@ var (
 	ApplyYamlFunc = applyYamlSpec
 )
 
-func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstructured.Unstructured, namespace string, action string) error {
+type Action int
+
+const (
+	CREATE Action = iota
+	UPDATE
+	DELETE
+)
+
+func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstructured.Unstructured, namespace string, action Action) error {
 	if specObj == nil {
 		return nil
 	}
@@ -57,27 +65,26 @@ func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstruct
 
 	ctx.Logger.V(4).Info("will create object with", "name", specObj.GetName(), "kind", specObj.GetKind())
 	switch action {
-	case "CREATE":
+	case Action(CREATE):
 		err := c.Create(ctx, specObj)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "Error when creating object with %s name, %s kind",
 				specObj.GetName(), specObj.GetKind())
 		}
-	case "DELETE":
-		err := c.Delete(ctx, specObj)
-		if err != nil {
-			return errors.Wrapf(err, "Error when deleting object with %s name, %s kind",
-				specObj.GetName(), specObj.GetKind())
-		}
-
-	case "UPDATE":
+	case Action(UPDATE):
 		err := c.Update(ctx, specObj)
 		if err != nil {
 			return errors.Wrapf(err, "Error when updating object with %s name, %s kind",
 				specObj.GetName(), specObj.GetKind())
 		}
-	}
 
+	case Action(DELETE):
+		err := c.Delete(ctx, specObj)
+		if err != nil {
+			return errors.Wrapf(err, "Error when deleting object with %s name, %s kind",
+				specObj.GetName(), specObj.GetKind())
+		}
+	}
 	return nil
 }
 
@@ -87,7 +94,7 @@ func applyYamlSpec(ctx vdocontext.VDOContext, c client.Client, specObj *unstruct
 // When a non-empty namespace is provided then all objects are assigned the
 // the namespace prior to any other actions being performed with or to the
 // object.
-func ParseAndProcessK8sObjects(ctx vdocontext.VDOContext, c client.Client, data []byte, namespace, action string) (appliedSpec bool, err error) {
+func ParseAndProcessK8sObjects(ctx vdocontext.VDOContext, c client.Client, data []byte, namespace string, action Action) (appliedSpec bool, err error) {
 	var (
 		multidocReader = utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
 	)

@@ -921,12 +921,12 @@ var _ = Describe("TestApplyYaml", func() {
 		})
 
 		It("should apply the Network path yaml without error", func() {
-			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, CREATE_DEPLOYMENT)
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, dynclient.CREATE)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should apply the File Path yaml without error", func() {
-			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, CREATE_DEPLOYMENT)
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, dynclient.CREATE)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -963,12 +963,12 @@ var _ = Describe("TestApplyYaml", func() {
 		})
 
 		It("should throw error while applying the Network path yaml", func() {
-			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, CREATE_DEPLOYMENT)
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, dynclient.CREATE)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should throw error while applying the File Path yaml", func() {
-			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, CREATE_DEPLOYMENT)
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, dynclient.CREATE)
 			Expect(err).To(HaveOccurred())
 		})
 	})

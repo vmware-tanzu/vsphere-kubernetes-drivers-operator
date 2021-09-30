@@ -69,9 +69,6 @@ const (
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
 	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
-	CREATE_DEPLOYMENT             = "CREATE"
-	DELETE_DEPLOYMENT             = "DELETE"
-	UPDATE_DEPLOYMENT             = "UPDATE"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -645,7 +642,7 @@ func (r *VDOConfigReconciler) reconcileCPIDeployment(ctx vdocontext.VDOContext) 
 	var updateStatus bool //maintaining the variable updateStatus for all yaml deployments
 
 	for _, deploymentYaml := range r.CpiDeploymentYamls {
-		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, CREATE_DEPLOYMENT)
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.CREATE)
 		if err != nil {
 			return updateStatus, err
 		}
@@ -658,7 +655,7 @@ func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext) 
 	var updateStatus bool //maintaining the variable updateStatus for all yaml deployments
 
 	for _, deploymentYaml := range r.CsiDeploymentYamls {
-		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, CREATE_DEPLOYMENT)
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.CREATE)
 		if err != nil {
 			return updateStatus, err
 		}
@@ -671,7 +668,7 @@ func (r *VDOConfigReconciler) reconcileCSIDeployment(ctx vdocontext.VDOContext) 
 func (r *VDOConfigReconciler) deleteCPIDeployment(ctx vdocontext.VDOContext) (bool, error) {
 	var updateStatus bool
 	for _, deploymentYaml := range r.CpiDeploymentYamls {
-		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, DELETE_DEPLOYMENT)
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.DELETE)
 		if err != nil {
 			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CPI : ", deploymentYaml, updateStatus)
 		}
@@ -684,7 +681,7 @@ func (r *VDOConfigReconciler) deleteCSIDeployment(ctx vdocontext.VDOContext) (bo
 	var updateStatus bool
 
 	for _, deploymentYaml := range r.CsiDeploymentYamls {
-		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, DELETE_DEPLOYMENT)
+		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.DELETE)
 		if err != nil {
 			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CSI : ", deploymentYaml, updateStatus)
 		}
@@ -692,7 +689,7 @@ func (r *VDOConfigReconciler) deleteCSIDeployment(ctx vdocontext.VDOContext) (bo
 	return updateStatus, nil
 }
 
-func (r *VDOConfigReconciler) applyYaml(yamlPath string, ctx vdocontext.VDOContext, updateStatus bool, action string) (bool, error) {
+func (r *VDOConfigReconciler) applyYaml(yamlPath string, ctx vdocontext.VDOContext, updateStatus bool, action dynclient.Action) (bool, error) {
 	ctx.Logger.V(4).Info("will attempt to apply spec file", "yamlPath", yamlPath)
 
 	var exists bool
