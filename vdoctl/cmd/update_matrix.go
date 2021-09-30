@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,9 +59,33 @@ func updateMatrix(cmd *cobra.Command, args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
-	//TODO Check for FileShare Volumes and prompt an error if any
+	// Check for volumes which have PWX or ROX access mode,
+	// If any then manual steps are required before updating the driver
+	volumeAttachmentList := storagev1.VolumeAttachmentList{}
+	err := K8sClient.List(ctxNew, &volumeAttachmentList)
+	if err != nil {
+		cobra.CheckErr("unable to read the  volume list to do pre-check for upgrade")
+	}
+	var hasRWXROXVolumes bool
+	var pvlistWithRWXROX []string
+	for _, volumeAttachment := range volumeAttachmentList.Items {
+		volumeSpecModeList := volumeAttachment.Spec.Source.InlineVolumeSpec.AccessModes
 
-	err := updateConfigMap(updatedMatrix, ctxNew)
+		for _, mode := range volumeSpecModeList {
+			if mode == "ReadOnlyMany" || mode == "ReadWriteMany" {
+				hasRWXROXVolumes = true
+				pvlistWithRWXROX = append(pvlistWithRWXROX, *volumeAttachment.Spec.Source.PersistentVolumeName)
+				break
+			}
+		}
+	}
+	if hasRWXROXVolumes {
+		cobra.CheckErr(fmt.Sprintf("There are exisiting PV's attached with RWX | ROX mode %s"+
+			"please follow CSI documentation to update the CSI https://vsphere-csi-driver.sigs.k8s.io/driver-deployment/upgrade.html ",
+			pvlistWithRWXROX))
+	}
+
+	err = updateConfigMap(updatedMatrix, ctxNew)
 
 	if err != nil {
 		cobra.CheckErr(fmt.Sprintf("unable to read the updated matrix from %s", updatedMatrix))

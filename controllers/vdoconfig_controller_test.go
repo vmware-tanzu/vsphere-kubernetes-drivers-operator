@@ -274,6 +274,45 @@ var _ = Describe("TestReconcileCSIDeploymentStatus", func() {
 	})
 })
 
+var _ = Describe("TestDeleteReconcile", func() {
+	Context("When Upgrade scenario hits", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		r.CsiDeploymentYamls = append(r.CsiDeploymentYamls, "https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
+		r.CpiDeploymentYamls = append(r.CpiDeploymentYamls, "https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
+
+		_, err := r.applyYaml(r.CsiDeploymentYamls[0], vdoctx, false, dynclient.CREATE)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = r.deleteCSIDeployment(vdoctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = r.applyYaml(r.CpiDeploymentYamls[0], vdoctx, false, dynclient.CREATE)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = r.deleteCPIDeployment(vdoctx)
+		Expect(err).NotTo(HaveOccurred())
+	})
+})
+
 var _ = Describe("TestReconcileConfigMap", func() {
 
 	Context("When Configmap Creation succeeds", func() {
@@ -507,7 +546,6 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 		})
 
 	})
-
 	Context("When ProviderID is absent while taint is present and the node's DC/VC is mentioned in the vsphereCloudConfig resource", func() {
 		RegisterFailHandler(Fail)
 
@@ -920,13 +958,13 @@ var _ = Describe("TestApplyYaml", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("should apply the Network path yaml without error", func() {
-			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false)
+		It("should apply the File path yaml without error", func() {
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, dynclient.CREATE)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("should apply the File Path yaml without error", func() {
-			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false)
+		It("should apply the Network Path yaml without error", func() {
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, dynclient.CREATE)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -963,12 +1001,12 @@ var _ = Describe("TestApplyYaml", func() {
 		})
 
 		It("should throw error while applying the Network path yaml", func() {
-			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false)
+			_, err := r.applyYaml("file:/"+FILE_PATH, vdoctx, false, dynclient.CREATE)
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should throw error while applying the File Path yaml", func() {
-			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false)
+			_, err := r.applyYaml(DEPLOYMENT_YAML_URL, vdoctx, false, dynclient.CREATE)
 			Expect(err).To(HaveOccurred())
 		})
 	})
@@ -1190,22 +1228,19 @@ var _ = Describe("TestupdateMatrixInfo", func() {
 		})
 
 		It("Should set the env variables", func() {
-			isVDOAvailable = true
 			err := r.updateMatrixInfo(vdoctx, req)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(os.Getenv(COMPAT_MATRIX_CONFIG_URL)).Should(Equal("https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml"))
 			defer server.Close()
 		})
 
-		It("Should give error if VDOConfig not available", func() {
-			isVDOAvailable = false
+		It("Should not give error if VDOConfig not available", func() {
 			err := r.updateMatrixInfo(vdoctx, req)
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 			defer server.Close()
 		})
 
 		It("Should unset env variables when Configmap is deleted", func() {
-			isVDOAvailable = true
 			configMapObject := &v12.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      CM_NAME,
