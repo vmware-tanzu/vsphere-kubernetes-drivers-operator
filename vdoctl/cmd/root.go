@@ -69,6 +69,7 @@ vdoctl configure vc
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
+
 }
 
 func init() {
@@ -146,6 +147,7 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&v1alpha1.VsphereCloudConfig{},
 		&v1alpha1.VsphereCloudConfigList{},
 		&v1alpha1.VDOConfig{},
+		&v1alpha1.VDOConfigList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
