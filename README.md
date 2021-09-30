@@ -9,7 +9,7 @@
 The vSphere Kubernetes Drivers Operator project is designed to simplify and
 automate the lifecycle management of CSI and CPI drivers in a Kubernetes
 cluster running on vSphere. The operator exposes Custom Resources to configure
-CPI and CSI drivers.
+CPI and CSI drivers. To know more about the design and architecture you can see [here](docs/architecture).
 
 ![topology](docs/images/VDOTopology.svg)
 
