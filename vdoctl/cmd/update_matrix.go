@@ -64,7 +64,7 @@ func updateMatrix(cmd *cobra.Command, args []string) {
 	volumeAttachmentList := storagev1.VolumeAttachmentList{}
 	err := K8sClient.List(ctxNew, &volumeAttachmentList)
 	if err != nil {
-		cobra.CheckErr(fmt.Sprintf("unable to read the  volume list to do pre-check for upgrade"))
+		cobra.CheckErr("unable to read the  volume list to do pre-check for upgrade")
 	}
 	var hasRWXROXVolumes bool
 	var pvlistWithRWXROX []string

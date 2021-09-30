@@ -76,6 +76,47 @@ var _ = Describe("Dynamic Client Tests", func() {
 
 			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", CREATE)
 			Expect(err).NotTo(HaveOccurred())
+
+			/*yamlBytes, err = GenerateYamlFromUrl("https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(yamlBytes)).NotTo(BeZero())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", UPDATE)
+			Expect(err).NotTo(HaveOccurred())
+			*/
+		})
+
+		It("should work for all actions", func() {
+			yamlBytes, err := GenerateYamlFromUrl("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(yamlBytes)).NotTo(BeZero())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", CREATE)
+			Expect(err).NotTo(HaveOccurred())
+
+			yamlBytes, err = GenerateYamlFromUrl("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test-update.yaml")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(yamlBytes)).NotTo(BeZero())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", UPDATE)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", DELETE)
+			Expect(err).NotTo(HaveOccurred())
+
+			yamlBytes, err = GenerateYamlFromUrl("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/error-test-vdo.yaml")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(yamlBytes)).NotTo(BeZero())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", CREATE)
+			Expect(err).To(HaveOccurred())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", UPDATE)
+			Expect(err).To(HaveOccurred())
+
+			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", DELETE)
+			Expect(err).To(HaveOccurred())
+
 		})
 	})
 
