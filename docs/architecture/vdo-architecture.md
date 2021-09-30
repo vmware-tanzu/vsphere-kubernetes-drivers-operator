@@ -98,7 +98,7 @@ although support for vanilla Kubernetes should mean that it will just work
 
 Here is a high-level diagram of the architecture showing the net new components with a shadow
 
-![](images/arch-diagram-1.png "Proposed Architecture")
+![](../images/arch-diagram-1.png "Proposed Architecture")
 
 ### VDO Command-line tool
 
