@@ -34,7 +34,7 @@ var _ = Describe("vdoctl delete", func() {
 			ns := &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "vmware-system-vdo"},
 			}
-			testK8sClient.Create(ctx, ns, &client.CreateOptions{})
+			Expect(testK8sClient.Create(ctx, ns, &client.CreateOptions{})).Should(Succeed())
 
 			cr := &v12.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
@@ -43,21 +43,23 @@ var _ = Describe("vdoctl delete", func() {
 				},
 				Rules: []v12.PolicyRule{},
 			}
-			testK8sClient.Create(ctx, cr, &client.CreateOptions{})
+			Expect(testK8sClient.Create(ctx, cr, &client.CreateOptions{})).Should(Succeed())
 
 			crb := &v12.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "vdo-cr-role-cb",
 					Labels: map[string]string{"managedby": "vdo"},
 				},
-				RoleRef: v12.RoleRef{Name: cr.Name},
+				RoleRef: v12.RoleRef{Name: cr.Name, Kind: "ClusterRole"},
 			}
-			testK8sClient.Create(ctx, crb, &client.CreateOptions{})
+			Expect(testK8sClient.Create(ctx, crb, &client.CreateOptions{})).Should(Succeed())
 
 			deleteCmd.Run(&cobra.Command{}, []string{})
 
-			Expect(testK8sClient.Delete(ctx, ns, &client.DeleteOptions{})).ShouldNot(Succeed())
-			Expect(testK8sClient.Delete(ctx, cr, &client.DeleteOptions{})).ShouldNot(Succeed())
+			retns := &v1.Namespace{}
+
+			_ = testK8sClient.Get(ctx, client.ObjectKey{Name: ns.Name}, retns)
+			Expect(retns.Status.Phase).To(BeEquivalentTo(v1.NamespaceTerminating))
 		})
 	})
 })
