@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -57,8 +58,8 @@ vdoctl provides the user with basic set of commands required to install and conf
 For example:
 vdoctl deploy
 vdoctl configure compat
+vdoctl configure drivers
 vdoctl store creds
-vdoctl configure vc
 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -70,6 +71,14 @@ vdoctl configure vc
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 
+}
+
+func GenerateMarkdownDoc(docPath string) {
+	rootCmd.DisableAutoGenTag = true
+	err := doc.GenMarkdownTree(rootCmd, docPath)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
 }
 
 func init() {

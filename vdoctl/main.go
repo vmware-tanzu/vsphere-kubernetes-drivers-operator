@@ -15,8 +15,18 @@ limitations under the License.
 */
 package main
 
-import "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
+import (
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/cmd"
+	"os"
+)
 
 func main() {
+	if len(os.Args) > 1 {
+		if os.Args[1] == "generate-doc" {
+			cmd.GenerateMarkdownDoc(os.Args[2])
+			os.Exit(0)
+		}
+	}
+
 	cmd.Execute()
 }

@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.0.1
+VERSION ?= 1.0.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -96,7 +96,6 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 manifests-openshift: kustomize
 	@mkdir -p $(ARTIFACTS_DIR)/openshift
 	$(KUSTOMIZE) build config/rbac > config/openshift/rbac/rbac.yaml
-	$(KUSTOMIZE) build config/crd > $(ARTIFACTS_DIR)/openshift/crd.yaml
 	$(KUSTOMIZE) build config/crd > $(ARTIFACTS_DIR)/openshift/crd.yaml
 	cd config/openshift/rbac && $(KUSTOMIZE) edit set nameprefix vdo-
 	$(KUSTOMIZE) build config/openshift/rbac > $(ARTIFACTS_DIR)/openshift/rbac.yaml
@@ -279,9 +278,9 @@ index-push: ## Push a index image.
 .PHONY: lint
 lint: ## Run all the lint targets
 	$(MAKE) lint-go-full
-	$(MAKE) lint-markdown
+	#$(MAKE) lint-markdown
 
-GOLANGCI_LINT_FLAGS ?= --fast=true
+GOLANGCI_LINT_FLAGS ?= --fast=true --skip-dirs=docs
 .PHONY: lint-go
 lint-go: golangci_lint ## Lint codebase
 	$(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_FLAGS)
@@ -293,6 +292,12 @@ lint-go-full: lint-go ## Run slower linters to detect possible issues
 .PHONY: lint-markdown
 lint-markdown: ## Lint the project's markdown
 	docker run --rm -v "$$(pwd)":/build$(DOCKER_VOL_OPTS) gcr.io/cluster-api-provider-vsphere/extra/mdlint:0.23.2 -- /md/lint -i vendor -i docs/ .
+
+.PHONY: vdoctl-docgen
+vdoctl-docgen: build-vdoctl
+	@mkdir -p "docs/vdoctl"
+	-rm -f docs/vdoctl/*.md
+	bin/vdoctl generate-doc 'docs/vdoctl'
 
 .PHONY: fix
 fix: GOLANGCI_LINT_FLAGS = --fast=false --fix
