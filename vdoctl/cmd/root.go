@@ -58,8 +58,8 @@ vdoctl provides the user with basic set of commands required to install and conf
 For example:
 vdoctl deploy
 vdoctl configure compat
+vdoctl configure drivers
 vdoctl store creds
-vdoctl configure vc
 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:

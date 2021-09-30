@@ -9,8 +9,8 @@ vdoctl provides the user with basic set of commands required to install and conf
 For example:
 vdoctl deploy
 vdoctl configure compat
+vdoctl configure drivers
 vdoctl store creds
-vdoctl configure vc
 
 
 ### Options
@@ -27,4 +27,5 @@ vdoctl configure vc
 * [vdoctl delete](vdoctl_delete.md)	 - Delete vSphere Kubernetes Driver Operator
 * [vdoctl deploy](vdoctl_deploy.md)	 - Deploy vSphere Kubernetes Driver Operator
 * [vdoctl store](vdoctl_store.md)	 - A brief description of your command
+* [vdoctl update](vdoctl_update.md)	 - Update the VDO Resources
 

@@ -6,7 +6,7 @@ command to configure VDO
 
 This command is used to configure VDO.
 This command has other subcommands that help in configuration of VDO
-vdoctl configure vc
+vdoctl configure drivers
 vdoctl configure compat
 
 ```
@@ -30,4 +30,5 @@ vdoctl configure [flags]
 
 * [vdoctl](vdoctl.md)	 - VDO Command Line
 * [vdoctl configure compat](vdoctl_configure_compat.md)	 - Compatibility matrix of VDO
+* [vdoctl configure drivers](vdoctl_configure_drivers.md)	 - Command to configure VDO
 
