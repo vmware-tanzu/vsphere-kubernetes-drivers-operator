@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +48,7 @@ var (
 	kubeconfig         string
 	K8sClientset       *kubernetes.Clientset
 	K8sClient          client.Client
+	ClientConfig       *rest.Config
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -128,17 +130,18 @@ func initConfig() {
 }
 
 func generateK8sClient(kubeconfig string) error {
-	clientConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	var err error
+	ClientConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return errors.New("Failed to generate client from provided kubeconfig")
 	}
 
-	K8sClientset, err = kubernetes.NewForConfig(clientConfig)
+	K8sClientset, err = kubernetes.NewForConfig(ClientConfig)
 	if err != nil {
 		return err
 	}
 
-	K8sClient, _ = client.New(clientConfig, client.Options{
+	K8sClient, _ = client.New(ClientConfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
 
