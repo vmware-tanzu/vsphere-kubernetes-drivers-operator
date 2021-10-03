@@ -461,7 +461,8 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 		return ctrl.Result{}, err
 	}
 
-	if vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Deploying {
+	if vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Deploying ||
+		vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Configuring {
 		err = r.updateCSIPhase(vdoctx, vdoConfig, vdov1alpha1.Deployed, "")
 		if err != nil {
 			return ctrl.Result{}, err
