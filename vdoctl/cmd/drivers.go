@@ -62,7 +62,7 @@ const (
 // driversCmd represents the drivers command
 var driversCmd = &cobra.Command{
 	Use:   "drivers",
-	Short: "Command to configure VDO",
+	Short: "Command to configure vsphere drivers",
 	Long:  `This command helps to specify the details required to configure CloudProvider and StorageProvider drivers.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -254,7 +254,7 @@ var driversCmd = &cobra.Command{
 		if err != nil {
 			cobra.CheckErr(err)
 		}
-		fmt.Println("Thanks For configuring VDO. The drivers will now be installed.")
+		fmt.Println("Thanks For configuring VDO. The drivers will now be installed.\nYou can check the status for drivers using `vdoctl status`")
 
 	},
 }

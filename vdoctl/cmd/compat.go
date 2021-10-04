@@ -39,7 +39,7 @@ const (
 // compatCmd represents the compat command
 var compatCmd = &cobra.Command{
 	Use:   "compat",
-	Short: "Compatibility matrix of VDO",
+	Short: "Command to configure compatibility matrix of VDO",
 	Long:  `This command helps to configure compatibility matrix for VDO`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
