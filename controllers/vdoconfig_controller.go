@@ -433,12 +433,6 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 		return ctrl.Result{}, err
 	}
 
-	err = r.updateCSIPhase(vdoctx, vdoConfig, vdov1alpha1.Configuring, "")
-	if err != nil {
-		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in updating CSI phase")
-		return ctrl.Result{}, err
-	}
-
 	vdoctx.Logger.V(4).Info("reconciling deployment for CSI")
 	updateStatus, err := r.reconcileCSIDeployment(vdoctx)
 	if err != nil {
