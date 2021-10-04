@@ -39,8 +39,8 @@ const (
 // compatCmd represents the compat command
 var compatCmd = &cobra.Command{
 	Use:   "compat",
-	Short: "Compatibility matrix of VDO",
-	Long:  `This command helps to configure compatiblity matrix for VDO`,
+	Short: "Command to configure compatibility matrix of VDO",
+	Long:  `This command helps to configure compatibility matrix for VDO`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
@@ -54,12 +54,12 @@ var compatCmd = &cobra.Command{
 
 		err := CreateNamespace(K8sClient, ctx)
 		if err != nil {
-			panic(err)
+			cobra.CheckErr(err)
 		}
 
 		err = CreateConfigMap(filePath, K8sClient, ctx)
 		if err != nil {
-			panic(err)
+			cobra.CheckErr(err)
 		}
 
 	},

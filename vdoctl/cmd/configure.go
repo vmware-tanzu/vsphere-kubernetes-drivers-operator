@@ -16,8 +16,6 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -25,13 +23,7 @@ import (
 var configureCmd = &cobra.Command{
 	Use:   "configure",
 	Short: "command to configure VDO",
-	Long: `This command is used to configure VDO.
-This command has other subcommands that help in configuration of VDO
-vdoctl configure drivers
-vdoctl configure compat`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("configure called")
-	},
+	Long:  `This command helps in configuration of VDO`,
 }
 
 func init() {

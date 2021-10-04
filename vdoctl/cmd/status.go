@@ -50,13 +50,13 @@ var statusCmd = &cobra.Command{
 		vdoConfig := vdoConfigList.Items[0]
 
 		// Display CloudProvider Details
-		fmt.Printf("CloudProvider   : %s", vdoConfig.Status.CPIStatus.Phase)
 		for _, vsphereCloudConfigName := range vdoConfig.Spec.CloudProvider.VsphereCloudConfigs {
+			fmt.Printf("CloudProvider   : %s", vdoConfig.Status.CPIStatus.Phase)
 			fetchVcenterIp(vsphereCloudConfigList, vsphereCloudConfigName)
 		}
 
-		fmt.Printf("\t Node : ")
 		for nodeName, status := range vdoConfig.Status.CPIStatus.NodeStatus {
+			fmt.Printf("\t Node : ")
 			fmt.Printf("\n\t\t %s : %s ", nodeName, status)
 		}
 
@@ -69,8 +69,8 @@ var statusCmd = &cobra.Command{
 // Fetch VC IP of given VsphereCloudConfig
 func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, configName string) {
 	for _, vsphereCloudConfig := range vsphereCloudConfigList.Items {
-		fmt.Printf("\n\t vCenter : ")
 		if configName == vsphereCloudConfig.Name {
+			fmt.Printf("\n\t vCenter : ")
 			if vsphereCloudConfig.Status.Config == vdov1alpha1.VsphereConfigVerified {
 				fmt.Printf("\n\t\t%s  (%s)\n", vsphereCloudConfig.Spec.VcIP, "Credentials Verified")
 			} else {

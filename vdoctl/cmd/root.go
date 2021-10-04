@@ -57,11 +57,6 @@ var rootCmd = &cobra.Command{
 	Short: "VDO Command Line",
 	Long: `vdoctl is a command line interface for vSphere Kubernetes Drivers Operator.
 vdoctl provides the user with basic set of commands required to install and configure VDO.
-For example:
-vdoctl deploy
-vdoctl configure compat
-vdoctl configure drivers
-vdoctl store creds
 `,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
