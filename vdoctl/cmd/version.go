@@ -105,14 +105,13 @@ var versionCmd = &cobra.Command{
 
 		containerInfo := deploymentMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
 
-		var count int
+		var imageName interface{}
 		for i, container := range containerInfo {
 			if container.(map[string]interface{})["name"] == "manager" {
-				count = i
+				imageName = containerInfo[i].(map[string]interface{})["image"]
+				break
 			}
 		}
-
-		imageName := containerInfo[count].(map[string]interface{})["image"]
 
 		vdoVersion := strings.Split(fmt.Sprint(imageName), ":")
 
