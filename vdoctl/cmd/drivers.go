@@ -79,7 +79,7 @@ var driversCmd = &cobra.Command{
 		labels := credentials{
 			username: "Username",
 			password: "Password",
-			vcIp:     "VC_IP",
+			vcIp:     "VC IP",
 			topology: v1alpha1.TopologyInfo{
 				Zone:   "Zones",
 				Region: "Regions",
@@ -90,10 +90,11 @@ var driversCmd = &cobra.Command{
 		isCPIRequired := utils.PromptGetInput("Do you want to configure CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if strings.EqualFold(isCPIRequired, "Y") {
+			fmt.Printf("Please provide the vcenter IP for configuring CloudProvider \n")
 
 		multivcloop:
 			for {
-				fetchVCIP(&cpi, labels, "CloudProvider")
+				fetchVCIP(&cpi, labels)
 			thumbprintloop:
 				for {
 					if !cpi.insecure {
@@ -117,6 +118,7 @@ var driversCmd = &cobra.Command{
 								} else if checkPattern("thumbprint does not match", err) {
 									continue thumbprintloop
 								}
+								continue multivcloop
 							}
 							break
 						}
@@ -124,6 +126,7 @@ var driversCmd = &cobra.Command{
 					}
 					break
 				}
+
 				vcIPList = append(vcIPList, cpi.vcIp)
 				secret, err := createSecret(K8sClient, ctx, cpi, "cpi")
 				if err != nil {
@@ -173,7 +176,8 @@ var driversCmd = &cobra.Command{
 			csi.insecure = cpi.insecure
 			csi.thumbprint = cpi.thumbprint
 		} else {
-			fetchVCIP(&csi, labels, "StorageProvider")
+			fmt.Printf("Please provide the vcenter IP for configuring StorageProvider \n")
+			fetchVCIP(&csi, labels)
 			if !csi.insecure {
 				fetchThumbprint(&csi, labels)
 			}
@@ -195,6 +199,12 @@ var driversCmd = &cobra.Command{
 						continue csiCredsLoop
 					} else if checkPattern("thumbprint does not match", err) {
 						fetchThumbprint(&csi, labels)
+						continue csiCredsLoop
+					} else {
+						fetchVCIP(&csi, labels)
+						if !csi.insecure {
+							fetchThumbprint(&csi, labels)
+						}
 						continue csiCredsLoop
 					}
 				}
@@ -230,7 +240,7 @@ var driversCmd = &cobra.Command{
 				for {
 					netPermission := fetchNetPermissions()
 					csi.netPermissions = append(csi.netPermissions, netPermission)
-					netPerms = utils.PromptGetInput("Do you want to configure another Net permissions (Y/N)", errors.New("invalid input"), utils.IsString)
+					netPerms = utils.PromptGetInput("Do you wish to configure another Net permissions (Y/N)", errors.New("invalid input"), utils.IsString)
 
 					if strings.EqualFold(netPerms, "Y") {
 						continue
@@ -342,9 +352,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 	return err
 }
 
-func fetchVCIP(cred *credentials, labels credentials, driver string) {
-	fmt.Printf("Please provide the vcenter IP for configuring %s \n", driver)
-
+func fetchVCIP(cred *credentials, labels credentials) {
 	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the IP Address - Invalid input"), utils.IsIP)
 	cred.vcIp = vcIp
 
@@ -381,9 +389,9 @@ func checkPattern(pattern string, err error) bool {
 
 func fetchNetPermissions() v1alpha1.NetPermission {
 	netPermission := v1alpha1.NetPermission{}
-	netPermission.Ip = utils.PromptGetInput("IP Address", errors.New("unable to get the IP Address - Invalid input"), utils.IsString)
+	netPermission.Ip = utils.PromptGetInput("File Volumes IP Subnet", errors.New("unable to get the IP Address - Invalid input"), utils.IsString)
 
-	netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Permissions")
+	netPermission.Permission = utils.PromptGetSelect([]string{"READ_ONLY", "READ_WRITE"}, "Permissions type for File Volumes")
 
 	rs := utils.PromptGetInput("Allow Root Access? (Y/N)", errors.New("invalid input"), utils.IsString)
 
