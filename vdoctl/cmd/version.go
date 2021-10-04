@@ -58,6 +58,9 @@ var versionCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
+		// Fetch the first element from vdoConfigList, since we have a single vdoConfig
+		vdoConfig := vdoConfigList.Items[0]
+
 		s := scheme.Scheme
 		s.AddKnownTypes(vdov1alpha1.GroupVersion, &vdov1alpha1.VDOConfig{})
 
@@ -128,16 +131,11 @@ var versionCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		vSphereVersion, _ := r.FetchVsphereVersions(ctx, req, &vdoConfigList.Items[0])
+		vSphereVersion, _ := r.FetchVsphereVersions(ctx, req, &vdoConfig)
 		fmt.Printf("\nvSphere Versions   : %s", vSphereVersion)
 
 		k8sVersion, _ := r.Fetchk8sVersions(ctx)
 		fmt.Printf("\nkubernetes Version : %s", k8sVersion)
-
-		err = r.FetchCpiDeploymentYamls(ctx, matrixConfig, vSphereVersion, k8sVersion)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
 
 		err = r.FetchCsiDeploymentYamls(ctx, matrixConfig, vSphereVersion, k8sVersion)
 		if err != nil {
@@ -145,7 +143,13 @@ var versionCmd = &cobra.Command{
 		}
 		fmt.Printf("\nCSI Version        : %s", r.CurrentCSIDeployedVersion)
 
-		fmt.Printf("\nCPI Version        : %s", r.CurrentCPIDeployedVersion)
+		if len(vdoConfig.Spec.CloudProvider.VsphereCloudConfigs) > 0 {
+			err = r.FetchCpiDeploymentYamls(ctx, matrixConfig, vSphereVersion, k8sVersion)
+			if err != nil {
+				cobra.CheckErr(err)
+			}
+			fmt.Printf("\nCPI Version        : %s", r.CurrentCPIDeployedVersion)
+		}
 	},
 }
 
