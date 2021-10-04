@@ -807,12 +807,12 @@ var _ = Describe("TestfetchDeploymentYamls", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		It("should fetch CSI deployment yamls without error", func() {
-			err = r.fetchCsiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
+			err = r.FetchCsiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should fetch CPI deployment yamls without error", func() {
-			err = r.fetchCpiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
+			err = r.FetchCpiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -842,12 +842,12 @@ var _ = Describe("TestfetchDeploymentYamls", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		It("should fetch CSI deployment yamls with error", func() {
-			err = r.fetchCsiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
+			err = r.FetchCsiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should fetch CPI deployment yamls with error", func() {
-			err = r.fetchCpiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
+			err = r.FetchCpiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.21")
 			Expect(err).To(HaveOccurred())
 		})
 	})
@@ -877,12 +877,12 @@ var _ = Describe("TestfetchDeploymentYamls", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		It("should fetch CSI deployment yamls with error", func() {
-			err = r.fetchCsiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.22")
+			err = r.FetchCsiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.22")
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should fetch CPI deployment yamls with error", func() {
-			err = r.fetchCpiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.22")
+			err = r.FetchCpiDeploymentYamls(vdoctx, matrix, []string{"7.0.3"}, "1.22")
 			Expect(err).To(HaveOccurred())
 		})
 	})
@@ -912,12 +912,12 @@ var _ = Describe("TestfetchDeploymentYamls", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		It("should fetch CSI deployment yamls without error", func() {
-			err = r.fetchCsiDeploymentYamls(vdoctx, matrix, []string{"6.5.3"}, "1.17")
+			err = r.FetchCsiDeploymentYamls(vdoctx, matrix, []string{"6.5.3"}, "1.17")
 			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should fetch CPI deployment yamls without error", func() {
-			err = r.fetchCpiDeploymentYamls(vdoctx, matrix, []string{"6.5.3"}, "1.17")
+			err = r.FetchCpiDeploymentYamls(vdoctx, matrix, []string{"6.5.3"}, "1.17")
 			Expect(err).NotTo(HaveOccurred())
 		})
 

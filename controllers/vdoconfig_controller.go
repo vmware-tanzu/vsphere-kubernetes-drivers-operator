@@ -79,8 +79,8 @@ type VDOConfigReconciler struct {
 	ClientConfig              *restclient.Config
 	CsiDeploymentYamls        []string
 	CpiDeploymentYamls        []string
-	currentCSIDeployedVersion string
-	currentCPIDeployedVersion string
+	CurrentCSIDeployedVersion string
+	CurrentCPIDeployedVersion string
 }
 
 var (
@@ -263,7 +263,7 @@ func (r *VDOConfigReconciler) fetchVsphereCloudConfigItems(vdoctx vdocontext.VDO
 	return vsphereCloudConfigItems, nil
 }
 
-func (r *VDOConfigReconciler) fetchk8sVersions(vdoctx vdocontext.VDOContext) (string, error) {
+func (r *VDOConfigReconciler) Fetchk8sVersions(vdoctx vdocontext.VDOContext) (string, error) {
 	discoveryClient, _ := discovery.NewDiscoveryClientForConfig(r.ClientConfig)
 	k8sServerVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
@@ -274,7 +274,7 @@ func (r *VDOConfigReconciler) fetchk8sVersions(vdoctx vdocontext.VDOContext) (st
 	return k8sVersion, nil
 }
 
-func (r *VDOConfigReconciler) fetchVsphereVersions(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig) (versions []string, err error) {
+func (r *VDOConfigReconciler) FetchVsphereVersions(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig) (versions []string, err error) {
 	var vsphereCloudConfigsList []string
 	vsphereCloudConfigsList = vdoConfig.Spec.CloudProvider.VsphereCloudConfigs
 
@@ -430,12 +430,6 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 	vdoConfig, err = r.reconcileCSISecret(vdoctx, vdoConfig, vsphereCloudConfig)
 	if err != nil {
 		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of secret for CSI configuration")
-		return ctrl.Result{}, err
-	}
-
-	err = r.updateCSIPhase(vdoctx, vdoConfig, vdov1alpha1.Configuring, "")
-	if err != nil {
-		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in updating CSI phase")
 		return ctrl.Result{}, err
 	}
 
@@ -1110,7 +1104,7 @@ func (r *VDOConfigReconciler) compareSkewVersions(currentVersion, supportedVersi
 
 }
 
-func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
+func (r *VDOConfigReconciler) FetchCsiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
 	var versionList []string
 
 	for ver := range matrix.CSISpecList {
@@ -1145,8 +1139,8 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext,
 
 	// If the current evaluated versions is not equals to deployed version
 	// then delete the current deployment
-	if csiVersion != r.currentCSIDeployedVersion && r.currentCSIDeployedVersion != "" {
-		ctx.Logger.V(4).Info("Deleting the CSI Deployment for the version : ", r.currentCSIDeployedVersion)
+	if csiVersion != r.CurrentCSIDeployedVersion && r.CurrentCSIDeployedVersion != "" {
+		ctx.Logger.V(4).Info("Deleting the CSI Deployment for the version : ", r.CurrentCSIDeployedVersion)
 
 		_, err := r.deleteCSIDeployment(ctx)
 		if err != nil {
@@ -1163,12 +1157,12 @@ func (r *VDOConfigReconciler) fetchCsiDeploymentYamls(ctx vdocontext.VDOContext,
 	ctx.Logger.V(4).Info("Corresponding CSI Version ", "version", csiVersion)
 
 	r.CsiDeploymentYamls = matrix.CSISpecList[csiVersion].DeploymentPaths
-	r.currentCSIDeployedVersion = csiVersion
+	r.CurrentCSIDeployedVersion = csiVersion
 
 	return nil
 }
 
-func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
+func (r *VDOConfigReconciler) FetchCpiDeploymentYamls(ctx vdocontext.VDOContext, matrix CompatMatrix, vSphereVersions []string, k8sVersion string) error {
 	var versionList []string
 
 	for ver := range matrix.CPISpecList {
@@ -1202,8 +1196,8 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 
 	// If the current evaluated versions is not equals to deployed version
 	// then delete the current deployment
-	if cpiVersion != r.currentCPIDeployedVersion && r.currentCPIDeployedVersion != "" {
-		ctx.Logger.V(4).Info("Deleting the CPI Deployment for the version : ", r.currentCPIDeployedVersion)
+	if cpiVersion != r.CurrentCPIDeployedVersion && r.CurrentCPIDeployedVersion != "" {
+		ctx.Logger.V(4).Info("Deleting the CPI Deployment for the version : ", r.CurrentCPIDeployedVersion)
 
 		_, err := r.deleteCPIDeployment(ctx)
 		if err != nil {
@@ -1220,7 +1214,7 @@ func (r *VDOConfigReconciler) fetchCpiDeploymentYamls(ctx vdocontext.VDOContext,
 	ctx.Logger.V(4).Info("Corresponding CPI Version ", "version", cpiVersion)
 
 	r.CpiDeploymentYamls = matrix.CPISpecList[cpiVersion].DeploymentPaths
-	r.currentCPIDeployedVersion = cpiVersion
+	r.CurrentCPIDeployedVersion = cpiVersion
 
 	return nil
 }
@@ -1229,13 +1223,13 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOConte
 
 	var matrix CompatMatrix
 
-	k8sVersion, err := r.fetchk8sVersions(ctx)
+	k8sVersion, err := r.Fetchk8sVersions(ctx)
 	if err != nil {
 		ctx.Logger.Error(err, "Error occurred when fetching k8sVersion")
 		return err
 	}
 
-	vSphereVersions, err := r.fetchVsphereVersions(ctx, req, vdoConfig)
+	vSphereVersions, err := r.FetchVsphereVersions(ctx, req, vdoConfig)
 	if err != nil {
 		ctx.Logger.Error(err, "Error occurred when fetching vSphereVersions")
 		return err
@@ -1255,13 +1249,13 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOConte
 		}
 	}
 
-	err = r.fetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
+	err = r.FetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
 	if err != nil {
 		ctx.Logger.Error(err, "Error occurred when fetching the CPI deployment yamls")
 		return err
 	}
 
-	err = r.fetchCsiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
+	err = r.FetchCsiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
 	if err != nil {
 		ctx.Logger.Error(err, "Error occurred when fetching the CSI deployment yamls")
 		return err
