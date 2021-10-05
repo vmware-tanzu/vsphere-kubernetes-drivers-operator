@@ -85,6 +85,10 @@ func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.C
 
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
+			err = client.Update(ctx, &vsphereConfigMap)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}
