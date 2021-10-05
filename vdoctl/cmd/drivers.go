@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -76,6 +77,19 @@ var driversCmd = &cobra.Command{
 			} else {
 				cobra.CheckErr(err)
 			}
+		}
+
+		var vdoConfigList v1alpha1.VDOConfigList
+
+		err := K8sClient.List(ctx, &vdoConfigList)
+		if err != nil {
+			cobra.CheckErr(err)
+		}
+
+		if len(vdoConfigList.Items) > 0 {
+			fmt.Println("vSphere drivers are already configured.")
+			os.Exit(1)
+
 		}
 
 		cpi := credentials{}
@@ -292,6 +306,10 @@ func createSecret(cl client.Client, ctx context.Context, cred credentials, drive
 	err := cl.Create(ctx, &secret, &runtimeclient.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
+			err = cl.Update(ctx, &secret)
+			if err != nil {
+				return secret, err
+			}
 			return secret, nil
 		}
 	}
@@ -319,10 +337,14 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return *vcc, nil
+			err = cl.Update(ctx, vcc)
+			if err != nil {
+				return *vcc, err
+			}
 		}
+		return *vcc, err
 	}
-	return *vcc, err
+	return *vcc, nil
 }
 
 func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi credentials) error {
