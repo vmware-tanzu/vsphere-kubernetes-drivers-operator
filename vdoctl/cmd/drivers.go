@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"regexp"
 	"strings"
@@ -337,7 +338,19 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			err = cl.Update(ctx, vcc)
+			key := types.NamespacedName{
+				Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
+				Namespace: VdoNamespace,
+			}
+			getObj := v1alpha1.VsphereCloudConfig{}
+
+			err = cl.Get(ctx, key, &getObj)
+			if err != nil {
+				return *vcc, err
+			}
+
+			vcc.SetResourceVersion(getObj.GetResourceVersion())
+			err = cl.Update(ctx, vcc, &runtimeclient.UpdateOptions{})
 			if err != nil {
 				return *vcc, err
 			}
