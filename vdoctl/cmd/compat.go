@@ -18,6 +18,9 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
+
+	vdoClient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,6 +47,17 @@ var compatCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
+		configKey := types.NamespacedName{
+			Namespace: VdoNamespace,
+			Name:      CompatMatrixConfigMap,
+		}
+		cm := v1.ConfigMap{}
+
+		err := K8sClient.Get(ctx, configKey, &cm)
+		if err == nil {
+			cobra.CheckErr(errors.New("you have already configured the compatibility matrix. Check 'vdoctl update matrix' to update the existing one"))
+		}
+
 		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
 
 		flag := utils.IsString
@@ -52,12 +66,12 @@ var compatCmd = &cobra.Command{
 		}
 		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
 
-		err := CreateNamespace(K8sClient, ctx)
+		err = CreateNamespace(K8sClient, ctx)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
 
-		err = CreateConfigMap(filePath, K8sClient, ctx)
+		err = CreateConfigMap(filePath, K8sClient, ctx, flag)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
@@ -69,14 +83,23 @@ func init() {
 	configureCmd.AddCommand(compatCmd)
 }
 
-func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context) error {
+func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags) error {
 
 	configMapKey := types.NamespacedName{
 		Namespace: VdoNamespace,
 		Name:      CompatMatrixConfigMAp,
 	}
+	var data map[string]string
 
-	data := map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
+	if flag == utils.IsURL {
+		data = map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
+	} else {
+		fileBytes, err := vdoClient.GenerateYamlFromFilePath(filepath)
+		if err != nil {
+			cobra.CheckErr(fmt.Sprintf("unable to read the matrix from %s", filepath))
+		}
+		data = map[string]string{"versionConfigContent": string(fileBytes), "auto-upgrade": "disabled"}
+	}
 
 	configMapObj := metav1.ObjectMeta{Name: configMapKey.Name, Namespace: configMapKey.Namespace}
 	vsphereConfigMap := v1.ConfigMap{Data: data, ObjectMeta: configMapObj}
