@@ -105,17 +105,10 @@ func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.C
 	vsphereConfigMap := v1.ConfigMap{Data: data, ObjectMeta: configMapObj}
 
 	err := client.Create(ctx, &vsphereConfigMap, &runtimeclient.CreateOptions{})
-
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = client.Update(ctx, &vsphereConfigMap)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func CreateNamespace(client runtimeclient.Client, ctx context.Context) error {
