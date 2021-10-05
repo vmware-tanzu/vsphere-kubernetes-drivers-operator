@@ -26,6 +26,7 @@ import (
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	v12 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -53,7 +54,17 @@ var versionCmd = &cobra.Command{
 			Logger:  ctrllog.Log.WithName("vdoctl:version"),
 		}
 
-		err := K8sClient.List(ctx, &vdoConfigList)
+		err := IsVDODeployed(ctx)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				fmt.Println(VDO_NOT_DEPLOYED)
+				return
+			} else {
+				cobra.CheckErr(err)
+			}
+		}
+
+		err = K8sClient.List(ctx, &vdoConfigList)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
@@ -155,14 +166,4 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deployCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// deployCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

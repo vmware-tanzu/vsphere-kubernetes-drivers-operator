@@ -10,6 +10,7 @@ SSHARGS="-q -o PubkeyAuthentication=no -o UserKnownHostsFile=/dev/null -o Strict
 imgName=$1
 SPEC_FILE="artifacts/vanilla/vdo-spec.yaml"
 REMOTE_DEST_DIR="/tmp"
+REMOTE_DEST_SPEC_FILE="vdo-spec.yaml"
 
 function verifyEnvironmentVariables() {
     if [[ -z ${K8S_MASTER_IP:-} ]]; then
@@ -48,18 +49,18 @@ function load_image() {
       SSHPASS="$k8sMasterPwd" sshpass -e ssh $SSHARGS \
       "$k8sMasterUser@$k8sMasterIP" "docker import ${REMOTE_DEST_DIR}/vdo.tar ${imgName}"
       SSHPASS="$k8sMasterPwd" sshpass -e scp $SSHARGS \
-      ${SPEC_FILE} "$k8sMasterUser@$k8sMasterIP:${REMOTE_DEST_DIR}/${SPEC_FILE}"
+      ${SPEC_FILE} "$k8sMasterUser@$k8sMasterIP:${REMOTE_DEST_DIR}/${REMOTE_DEST_SPEC_FILE}"
   else
       SSHPASS="$k8sMasterPwd" sshpass -e ssh $SSHARGS \
       "$k8sMasterUser@$k8sMasterIP" "ctr -n=k8s.io images import  ${IMG_EXPORT_DIR}/${imgName}.tar"
       SSHPASS="$k8sMasterPwd" sshpass -e scp $SSHARGS \
-      ${SPEC_FILE} "$k8sMasterUser@$k8sMasterIP:${REMOTE_DEST_DIR}/${SPEC_FILE}"
+      ${SPEC_FILE} "$k8sMasterUser@$k8sMasterIP:${REMOTE_DEST_DIR}/${REMOTE_DEST_SPEC_FILE}"
   fi
 }
 
 function apply_spec() {
       SSHPASS="$k8sMasterPwd" sshpass -e ssh $SSHARGS \
-      "$k8sMasterUser@$k8sMasterIP" "kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f ${REMOTE_DEST_DIR}/${SPEC_FILE}"
+      "$k8sMasterUser@$k8sMasterIP" "kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f ${REMOTE_DEST_DIR}/${REMOTE_DEST_SPEC_FILE}"
 }
 
 verifyEnvironmentVariables

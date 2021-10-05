@@ -144,10 +144,26 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		vdoConfig = &vdoConfigList[0]
 	} else {
+		var name, nodeName string
+
+		if strings.Contains(req.Name, ":") {
+			nodeName = strings.Split(req.Name, ":")[1]
+			name = strings.Split(req.Name, ":")[0]
+			req.NamespacedName = types.NamespacedName{Namespace: req.Namespace, Name: name}
+		}
+
 		err = r.Get(ctx, req.NamespacedName, vdoConfig)
 		if err != nil {
 			vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", req.NamespacedName)
 			return ctrl.Result{}, err
+		}
+
+		if len(nodeName) > 0 && len(vdoConfig.Status.CPIStatus.NodeStatus) > 0 {
+			if val, ok := vdoConfig.Status.CPIStatus.NodeStatus[nodeName]; ok {
+				if val == vdov1alpha1.NodeStatusReady {
+					return ctrl.Result{}, nil
+				}
+			}
 		}
 	}
 
@@ -360,18 +376,21 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 		return ctrl.Result{}, err
 	}
 
-	vdoctx.Logger.V(4).Info("reconciling deployment for CPI")
-	updateStatus, err := r.reconcileCPIDeployment(vdoctx)
-	if err != nil {
-		r.updateCPIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment of CPI spec files")
-		return ctrl.Result{}, err
-	}
-
-	if updateStatus {
-		err = r.updateCPIPhase(vdoctx, vdoConfig, vdov1alpha1.Deploying, "")
+	if vdoConfig.Status.CPIStatus.Phase == vdov1alpha1.Configuring ||
+		vdoConfig.Status.CPIStatus.Phase == vdov1alpha1.Failed {
+		vdoctx.Logger.V(4).Info("reconciling deployment for CPI")
+		updateStatus, err := r.reconcileCPIDeployment(vdoctx)
 		if err != nil {
-			vdoctx.Logger.Error(err, "Error occurred when reconciling deployment for CPI")
+			r.updateCPIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment of CPI spec files")
 			return ctrl.Result{}, err
+		}
+
+		if updateStatus {
+			err = r.updateCPIPhase(vdoctx, vdoConfig, vdov1alpha1.Deploying, "")
+			if err != nil {
+				vdoctx.Logger.Error(err, "Error occurred when reconciling deployment for CPI")
+				return ctrl.Result{}, err
+			}
 		}
 	}
 
@@ -382,7 +401,8 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 		return ctrl.Result{}, err
 	}
 
-	if vdoConfig.Status.CPIStatus.Phase != vdov1alpha1.Deployed {
+	if vdoConfig.Status.CPIStatus.Phase == vdov1alpha1.Deploying ||
+		vdoConfig.Status.CPIStatus.Phase == vdov1alpha1.Failed {
 		err = r.updateCPIPhase(vdoctx, vdoConfig, vdov1alpha1.Deployed, "")
 		if err != nil {
 			return ctrl.Result{}, err
@@ -433,18 +453,24 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 		return ctrl.Result{}, err
 	}
 
-	vdoctx.Logger.V(4).Info("reconciling deployment for CSI")
-	updateStatus, err := r.reconcileCSIDeployment(vdoctx)
-	if err != nil {
-		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment of CSI spec files")
-		return ctrl.Result{}, err
-	}
+	if vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Configuring ||
+		vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Failed {
+		vdoctx.Logger.V(4).Info("reconciling deployment for CSI")
 
-	if updateStatus {
-		err = r.updateCSIPhase(vdoctx, vdoConfig, vdov1alpha1.Deploying, "")
+		updateStatus, err := r.reconcileCSIDeployment(vdoctx)
 		if err != nil {
-			vdoctx.Logger.Error(err, "Error occurred when reconciling deployment for CSI")
+			r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment of CSI spec files")
 			return ctrl.Result{}, err
+		}
+
+		vdoctx.Logger.V(4).Info("status", "updateStatus", updateStatus)
+
+		if updateStatus {
+			err = r.updateCSIPhase(vdoctx, vdoConfig, vdov1alpha1.Deploying, "")
+			if err != nil {
+				vdoctx.Logger.Error(err, "Error occurred when reconciling deployment for CSI")
+				return ctrl.Result{}, err
+			}
 		}
 	}
 
@@ -456,7 +482,7 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	if vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Deploying ||
-		vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Configuring {
+		vdoConfig.Status.CSIStatus.Phase == vdov1alpha1.Failed {
 		err = r.updateCSIPhase(vdoctx, vdoConfig, vdov1alpha1.Deployed, "")
 		if err != nil {
 			return ctrl.Result{}, err
@@ -863,14 +889,15 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 						return []ctrl.Request{{
 							NamespacedName: types.NamespacedName{
 								Namespace: VDO_NAMESPACE,
-								Name:      vdoName,
+								Name:      fmt.Sprintf("%s:%s", vdoName, node.Name),
 							},
 						}}
 					}
 				}
 
 				return nil
-			})).
+			}),
+		).
 		Watches(
 			&source.Kind{Type: &v1.ConfigMap{}},
 			handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {

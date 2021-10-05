@@ -20,7 +20,12 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	v12 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 )
+
+const VDO_NOT_DEPLOYED = "VDO is not deployed. you can run `vdoctl deploy` command to deploy VDO"
 
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{
@@ -36,7 +41,17 @@ var statusCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		err := K8sClient.List(ctx, &vsphereCloudConfigList)
+		err := IsVDODeployed(ctx)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				fmt.Println(VDO_NOT_DEPLOYED)
+				return
+			} else {
+				cobra.CheckErr(err)
+			}
+		}
+
+		err = K8sClient.List(ctx, &vsphereCloudConfigList)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
@@ -66,6 +81,13 @@ var statusCmd = &cobra.Command{
 	},
 }
 
+func IsVDODeployed(ctx context.Context) error {
+	deployment := &v12.Deployment{}
+	ns := types.NamespacedName{Namespace: VdoNamespace, Name: VdoDeploymentName}
+	err := K8sClient.Get(ctx, ns, deployment)
+	return err
+}
+
 // Fetch VC IP of given VsphereCloudConfig
 func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, configName string) {
 	for _, vsphereCloudConfig := range vsphereCloudConfigList.Items {
@@ -83,14 +105,4 @@ func fetchVcenterIp(vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList, c
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deployCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// deployCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
