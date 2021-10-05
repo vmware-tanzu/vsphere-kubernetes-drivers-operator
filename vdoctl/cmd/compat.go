@@ -56,7 +56,7 @@ var compatCmd = &cobra.Command{
 
 		err := K8sClient.Get(ctx, configKey, &cm)
 		if err == nil {
-			fmt.Println("Compatibility matrix is already configured. You can use `vdoctl update matrix` to update compatibility matrix")
+			fmt.Println("Compatibility matrix is already configured. You can use 'vdoctl update matrix' to update compatibility matrix")
 			os.Exit(1)
 		}
 
