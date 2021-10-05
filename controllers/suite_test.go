@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"path/filepath"
 	"testing"
 
@@ -45,6 +46,7 @@ import (
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var k8sClientset *kubernetes.Clientset
+var testRestConfig *rest.Config
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -63,9 +65,10 @@ var _ = BeforeSuite(func() {
 		ErrorIfCRDPathMissing: true,
 	}
 
-	cfg, err := testEnv.Start()
+	var err error
+	testRestConfig, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
+	Expect(testRestConfig).NotTo(BeNil())
 
 	err = vdov1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -75,10 +78,10 @@ var _ = BeforeSuite(func() {
 
 	//+kubebuilder:scaffold:scheme
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	k8sClient, err = client.New(testRestConfig, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
-	k8sClientset = kubernetes.NewForConfigOrDie(cfg)
+	k8sClientset = kubernetes.NewForConfigOrDie(testRestConfig)
 
 	mgr, _ := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             runtime.NewScheme(),
