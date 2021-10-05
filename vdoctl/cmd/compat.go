@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	vdoClient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
@@ -55,7 +56,8 @@ var compatCmd = &cobra.Command{
 
 		err := K8sClient.Get(ctx, configKey, &cm)
 		if err == nil {
-			cobra.CheckErr(errors.New("you have already configured the compatibility matrix. Check 'vdoctl update matrix' to update the existing one"))
+			fmt.Println("Compatibility matrix is already configured. You can use `vdoctl update matrix` to update compatibility matrix")
+			os.Exit(1)
 		}
 
 		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
