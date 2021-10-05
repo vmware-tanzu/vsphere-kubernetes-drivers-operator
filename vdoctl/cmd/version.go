@@ -164,7 +164,7 @@ var versionCmd = &cobra.Command{
 			if err != nil {
 				cobra.CheckErr(err)
 			}
-			fmt.Printf("\nCPI Version        : %s", r.CurrentCPIDeployedVersion)
+			fmt.Printf("\nCPI Version        : %s\n", r.CurrentCPIDeployedVersion)
 		}
 	},
 }

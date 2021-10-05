@@ -75,8 +75,11 @@ var statusCmd = &cobra.Command{
 			fetchVcenterIp(vsphereCloudConfigList, vsphereCloudConfigName)
 		}
 
+		if len(vdoConfig.Status.CPIStatus.NodeStatus) > 0 {
+			fmt.Printf("\t Nodes : ")
+		}
+
 		for nodeName, status := range vdoConfig.Status.CPIStatus.NodeStatus {
-			fmt.Printf("\t Node : ")
 			fmt.Printf("\n\t\t %s : %s ", nodeName, status)
 		}
 
