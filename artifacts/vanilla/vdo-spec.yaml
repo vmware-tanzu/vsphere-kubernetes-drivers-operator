@@ -371,6 +371,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -656,7 +657,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: vmware.com/vdo:30437a6
+        image: vmware.com/vdo:6f45380
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

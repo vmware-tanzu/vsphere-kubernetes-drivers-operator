@@ -61,6 +61,11 @@ var statusCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
+		if len(vdoConfigList.Items) <= 0 {
+			fmt.Println("VDO is not confgured. you can use vdoctl configure drivers to configure VDO")
+			return
+		}
+
 		// Fetch the first element from vdoConfigList, since we have a single vdoConfig
 		vdoConfig := vdoConfigList.Items[0]
 

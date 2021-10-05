@@ -130,6 +130,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - apps
   resources:
