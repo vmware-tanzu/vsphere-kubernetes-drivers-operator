@@ -35,7 +35,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.10.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: vsphere-kubernetes-drivers-operator.v0.0.1
+  name: vsphere-kubernetes-drivers-operator.v1.0.0
   namespace: vmware-system-vdo
 spec:
   apiservicedefinitions: {}
@@ -44,9 +44,58 @@ spec:
       - kind: VDOConfig
         name: vdoconfigs.vdo.vmware.com
         version: v1alpha1
+        resources:
+          - kind: Deployment
+            version: v1
+          - kind: ServiceAcount
+            version: v1
+          - kind: Role
+            version: v1
+          - kind: RoleBinding
+            version: v1
+        specDescriptors:
+          - description: 'Configuration for vSphere CPI driver'
+            displayName: 'Cloud Provider'
+            path: cloudProvider
+          - description: 'Configuration for vSphere CSI driver '
+            displayName: 'Storage Provider'
+            path: storageProvider
+        statusDescriptors:
+          - description: 'Informs the validity of the configuration to connect to vcenter'
+            displayName: 'config'
+            path: config
       - kind: VsphereCloudConfig
         name: vspherecloudconfigs.vdo.vmware.com
         version: v1alpha1
+        resources:
+          - kind: Deployment
+            version: v1
+          - kind: ServiceAcount
+            version: v1
+          - kind: Role
+            version: v1
+          - kind: RoleBinding
+            version: v1
+          specDescriptors:
+            - description: 'Credentials to connect to vcenter'
+              displayName: 'Credentials'
+              path: credentials
+            - description: 'List of Datacenters to be configured for vSphere drivers'
+              displayName: 'Datacenters'
+              path: datacenters
+            - description: 'Flag to establish an insecure connection to vcenter'
+              displayName: 'Insecure'
+              path: insecure
+            - description: 'Ip address of vcenter'
+              displayName: 'VC IP'
+              path: vcIp
+          statusDescriptors:
+            - description: 'Informs the status of vSphere Cloud Provider'
+              displayName: 'Cloud Provider'
+              path: cpi
+            - description: 'Informs the status of vSphere Storage Provider'
+              displayName: 'Storage Provider'
+              path: csi
   description: Vsphere Kubernetes Drivers Operator helps to install/manage vsphere drivers required to run kubernetes
   workload on vSphere. The operator currently manages CPI and CSI vSphere dirvers. The operator exposes two reources
   VsphereCloudConfig - represents the connection information required to connect to vcenter
@@ -397,9 +446,14 @@ spec:
       type: AllNamespaces
   keywords:
     - vsphere-kubernetes-drivers-operator
+    - vSphere
+    - CPI
+    - CSI
+    - OpenShift
+    - k8s
   links:
     - name: Vsphere Kubernetes Drivers Operator
-      url: https://vsphere-kubernetes-drivers-operator.domain
+      url: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator
   maintainers:
     - email: your@email.com
       name: VMware

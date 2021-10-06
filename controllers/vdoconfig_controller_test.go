@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -1374,6 +1375,69 @@ var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixString)
 			Expect(err).NotTo(HaveOccurred())
 			defer server.Close()
+		})
+	})
+})
+
+var _ = Describe("TestReconcile", func() {
+	Context("when reconcile is queued", func() {
+		ctx := context.Background()
+		defer GinkgoRecover()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfigList{})
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VsphereCloudConfig{})
+
+		It("should fail loading compatiblity matrix", func() {
+			r := VDOConfigReconciler{
+				Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+				Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
+				Scheme:       s,
+				ClientConfig: testRestConfig,
+			}
+
+			vdoctx := vdocontext.VDOContext{
+				Context: ctx,
+				Logger:  r.Logger,
+			}
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte("vc_user"),
+					"password": []byte("vc_pwd"),
+				},
+			}
+
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: v1alpha1.VsphereCloudConfigStatus{},
+			}
+
+			vdoConfig := initializeVDOConfig()
+
+			Expect(r.Create(vdoctx, secret)).Should(Succeed())
+			Expect(r.Create(vdoctx, cloudConfig)).Should(Succeed())
+			Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
+
+			ns := types.NamespacedName{Name: "vdo-sample",
+				Namespace: "default"}
+			req := ctrl.Request{NamespacedName: ns}
+			_, err := r.Reconcile(ctx, req)
+			Expect(err.Error()).To(BeEquivalentTo("Matrix Config URL/Content not provided in proper format"))
 		})
 	})
 })

@@ -60,6 +60,7 @@ rules:
   - configmaps
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -70,6 +71,7 @@ rules:
   resources:
   - nodes
   verbs:
+  - delete
   - get
   - list
   - patch
@@ -80,6 +82,7 @@ rules:
   resources:
   - pods
   verbs:
+  - delete
   - get
   - list
   - watch
@@ -89,6 +92,7 @@ rules:
   - secrets
   verbs:
   - create
+  - delete
   - get
   - list
   - update
@@ -99,6 +103,7 @@ rules:
   - serviceaccounts
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -109,6 +114,7 @@ rules:
   - services
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -119,16 +125,19 @@ rules:
   - daemonsets
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - apps
   resources:
   - deployments
   verbs:
   - create
+  - delete
   - get
   - list
   - patch

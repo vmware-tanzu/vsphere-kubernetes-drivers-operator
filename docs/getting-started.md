@@ -5,6 +5,23 @@ The operator is configured to run on master node, with a single replica deployme
 
 VDO operator is built to run on vanilla k8s cluster as well Openshift clusters
 
+### Build
+
+There are two components packaged in this repo
+1. VDO Operator
+2. VDOCTL (CLI tool to help configure and deploy VDO)
+
+#### VDO Operator
+Run `make build` to build the VDO operator
+
+#### VDOCTL
+Run `make build-vdoctl` to build vdoctl for linux flavour
+
+Run `make build-vdoctl-mac` to build vdoctl for mac flavour
+
+### Tests
+Run `make test` to run the test associated with the operator
+
 ### Deploy on vanilla K8s cluster
 
 Refer the [MakeFile](Makefile) to build and deploy the operator.

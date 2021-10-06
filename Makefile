@@ -122,7 +122,10 @@ build: generate fmt vet lint ## Build manager binary.
 	go build -o bin/manager main.go
 
 build-vdoctl: generate fmt vet lint ## Build manager binary.
-	go build -o bin/vdoctl vdoctl/main.go
+	GOOS=linux GOARCH=amd64 go build -o bin/vdoctl vdoctl/main.go
+
+build-vdoctl-mac: generate fmt vet lint
+	go build -o bin/linux/vdoctl vdoctl/main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
@@ -176,7 +179,6 @@ deploy-k8s-cluster: manifests kustomize build ## Build manager and Deploy the de
 	mkdir -p export
 	docker build -t ${IMG} --output type=tar,dest=export/vdo.tar .
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > spec.yaml
 	./hack/deploy-vdo-cluster.sh ${IMG}
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
