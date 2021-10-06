@@ -33,13 +33,11 @@ var CompatMatrixConfigMap = "compat-matrix-config"
 
 // matrixUpdateCmd represents the driver command
 var matrixUpdateCmd = &cobra.Command{
-	Use:     "matrix",
+	Use:     "compatibility-matrix",
 	Aliases: []string{"cm"},
 	Short:   "Command to update the Compatibility matrix of Drivers",
 	Long: `This command helps to update the Compatibility matrix of Drivers, 
-which in turns help to upgrade/downgrade the versions of CSI & CPI drivers.
-
-`,
+which in turns help to upgrade/downgrade the versions of CSI & CPI drivers.`,
 	Example: "vdoctl update matrix https://github.com/demo/demo.yaml\nvdoctl update matrix file://var/sample/sample.yaml",
 
 	Run: func(cmd *cobra.Command, args []string) {

@@ -1,4 +1,4 @@
-## vdoctl update matrix
+## vdoctl update compatibility-matrix
 
 Command to update the Compatibility matrix of Drivers
 
@@ -6,27 +6,22 @@ Command to update the Compatibility matrix of Drivers
 
 This command helps to update the Compatibility matrix of Drivers, 
 which in turns help to upgrade/downgrade the versions of CSI & CPI drivers.
-For Example : 
-vdoctl update matrix https://github.com/demo/demo.yaml
-vdoctl update matrix file://var/sample/sample.yaml
-
-
 
 ```
-vdoctl update matrix [flags]
+vdoctl update compatibility-matrix [flags]
 ```
 
 ### Examples
 
 ```
 vdoctl update matrix https://github.com/demo/demo.yaml
- vdoctl update matrix file://var/sample/sample.yaml
+vdoctl update matrix file://var/sample/sample.yaml
 ```
 
 ### Options
 
 ```
-  -h, --help   help for matrix
+  -h, --help   help for compatibility-matrix
 ```
 
 ### Options inherited from parent commands

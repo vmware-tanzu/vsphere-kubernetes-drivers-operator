@@ -31,9 +31,7 @@ const VDO_NOT_DEPLOYED = "VDO is not deployed. you can run `vdoctl deploy` comma
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "command to get VDO status",
-	Long: `This command helps to get the status of the configurations created by VDO.
-            It includes brief detail about the status of CloudProvider and StorageProvider
-             and Node details`,
+	Long:  "This command helps to get the status of the configurations created by VDO.\nIt includes brief detail about the status of CloudProvider and StorageProvider and Node details",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var vsphereCloudConfigList vdov1alpha1.VsphereCloudConfigList

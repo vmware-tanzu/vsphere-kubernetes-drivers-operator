@@ -5,8 +5,7 @@ command to get VDO version
 ### Synopsis
 
 This command helps to get the version of the configurations created by VDO.
-            It includes brief detail about the version of CloudProvider and StorageProvider
-             along with VC and Kubernetes details
+It includes brief detail about the version of CloudProvider and StorageProvider along with VC and Kubernetes details
 
 ```
 vdoctl version [flags]

@@ -5,8 +5,7 @@ command to get VDO status
 ### Synopsis
 
 This command helps to get the status of the configurations created by VDO.
-            It includes brief detail about the status of CloudProvider and StorageProvider
-             and Node details
+It includes brief detail about the status of CloudProvider and StorageProvider and Node details
 
 ```
 vdoctl status [flags]

@@ -5,7 +5,7 @@ Delete vSphere Kubernetes Driver Operator
 ### Synopsis
 
 This command deletes the VDO deployment and associated artifacts from the cluster targeted by --kubeconfig flag or KUBECONFIG environment variable.
-Currently the command supports vanilla k8s cluster
+Currently, the command supports vanilla k8s cluster
 
 ```
 vdoctl delete [flags]

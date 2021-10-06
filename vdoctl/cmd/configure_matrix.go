@@ -38,11 +38,12 @@ const (
 	WebURL                = "Web URL"
 )
 
-// compatCmd represents the compat command
-var compatCmd = &cobra.Command{
-	Use:   "compat",
-	Short: "Command to configure compatibility matrix of VDO",
-	Long:  `This command helps to configure compatibility matrix for VDO`,
+// matrixConfigureCmd represents the compat command
+var matrixConfigureCmd = &cobra.Command{
+	Use:     "compatibility-matrix",
+	Aliases: []string{"cm"},
+	Short:   "Command to configure compatibility matrix of VDO",
+	Long:    `This command helps to configure compatibility matrix for VDO`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
@@ -80,7 +81,7 @@ var compatCmd = &cobra.Command{
 }
 
 func init() {
-	configureCmd.AddCommand(compatCmd)
+	configureCmd.AddCommand(matrixConfigureCmd)
 }
 
 func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags) error {

@@ -22,6 +22,6 @@ This command helps in configuration of VDO
 ### SEE ALSO
 
 * [vdoctl](vdoctl.md)	 - VDO Command Line
-* [vdoctl configure compat](vdoctl_configure_compat.md)	 - Command to configure compatibility matrix of VDO
+* [vdoctl configure compatibility-matrix](vdoctl_configure_compatibility-matrix.md)	 - Command to configure compatibility matrix of VDO
 * [vdoctl configure drivers](vdoctl_configure_drivers.md)	 - Command to configure vsphere drivers
 

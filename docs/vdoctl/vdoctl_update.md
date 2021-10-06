@@ -29,5 +29,5 @@ vdoctl update matrix https://sample/sample.yaml
 ### SEE ALSO
 
 * [vdoctl](vdoctl.md)	 - VDO Command Line
-* [vdoctl update matrix](vdoctl_update_matrix.md)	 - Command to update the Compatibility matrix of Drivers
+* [vdoctl update compatibility-matrix](vdoctl_update_compatibility-matrix.md)	 - Command to update the Compatibility matrix of Drivers
 
