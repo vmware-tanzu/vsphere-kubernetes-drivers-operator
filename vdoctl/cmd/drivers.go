@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
 	"regexp"
 	"strings"
 
@@ -88,9 +87,8 @@ var driversCmd = &cobra.Command{
 		}
 
 		if len(vdoConfigList.Items) > 0 {
-			fmt.Println("vSphere drivers are already configured.")
-			os.Exit(1)
-
+			fmt.Println("VDO is configured. We currently do not support editing the configuration")
+			return
 		}
 
 		cpi := credentials{}
@@ -279,7 +277,7 @@ var driversCmd = &cobra.Command{
 		if err != nil {
 			cobra.CheckErr(err)
 		}
-		fmt.Println("Thanks For configuring VDO. The drivers will now be installed.\nYou can check the status for drivers using `vdoctl status`")
+		fmt.Println("Thanks for configuring VDO. The drivers will now be installed.\nYou can check the status for drivers using `vdoctl status`")
 
 	},
 }
@@ -349,11 +347,13 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 				return *vcc, err
 			}
 
-			vcc.SetResourceVersion(getObj.GetResourceVersion())
-			err = cl.Update(ctx, vcc, &runtimeclient.UpdateOptions{})
+			getObj.Spec = vcc.Spec
+
+			err = cl.Update(ctx, &getObj, &runtimeclient.UpdateOptions{})
 			if err != nil {
-				return *vcc, err
+				return getObj, err
 			}
+			return getObj, nil
 		}
 		return *vcc, err
 	}
