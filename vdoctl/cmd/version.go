@@ -42,9 +42,7 @@ const (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "command to get VDO version",
-	Long: `This command helps to get the version of the configurations created by VDO.
-            It includes brief detail about the version of CloudProvider and StorageProvider
-             along with VC and Kubernetes details`,
+	Long:  "This command helps to get the version of the configurations created by VDO.\nIt includes brief detail about the version of CloudProvider and StorageProvider along with VC and Kubernetes details",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		var vdoConfigList vdov1alpha1.VDOConfigList
@@ -70,7 +68,7 @@ var versionCmd = &cobra.Command{
 		}
 
 		if len(vdoConfigList.Items) <= 0 {
-			fmt.Println("VDO is not confgured. you can use vdoctl configure drivers to configure VDO")
+			fmt.Println("VDO is not configured. you can use `vdoctl configure drivers` to configure VDO")
 			return
 		}
 

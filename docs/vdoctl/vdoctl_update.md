@@ -4,14 +4,13 @@ Update the VDO Resources
 
 ### Synopsis
 
-This command helps to update the VDO Resources which is created by VDO Controller. 
-For example:
+This command helps to update the VDO Resources which is created by VDO Controller.
 
-vdoctl update matrix https://sample/sample.yaml
-
+### Examples
 
 ```
-vdoctl update [flags]
+vdoctl update matrix https://sample/sample.yaml
+
 ```
 
 ### Options
@@ -30,5 +29,5 @@ vdoctl update [flags]
 ### SEE ALSO
 
 * [vdoctl](vdoctl.md)	 - VDO Command Line
-* [vdoctl update matrix](vdoctl_update_matrix.md)	 - A brief description of your command
+* [vdoctl update compatibility-matrix](vdoctl_update_compatibility-matrix.md)	 - Command to update the Compatibility matrix of Drivers
 

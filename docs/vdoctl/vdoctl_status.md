@@ -1,20 +1,20 @@
-## vdoctl delete
+## vdoctl status
 
-Delete vSphere Kubernetes Driver Operator
+command to get VDO status
 
 ### Synopsis
 
-This command deletes the VDO deployment and associated artifacts from the cluster targeted by --kubeconfig flag or KUBECONFIG environment variable.
-Currently, the command supports vanilla k8s cluster
+This command helps to get the status of the configurations created by VDO.
+It includes brief detail about the status of CloudProvider and StorageProvider and Node details
 
 ```
-vdoctl delete [flags]
+vdoctl status [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for delete
+  -h, --help   help for status
 ```
 
 ### Options inherited from parent commands

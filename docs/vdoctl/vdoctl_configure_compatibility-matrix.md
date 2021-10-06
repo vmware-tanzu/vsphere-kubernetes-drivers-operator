@@ -1,19 +1,19 @@
-## vdoctl configure compat
+## vdoctl configure compatibility-matrix
 
-Compatibility matrix of VDO
+Command to configure compatibility matrix of VDO
 
 ### Synopsis
 
-This command helps to configure compatiblity matrix for VDO
+This command helps to configure compatibility matrix for VDO
 
 ```
-vdoctl configure compat [flags]
+vdoctl configure compatibility-matrix [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for compat
+  -h, --help   help for compatibility-matrix
 ```
 
 ### Options inherited from parent commands

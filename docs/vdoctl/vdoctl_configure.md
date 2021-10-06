@@ -4,14 +4,7 @@ command to configure VDO
 
 ### Synopsis
 
-This command is used to configure VDO.
-This command has other subcommands that help in configuration of VDO
-vdoctl configure drivers
-vdoctl configure compat
-
-```
-vdoctl configure [flags]
-```
+This command helps in configuration of VDO
 
 ### Options
 
@@ -29,6 +22,6 @@ vdoctl configure [flags]
 ### SEE ALSO
 
 * [vdoctl](vdoctl.md)	 - VDO Command Line
-* [vdoctl configure compat](vdoctl_configure_compat.md)	 - Compatibility matrix of VDO
-* [vdoctl configure drivers](vdoctl_configure_drivers.md)	 - Command to configure VDO
+* [vdoctl configure compatibility-matrix](vdoctl_configure_compatibility-matrix.md)	 - Command to configure compatibility matrix of VDO
+* [vdoctl configure drivers](vdoctl_configure_drivers.md)	 - Command to configure vSphere drivers
 

@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"regexp"
 	"strings"
 
@@ -62,7 +63,7 @@ const (
 // driversCmd represents the drivers command
 var driversCmd = &cobra.Command{
 	Use:   "drivers",
-	Short: "Command to configure vsphere drivers",
+	Short: "Command to configure vSphere drivers",
 	Long:  `This command helps to specify the details required to configure CloudProvider and StorageProvider drivers.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -76,6 +77,18 @@ var driversCmd = &cobra.Command{
 			} else {
 				cobra.CheckErr(err)
 			}
+		}
+
+		var vdoConfigList v1alpha1.VDOConfigList
+
+		err = K8sClient.List(ctx, &vdoConfigList)
+		if err != nil {
+			cobra.CheckErr(err)
+		}
+
+		if len(vdoConfigList.Items) > 0 {
+			fmt.Println("VDO is configured. We currently do not support editing the configuration")
+			return
 		}
 
 		cpi := credentials{}
@@ -264,7 +277,7 @@ var driversCmd = &cobra.Command{
 		if err != nil {
 			cobra.CheckErr(err)
 		}
-		fmt.Println("Thanks For configuring VDO. The drivers will now be installed.\nYou can check the status for drivers using `vdoctl status`")
+		fmt.Println("Thanks for configuring VDO. The drivers will now be installed.\nYou can check the status for drivers using `vdoctl status`")
 
 	},
 }
@@ -292,6 +305,10 @@ func createSecret(cl client.Client, ctx context.Context, cred credentials, drive
 	err := cl.Create(ctx, &secret, &runtimeclient.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
+			err = cl.Update(ctx, &secret)
+			if err != nil {
+				return secret, err
+			}
 			return secret, nil
 		}
 	}
@@ -319,10 +336,28 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return *vcc, nil
+			key := types.NamespacedName{
+				Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
+				Namespace: VdoNamespace,
+			}
+			getObj := v1alpha1.VsphereCloudConfig{}
+
+			err = cl.Get(ctx, key, &getObj)
+			if err != nil {
+				return *vcc, err
+			}
+
+			getObj.Spec = vcc.Spec
+
+			err = cl.Update(ctx, &getObj, &runtimeclient.UpdateOptions{})
+			if err != nil {
+				return getObj, err
+			}
+			return getObj, nil
 		}
+		return *vcc, err
 	}
-	return *vcc, err
+	return *vcc, nil
 }
 
 func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi credentials) error {

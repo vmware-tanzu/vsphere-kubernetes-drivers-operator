@@ -16,8 +16,6 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -26,15 +24,9 @@ var updateCmd = &cobra.Command{
 	Use:     "update",
 	Aliases: []string{"u"},
 	Short:   "Update the VDO Resources",
-	Long: `This command helps to update the VDO Resources which is created by VDO Controller. 
-For example:
-
-vdoctl update matrix https://sample/sample.yaml
+	Long:    `This command helps to update the VDO Resources which is created by VDO Controller.`,
+	Example: `vdoctl update matrix https://sample/sample.yaml
 `,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Please select the sub-command, to get more help run" +
-			"vdoctl update -h")
-	},
 }
 
 func init() {

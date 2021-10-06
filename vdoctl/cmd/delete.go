@@ -12,10 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	VDO_NS = "vmware-system-vdo"
-)
-
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete vSphere Kubernetes Driver Operator",
@@ -26,7 +22,7 @@ Currently the command supports vanilla k8s cluster`,
 
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: VDO_NS,
+				Name: VdoNamespace,
 			},
 		}
 

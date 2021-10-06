@@ -18,6 +18,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
+	vdoClient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/vdoctl/pkg/utils"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,13 +38,26 @@ const (
 	WebURL                = "Web URL"
 )
 
-// compatCmd represents the compat command
-var compatCmd = &cobra.Command{
-	Use:   "compat",
-	Short: "Command to configure compatibility matrix of VDO",
-	Long:  `This command helps to configure compatibility matrix for VDO`,
+// matrixConfigureCmd represents the compat command
+var matrixConfigureCmd = &cobra.Command{
+	Use:     "compatibility-matrix",
+	Aliases: []string{"cm"},
+	Short:   "Command to configure compatibility matrix of VDO",
+	Long:    `This command helps to configure compatibility matrix for VDO`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
+
+		configKey := types.NamespacedName{
+			Namespace: VdoNamespace,
+			Name:      CompatMatrixConfigMap,
+		}
+		cm := v1.ConfigMap{}
+
+		_ = K8sClient.Get(ctx, configKey, &cm)
+		if len(cm.Data) > 0 {
+			fmt.Println("Compatibility matrix is already configured. You can use `vdoctl update matrix` to update compatibility matrix")
+			return
+		}
 
 		item := utils.PromptGetSelect([]string{LocalFilepath, WebURL}, "Please select the mode for providing compat-matrix")
 
@@ -57,7 +72,7 @@ var compatCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		err = CreateConfigMap(filePath, K8sClient, ctx)
+		err = CreateConfigMap(filePath, K8sClient, ctx, flag)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
@@ -66,33 +81,35 @@ var compatCmd = &cobra.Command{
 }
 
 func init() {
-	configureCmd.AddCommand(compatCmd)
+	configureCmd.AddCommand(matrixConfigureCmd)
 }
 
-func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context) error {
+func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags) error {
 
 	configMapKey := types.NamespacedName{
 		Namespace: VdoNamespace,
 		Name:      CompatMatrixConfigMAp,
 	}
+	var data map[string]string
 
-	data := map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
+	if flag == utils.IsURL {
+		data = map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
+	} else {
+		fileBytes, err := vdoClient.GenerateYamlFromFilePath(filepath)
+		if err != nil {
+			cobra.CheckErr(fmt.Sprintf("unable to read the matrix from %s", filepath))
+		}
+		data = map[string]string{"versionConfigContent": string(fileBytes), "auto-upgrade": "disabled"}
+	}
 
 	configMapObj := metav1.ObjectMeta{Name: configMapKey.Name, Namespace: configMapKey.Namespace}
 	vsphereConfigMap := v1.ConfigMap{Data: data, ObjectMeta: configMapObj}
 
 	err := client.Create(ctx, &vsphereConfigMap, &runtimeclient.CreateOptions{})
-
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = client.Update(ctx, &vsphereConfigMap)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func CreateNamespace(client runtimeclient.Client, ctx context.Context) error {
