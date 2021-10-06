@@ -125,7 +125,7 @@ build-vdoctl: generate fmt vet lint ## Build manager binary.
 	GOOS=linux GOARCH=amd64 go build -o bin/vdoctl vdoctl/main.go
 
 build-vdoctl-mac: generate fmt vet lint
-	go build -o bin/linux/vdoctl vdoctl/main.go
+	go build -o bin/vdoctl vdoctl/main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go

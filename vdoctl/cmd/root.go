@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -46,7 +45,6 @@ var (
 	AddToScheme        = SchemeBuilder.AddToScheme
 	cfgFile            string
 	kubeconfig         string
-	K8sClientset       *kubernetes.Clientset
 	K8sClient          client.Client
 	ClientConfig       *rest.Config
 )
@@ -58,13 +56,8 @@ var rootCmd = &cobra.Command{
 	Long: `vdoctl is a command line interface for vSphere Kubernetes Drivers Operator.
 vdoctl provides the user with basic set of commands required to install and configure VDO.
 `,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 
@@ -129,11 +122,6 @@ func generateK8sClient(kubeconfig string) error {
 	ClientConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return errors.New("Failed to generate client from provided kubeconfig")
-	}
-
-	K8sClientset, err = kubernetes.NewForConfig(ClientConfig)
-	if err != nil {
-		return err
 	}
 
 	K8sClient, _ = client.New(ClientConfig, client.Options{

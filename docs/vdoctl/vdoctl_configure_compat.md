@@ -1,10 +1,10 @@
 ## vdoctl configure compat
 
-Compatibility matrix of VDO
+Command to configure compatibility matrix of VDO
 
 ### Synopsis
 
-This command helps to configure compatiblity matrix for VDO
+This command helps to configure compatibility matrix for VDO
 
 ```
 vdoctl configure compat [flags]

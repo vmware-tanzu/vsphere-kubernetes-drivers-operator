@@ -1,6 +1,6 @@
 ## vdoctl configure drivers
 
-Command to configure VDO
+Command to configure vsphere drivers
 
 ### Synopsis
 

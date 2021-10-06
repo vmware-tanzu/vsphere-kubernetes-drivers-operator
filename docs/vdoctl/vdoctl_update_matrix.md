@@ -1,6 +1,6 @@
 ## vdoctl update matrix
 
-A brief description of your command
+Command to update the Compatibility matrix of Drivers
 
 ### Synopsis
 
@@ -14,6 +14,13 @@ vdoctl update matrix file://var/sample/sample.yaml
 
 ```
 vdoctl update matrix [flags]
+```
+
+### Examples
+
+```
+vdoctl update matrix https://github.com/demo/demo.yaml
+ vdoctl update matrix file://var/sample/sample.yaml
 ```
 
 ### Options
