@@ -81,7 +81,7 @@ var driversCmd = &cobra.Command{
 
 		var vdoConfigList v1alpha1.VDOConfigList
 
-		err := K8sClient.List(ctx, &vdoConfigList)
+		err = K8sClient.List(ctx, &vdoConfigList)
 		if err != nil {
 			cobra.CheckErr(err)
 		}

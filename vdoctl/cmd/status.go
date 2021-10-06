@@ -62,7 +62,7 @@ var statusCmd = &cobra.Command{
 		}
 
 		if len(vdoConfigList.Items) <= 0 {
-			fmt.Println("VDO is not confgured. you can use vdoctl configure drivers to configure VDO")
+			fmt.Println("VDO is not configured. you can use `vdoctl configure drivers` to configure VDO")
 			return
 		}
 
