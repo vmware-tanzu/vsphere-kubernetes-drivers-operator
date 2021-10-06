@@ -1,6 +1,6 @@
 ## vdoctl configure drivers
 
-Command to configure vsphere drivers
+Command to configure vSphere drivers
 
 ### Synopsis
 

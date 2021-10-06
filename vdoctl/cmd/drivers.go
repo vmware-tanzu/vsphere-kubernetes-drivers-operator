@@ -63,7 +63,7 @@ const (
 // driversCmd represents the drivers command
 var driversCmd = &cobra.Command{
 	Use:   "drivers",
-	Short: "Command to configure vsphere drivers",
+	Short: "Command to configure vSphere drivers",
 	Long:  `This command helps to specify the details required to configure CloudProvider and StorageProvider drivers.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
