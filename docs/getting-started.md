@@ -101,7 +101,7 @@ vmware-system-vdo    vdo-controller-manager-66758456d8-mnqgv      2/2     Runnin
 
 #### Configure Drivers
 To configure the drivers we need to provide the basic details of your vSphere Platform 
-like vc IP, vc Credentials, Datacenter's. You can look into [User Guide](User-Guide.md) to have
+like vc IP, vc Credentials, Datacenter's. You can look into [configure drivers](configure_drivers.md) to have
 more details explanation of how to configure the drivers.
 
 
