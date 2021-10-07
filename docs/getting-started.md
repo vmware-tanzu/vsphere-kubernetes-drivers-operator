@@ -1,98 +1,107 @@
 ## Getting Started
 
-VDO operator is built out of operator-sdk.
+VDO(vSphere Kubernetes Driver Operator) is built out of operator-sdk.
 The operator is configured to run on master node, with a single replica deployment.
 
 VDO operator is built to run on vanilla k8s cluster as well Openshift clusters
 
+
+### Pre-requisite
+It is always recommended using the operator from our [release](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases) page, but if you want to use our
+latest and the greatest one then you can follow the below steps. This projects assumes you have the following setup.
+- go version 1.16 and above
+- docker
+
 ### Build
 
-There are two components packaged in this repo
-1. VDO Operator
-2. VDOCTL (CLI tool to help configure and deploy VDO)
+There are mainly two components which gets shipped with this project:  
+ - VDO Operator
+ - VDOCTL (CLI tool to help configure and deploy VDO)
 
 #### VDO Operator
-Run `make build` to build the VDO operator
+You can build the operator using below command.
+```shell
+cd $GOPATH
+mkdir -p vmware-tanzu
+cd vmware-tanzu
+
+git clone https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator.git
+
+cd vsphere-kubernetes-drivers-operator
+make build
+```
 
 #### VDOCTL
-Run `make build-vdoctl` to build vdoctl for linux flavour
+To build the cli you can run below commands
+```shell
+# for Linux env
+make build-vdoctl
 
-Run `make build-vdoctl-mac` to build vdoctl for mac flavour
+# for Mac env
+make build-vdoctl-mac
+```
 
-### Tests
-Run `make test` to run the test associated with the operator
+#### Tests
+To run the test case you need to ensure that you have kind cluster installed in your env.
+```shell
+make test
+```
 
-### Deploy on vanilla K8s cluster
+### Deploy 
+For Deploying the Operator on vanilla K8s cluster we have the following options:
 
-Refer the [MakeFile](Makefile) to build and deploy the operator.
+- On local kind cluster
+```shell
+make deploy
+```
+- On live vanilla k8s cluster 
+```shell
+export K8S_MASTER_IP=YOUR-K8S_MASTER_IP
+export K8S_MASTER_SSH_USER=USERNAME
+export K8S_MASTER_SSH_PWD=PASSWORD
 
-Run `make generate` to generate the scaffolding code from the provided base types
+make deploy-k8s-cluster
+```
 
-Run `make manifests` to generate the spec files required to deploy the operator.
-The spec file to deploy the operator will be available at [vdo-spec.yaml](../artifacts/vanilla/vdo-spec.yaml)
-
-The operator can be deployed
-
-1. locally on a kind cluster `make deploy`
-
-   Run `make deploy` target to `generate`, `build` and `deploy`
-   the operator in local kind cluster
-
-3. remotely on a live vanilla k8s cluster `make deploy-k8s-cluster`
-
-   Run `make deploy-k8s-cluster` target to build container and
-   deploy the container image & apply the operator spec on the given k8s cluster
-   
-   Following environment variables need to be set before invoking the target
-
-      1. K8S_MASTER_IP - IP of K8s Master
-
-      2. K8S_MASTER_SSH_USER - username to ssh into k8smaster
-
-      3. K8S_MASTER_SSH_PWD - password to ssh into k8smaster
+Refer the [MakeFile](../Makefile) for more details.
 
 
-### Prerequisites
+### Deploying Drivers
 
-Following are the prerequisites for deploying operator
+Once the VDO is deployed you need to configure the compatibility-matrix 
+and CSI/CPI drivers.
+Before starting check whether the VDO is deployed, you will notice that 
+the vdo pods are in `ConfigError` state.
+```shell
+kubectl get pods -n vmware-system-vdo
+vmware-system-vdo    vdo-controller-manager-66758456d8-mnqgv      1/2     CreateContainerConfigError   0          11s
+```
 
-1. Create Configmap
-2. Configuration of VDO
+#### Configure Compatibility Matrix
+So to bring the VDO in running state we need to first configure the 
+compatibility-matrix using `vdoctl` command line tool. You can either use the 
+self made binary of vdoctl from the above steps or you can download the 
+vdoctl binary from our release page and place the binary in your system path.
 
-The following steps help in configuring VDO to install/configure the drivers
+```shell
+vdoctl configure compatibility-matrix
+✔ Web URL
+Web URL https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml
+```
+Note: You can either use this sample url or create your own matrix.
 
-1. configure compatibility
+Generally with each new release a New Compatibility Matrix will be released, 
+you can get more details from [here](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases).
 
-    - `cat <<EOF | sudo tee comp-matrix-config.yaml
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-      name: comp-matrix-config
-      namespace: vmware-system-vdo
-      data:
-      versionConfigURL: "matrix-url"
-      auto-upgrade: "disabled"`
+Once the compatibility matrix is configured, you can re-check the vdo operator running status
+```shell
+kubectl get pods -n vmware-system-vdo
+vmware-system-vdo    vdo-controller-manager-66758456d8-mnqgv      2/2     Running   0          99s
+```
 
-      `kubectl apply -f comp-matrix-config.yaml`
+#### Configure Drivers
+To configure the drivers we need to provide the basic details of your vSphere Platform 
+like vc IP, vc Credentials, Datacenter's. You can look into [User Guide](User-Guide.md) to have
+more details explanation of how to configure the drivers.
 
-2. create secret
-
-    - `cat <<EOF | sudo tee secret.yaml
-      apiVersion: v1
-      kind: Secret
-      metadata:
-      name: vc-name-creds
-      namespace: kube-system
-      type: kubernetes.io/basic-auth
-      stringData:
-      username: "vc-username"
-      password: "vc-password"`
-
-      `kubectl apply -f secret.yaml`
-
-3. create VsphereCloudConfig resource
-    - credentials field in the resource refers to the name of the secret
-4. create VDOconfig resource
-    - Cloud Provider can take multiple instances of VsphereCloudConfig resource
-    - Storage provider takes a single VsphereCLoudConfig resource
 
