@@ -1,6 +1,6 @@
 ## Getting Started
 
-VDO(vSphere Driver Operator) is built out of operator-sdk.
+VDO(vSphere Kubernetes Driver Operator) is built out of operator-sdk.
 The operator is configured to run on master node, with a single replica deployment.
 
 VDO operator is built to run on vanilla k8s cluster as well Openshift clusters
