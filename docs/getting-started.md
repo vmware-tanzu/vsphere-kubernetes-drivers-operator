@@ -100,8 +100,18 @@ vmware-system-vdo    vdo-controller-manager-66758456d8-mnqgv      2/2     Runnin
 ```
 
 #### Configure Drivers
-To configure the drivers we need to provide the basic details of your vSphere Platform 
-like vc IP, vc Credentials, Datacenter's. You can look into [configure drivers](configure_drivers.md) to have
-more details explanation of how to configure the drivers.
+vdoctl configure drivers command is used to provide VDO with the necessary configuration enabling VDO to install/configure vSphere CPI and CSI drivers
+
+Typically, you would need:
+
+- IP Address of vcenter
+- credentials for CloudProvider and StorageProvider drivers to connect to vcenter
+- datacenters on which CloudProvider and StorageProvider can operate
+- Based on need you might also want to configure advanced configurations such as
+  - zones/regions for CloudProvider
+  - File Volumes for StorageProvider
+  
+  
+ To get more detailed info please visit [configure drivers](configure_drivers.md)
 
 

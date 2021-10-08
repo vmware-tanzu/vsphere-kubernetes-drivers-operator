@@ -186,7 +186,7 @@ var driversCmd = &cobra.Command{
 		}
 
 		if isCPIMultiVC {
-			csi.vcIp = utils.PromptGetSelect(vcIPList, "Please select vcenter for configuring StorageProvider?")
+			csi.vcIp = utils.PromptGetSelect(vcIPList, "Please select vcenter for configuring StorageProvider")
 			if _, ok := thumbprintMap[csi.vcIp]; ok {
 				csi.thumbprint = thumbprintMap[csi.vcIp]
 				csi.insecure = false

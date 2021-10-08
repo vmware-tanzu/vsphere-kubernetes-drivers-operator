@@ -1,31 +1,44 @@
 #### Configure Drivers
 
-For configuring CloudProvider (if Required) and StorageProvider drivers, following command can be used.
-```shell
-vdoctl configure drivers
-Do you want to configure CloudProvider? (Y/N) y
-```
-You then need to provide VC IP. Optionally, secure connection can also be established in which case you'll need to provide SSL thumbprint. 
+VDO currently supports configuring CloudProvider (CPI) and StorageProvider(CSI)
+
+##### CloudProvider
+CloudProvider is an optional configuration. you can choose to skip this if you are not looking to install [Kubernetes vSphere Cloud Provider](https://github.com/kubernetes/cloud-provider-vsphere/)
+
+If you want to install `Kubernetes vSphere Cloud Provider`, you will be taken through a series of configuration options to configure CPI
+
+- IP address of vcenter
+- Secure Connection - If you choose to establish a secure connection to vcenter, you need to provide a ssl thumbprint
+- Login credentials for vcenter
+- Datacenter(s) - you can provide a comma separated list of datacenters
+
 ```shell
 Please provide the vcenter IP for configuring CloudProvider 
 VC IP 10.10.10.10
 Do you want to establish a secure connection? (Y/N) y
 SSL Thumbprint █
-```
 
-You then need to provide the login credentials and Datacenter(s) for the vSphere Platform.
-
-```shell
 Please provide the credentials for configuring CloudProvider
 Username user
 Password *******
-Datacenter(s) Datacenter
+Datacenter(s) dc0, dc1
 ```
 
-Above user inputs will be validated for configuration. Upon successful validation, more VCs for CloudProvider can be added in a similar fashion as per the requirements.
+Upon successful validation of the above information, you will be asked for the next set of configuration. At this point, you can choose to configure another VC, if you want CPI to work with multiple vcenters
+```shell
+Do you want to configure another vcenter for CloudProvider? (Y/N) y
 
-After you are done providing the details for all the VCs required, you can proceed to configure zones/regions for CloudProvider if desired. For more info on zones and regions, please refer the guide for zones/regions: [zones/regions](https://cloud-provider-vsphere.sigs.k8s.io/tutorials/deploying_cpi_and_csi_with_multi_dc_vc_aka_zones.html)
+VC IP 11.11.11.11
+Do you want to establish a secure connection? (Y/N) y
+SSL Thumbprint █
 
+Please provide the credentials for configuring CloudProvider
+Username user
+Password *******
+Datacenter(s) dc2, dc3
+```
+
+Once done you can choose to configure zones/regions if required. Please note, the tags for zone/regions need to be available in vcenter. Please refer [CPI](https://github.com/kubernetes/cloud-provider-vsphere/blob/master/docs/book/tutorials/deploying_cpi_and_csi_with_multi_dc_vc_aka_zones.md) documentation on how to configure zones/regions 
 
 ```shell
 Do you want to configure zones/regions for CloudProvider? (Y/N) y
@@ -33,12 +46,20 @@ Zones zonea
 Regions region1█
 ```
 
+##### StorageProvider
+Configuration of CSI requires you to enter the configuration of vcenter with which you wish CSI to work
 
-This completes the process for CloudProvider configuration. We'll then proceed to configuring StorageProvider.
+If you have configured more than once vcenter for CPI, you would be asked to choose one of the vcenter's to configure CSI.
 
-In case of multiVC CloudProvider configuration, you can select which VC you need to configure StorageProvider for. If only one VC is configured for CloudProvider, Storage Provider will also be configured for the same VC IP.
-After you're done providing the VC details, you'll have to provide the VC credentials and Datacenters. 
- 
+If not, we will use the same vcenter ip address for CSI and CPI drivers
+```shell 
+? Please select vcenter for configuring StorageProvider: 
++   
+  ▸ 10.10.10.10
+    11.11.11.11
+```
+
+As before with CPI, you will also need to provide the credentials to connect to vcenter and the datacenter
 ```shell
 Please provide the credentials for configuring StorageProvider
 Username user
@@ -46,8 +67,7 @@ Password *******
 Datacenter(s) Datacenter
 ```
 
-You can now configure File Volumes for StorageProvider if required. 
-
+Additionally, you can choose to configure Net Permissions for File volumes
 ```shell
 Do you wish to configure File Volumes? (Y/N) y
 Do you wish to configure vSAN DataStores for File Volumes (Y/N) y
@@ -61,4 +81,8 @@ Use the arrow keys to navigate: ↓ ↑ → ←
     READ_WRITE
 Allow Root Access? (Y/N) y█
 ```
-We are now done with configuring VDO. You can check the status for drivers using `vdoctl status` command.
+
+To get more info on Net Permissions, please refer [CSI](https://vsphere-csi-driver.sigs.k8s.io/driver-deployment/installation.html#vsphereconf_for_file) document
+
+
+This completes VDO configuration. You can check the status of drivers using `vdoctl status` command.
