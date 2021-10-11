@@ -69,7 +69,7 @@ var driversCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		err := IsVDODeployed(ctx)
+		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				fmt.Println(VDO_NOT_DEPLOYED)

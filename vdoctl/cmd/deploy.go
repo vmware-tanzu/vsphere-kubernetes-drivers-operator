@@ -75,5 +75,6 @@ Currently the command supports deployment on vanilla k8s cluster`,
 
 func init() {
 	deployCmd.Flags().StringVar(&specfile, "spec", "", "url to vdo deployment spec file")
+	_ = deployCmd.MarkFlagRequired("spec")
 	rootCmd.AddCommand(deployCmd)
 }
