@@ -17,7 +17,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
@@ -28,6 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -38,6 +38,14 @@ const (
 	VdoDeploymentName = "vdo-controller-manager"
 )
 
+var (
+	vdoVersion     = "Not Configured"
+	vsphereVersion []string
+	k8sVersion     = "Not Configured"
+	csiVersion     = "Not Configured"
+	cpiVersion     = "Not Configured"
+)
+
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -45,30 +53,32 @@ var versionCmd = &cobra.Command{
 	Long:  "This command helps to get the version of the configurations created by VDO.\nIt includes brief detail about the version of CloudProvider and StorageProvider along with VC and Kubernetes details",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		var vdoConfigList vdov1alpha1.VDOConfigList
-
 		ctx := vdocontext.VDOContext{
 			Context: context.Background(),
 			Logger:  ctrllog.Log.WithName("vdoctl:version"),
 		}
 
-		err := IsVDODeployed(ctx)
+		k8sVersion = getK8sVersion()
+		err, vdoDeployment := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				fmt.Println(VDO_NOT_DEPLOYED)
+				showVersionInfo()
 				return
 			} else {
 				cobra.CheckErr(err)
 			}
 		}
 
+		vdoVersion = getVdoVersion(vdoDeployment)
+
+		var vdoConfigList vdov1alpha1.VDOConfigList
 		err = K8sClient.List(ctx, &vdoConfigList)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
 
 		if len(vdoConfigList.Items) <= 0 {
-			fmt.Println("VDO is not configured. you can use `vdoctl configure drivers` to configure VDO")
+			showVersionInfo()
 			return
 		}
 
@@ -92,48 +102,6 @@ var versionCmd = &cobra.Command{
 			},
 		}
 
-		deploymentReq := reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      VdoDeploymentName,
-				Namespace: VdoNamespace,
-			},
-		}
-
-		// Fetch VDO deployment object
-		deployment := &v12.Deployment{}
-		err = K8sClient.Get(ctx, deploymentReq.NamespacedName, deployment)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
-
-		var deploymentData string
-
-		for _, v := range deployment.Annotations {
-			if strings.Contains(v, "image") {
-				deploymentData = v
-				break
-			}
-		}
-
-		var deploymentMap map[string]interface{}
-		if err = json.Unmarshal([]byte(deploymentData), &deploymentMap); err != nil {
-			cobra.CheckErr(err)
-		}
-
-		containerInfo := deploymentMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
-
-		var imageName interface{}
-		for i, container := range containerInfo {
-			if container.(map[string]interface{})["name"] == "manager" {
-				imageName = containerInfo[i].(map[string]interface{})["image"]
-				break
-			}
-		}
-
-		vdoVersion := strings.Split(fmt.Sprint(imageName), ":")
-
-		fmt.Printf("VDO Version        : %s", vdoVersion[len(vdoVersion)-1])
-
 		configMap := &v1.ConfigMap{}
 		err = K8sClient.Get(ctx, req.NamespacedName, configMap)
 		if err != nil {
@@ -145,26 +113,61 @@ var versionCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		vSphereVersion, _ := r.FetchVsphereVersions(ctx, req, &vdoConfig)
-		fmt.Printf("\nvSphere Versions   : %s", vSphereVersion)
+		vsphereVersion, _ = r.FetchVsphereVersions(ctx, req, &vdoConfig)
 
-		k8sVersion, _ := r.Fetchk8sVersions(ctx)
-		fmt.Printf("\nkubernetes Version : %s", k8sVersion)
-
-		err = r.FetchCsiDeploymentYamls(ctx, matrixConfig, vSphereVersion, k8sVersion)
+		err = r.FetchCsiDeploymentYamls(ctx, matrixConfig, vsphereVersion, k8sVersion)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
-		fmt.Printf("\nCSI Version        : %s", r.CurrentCSIDeployedVersion)
+		csiVersion = r.CurrentCSIDeployedVersion
 
 		if len(vdoConfig.Spec.CloudProvider.VsphereCloudConfigs) > 0 {
-			err = r.FetchCpiDeploymentYamls(ctx, matrixConfig, vSphereVersion, k8sVersion)
+			err = r.FetchCpiDeploymentYamls(ctx, matrixConfig, vsphereVersion, k8sVersion)
 			if err != nil {
 				cobra.CheckErr(err)
 			}
-			fmt.Printf("\nCPI Version        : %s\n", r.CurrentCPIDeployedVersion)
+			cpiVersion = r.CurrentCPIDeployedVersion
 		}
+		showVersionInfo()
 	},
+}
+
+func getK8sVersion() string {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(ClientConfig)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+
+	k8sServerVersion, err := discoveryClient.ServerVersion()
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+
+	return k8sServerVersion.Major + "." + k8sServerVersion.Minor
+}
+
+func getVdoVersion(vdoDeployment *v12.Deployment) string {
+	containersList := vdoDeployment.Spec.Template.Spec.Containers
+	var containerImage string
+	for _, container := range containersList {
+		if strings.Contains(container.Name, "manager") {
+			containerImage = container.Image
+			break
+		}
+	}
+	if containerImage == "" {
+		cobra.CheckErr("Unable to find the VDO manager container")
+	}
+	vdoVersionInfo := strings.Split(fmt.Sprint(containerImage), ":")
+	return vdoVersionInfo[len(vdoVersionInfo)-1]
+}
+
+func showVersionInfo() {
+	fmt.Printf("kubernetes Version : %s", k8sVersion)
+	fmt.Printf("\nVDO Version        : %s", vdoVersion)
+	fmt.Printf("\nvSphere Versions   : %s", vsphereVersion)
+	fmt.Printf("\nCSI Version        : %s", csiVersion)
+	fmt.Printf("\nCPI Version        : %s\n", cpiVersion)
 }
 
 func init() {
