@@ -350,7 +350,7 @@ spec:
                           configMapKeyRef:
                             key: auto-upgrade
                             name: compat-matrix-config
-                    image: default-route-openshift-image-registry.apps-crc.testing/vmware-system-vdo/vdo:c3d1dcd
+                    image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo:v0.1.0-beta
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
