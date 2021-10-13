@@ -16,7 +16,7 @@ endif
 
 # build variables
 KIND_CLUSTER_NAME 	?= kind
-KUBECONFIG       	?= $$(kind get kubeconfig --name $(KIND_CLUSTER_NAME))
+KUBECONFIG       	?= $$($(KIND) get kubeconfig --name $(KIND_CLUSTER_NAME))
 BINARY_NAME			= vspheredriver-operator
 IMAGE_TAG         	?= latest
 BUILD_NUMBER 	  	?= 00000000 # from gobuild
@@ -166,7 +166,7 @@ deploy-crc: build ## Builds and deploys the operator to a CRC cluster. Pass the 
 
 deploy: manifests kustomize deploy-local-kind ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	kind get kubeconfig > kind-kubeconfig
+	$(KIND) get kubeconfig > kind-kubeconfig
 	kubectl --kubeconfig ./kind-kubeconfig apply -f $(ARTIFACTS_DIR)/vanilla/vdo-spec.yaml
 
 # build and deploy container in k8s cluster
@@ -195,7 +195,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: deploy-local-kind
 deploy-local-kind: kind-cluster build docker-build  ## Build manager and Deploy the deployment to kind cluster.
 	@echo "Kubeconfig file: ${KUBECONFIG}"
-	kind load docker-image $(IMG) --name ${KIND_CLUSTER_NAME} --loglevel debug
+	$(KIND) load docker-image $(IMG) --name ${KIND_CLUSTER_NAME} -v 3
 
 # Create a kind cluster
 .PHONY: kind-cluster
@@ -204,7 +204,7 @@ kind-cluster: kind ## Create a kind cluster if one does not exist
 		echo "Using existing kind cluster ${KIND_CLUSTER_NAME}" ; \
 	else \
 		echo "Creating cluster with kind..." ; \
-		$(KIND) create cluster --name ${KIND_CLUSTER_NAME} --loglevel debug  ; \
+		$(KIND) create cluster --name ${KIND_CLUSTER_NAME} -v 3  ; \
 	fi
 
 .PHONY: bundle
