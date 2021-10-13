@@ -124,9 +124,13 @@ func generateK8sClient(kubeconfig string) error {
 		return errors.New("Failed to generate client from provided kubeconfig")
 	}
 
-	K8sClient, _ = client.New(ClientConfig, client.Options{
+	K8sClient, err = client.New(ClientConfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
+
+	if err != nil {
+		return errors.New("Failed to generate client from provided kubeconfig")
+	}
 
 	err = AddToScheme(scheme.Scheme)
 	if err != nil {
