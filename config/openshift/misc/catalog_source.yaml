@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: vdo-ocp
+  namespace: vmware-system-vdo
+spec:
+  configMap: vdo-ocp
+  sourceType: internal
+  publisher: VMware
+  displayName: vSphere Kubernetes Drivers Operator
