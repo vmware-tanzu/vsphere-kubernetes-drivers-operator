@@ -18,6 +18,15 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-st
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+LABEL name="vsphere-kubernetes-drivers-operators"
+LABEL maintainer="vdo-dev@vmware.com"
+LABEL vendor="VMware"
+LABEL version="0.0.1"
+LABEL release="1"
+LABEL summary="Kubernetes Operator to manage vSphere Kubernetes drivers."
+LABEL description="vSphere Kubernetes Drivers Operator manages vSphere CSI/CPI drivers lifecycle on Kubernetes."
+
 WORKDIR /
 COPY --from=builder /workspace/manager .
 ENTRYPOINT ["/manager"]
