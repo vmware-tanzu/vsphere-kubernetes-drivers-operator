@@ -19,5 +19,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-st
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 WORKDIR /
+
+# Copy the licenses
+COPY LICENSE /licenses/
+
 COPY --from=builder /workspace/manager .
 ENTRYPOINT ["/manager"]
