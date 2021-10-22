@@ -1,6 +1,7 @@
 cover.xml
 kind-kubeconfig
 bin
+bundle
 .idea
 api/.DS_Store
 # Output of the go coverage tool, specifically when used with LiteIDE

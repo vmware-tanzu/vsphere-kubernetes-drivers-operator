@@ -4,6 +4,13 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
+    categories: Drivers and plugins
+    containerImage: ""
+    createdAt: ""
+    description: Kubernetes operator to manage lifecycle of vSphere CSI/CPI drivers
+      on Kubernetes.
+    repository: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator
+    support: VMware
   name: vsphere-kubernetes-drivers-operator.v0.0.0
   namespace: placeholder
 spec:
@@ -48,8 +55,12 @@ spec:
   - vSphere
   links:
   - name: Vsphere Kubernetes Drivers Operator
-    url: https://vsphere-kubernetes-drivers-operator.domain
+    url: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator
+  maintainers:
+  - email: vdo@vmware.com
+    name: VDO Maintainers
   maturity: alpha
+  minKubeVersion: "1.21"
   provider:
-    name: vmware
+    name: VMware
   version: 0.0.0

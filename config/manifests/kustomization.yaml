@@ -2,6 +2,7 @@
 # used to generate the 'manifests/' directory in a bundle.
 resources:
 - bases/vspheredriveroperator.clusterserviceversion.yaml
+- bases/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml
 - ../default
 - ../samples
 - ../scorecard
