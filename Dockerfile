@@ -28,5 +28,9 @@ LABEL summary="Kubernetes Operator to manage vSphere Kubernetes drivers."
 LABEL description="vSphere Kubernetes Drivers Operator manages lifecycle of vSphere CSI/CPI drivers on Kubernetes."
 
 WORKDIR /
+
+# Copy the licenses
+COPY LICENSE /licenses/
+
 COPY --from=builder /workspace/manager .
 ENTRYPOINT ["/manager"]
