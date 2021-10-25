@@ -224,7 +224,7 @@ bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
 add-bundle-image-labels: ## Add the Required labels for bundle image
-	echo "LABEL com.redhat.openshift.versions=v4.8" >> bundle.Dockerfile
+	echo "LABEL com.redhat.openshift.versions=\"v4.8\"" >> bundle.Dockerfile
 	echo "LABEL com.redhat.delivery.operator.bundle=true" >> bundle.Dockerfile
 	echo "LABEL com.redhat.deliver.backport=false" >> bundle.Dockerfile
 
