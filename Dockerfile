@@ -22,7 +22,7 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 LABEL name="vsphere-kubernetes-drivers-operators"
 LABEL maintainer="vdo@vmware.com"
 LABEL vendor="VMware"
-LABEL version="0.0.1"
+LABEL version="0.1.0"
 LABEL release="1"
 LABEL summary="Kubernetes Operator to manage vSphere Kubernetes drivers."
 LABEL description="vSphere Kubernetes Drivers Operator manages lifecycle of vSphere CSI/CPI drivers on Kubernetes."

@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 1.0.0
+VERSION ?= 0.1.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -212,6 +212,7 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(MAKE) add-bundle-image-labels
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
@@ -221,6 +222,11 @@ bundle-build: bundle ## Build the bundle image for OLM
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+add-bundle-image-labels: ## Add the Required labels for bundle image
+	echo "LABEL com.redhat.openshift.versions=\"v4.8\"" >> bundle.Dockerfile
+	echo "LABEL com.redhat.delivery.operator.bundle=true" >> bundle.Dockerfile
+	echo "LABEL com.redhat.deliver.backport=false" >> bundle.Dockerfile
 
 .PHONY: opm
 OPM = ./bin/opm
