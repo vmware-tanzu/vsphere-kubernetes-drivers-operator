@@ -66,6 +66,9 @@ spec:
                   clusterDistribution:
                     description: ClusterDistribution refers to the type of k8s distribution such as TKGI, OpenShift
                     type: string
+                  customKubeletPath:
+                    description: CustomKubeletPath refers to the kubelet Path required
+                    type: string
                   fileVolumes:
                     description: FileVolumes refers to the configuration required for file volumes
                     properties:
@@ -657,7 +660,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo:v0.1.0-beta
+        image: vmware.com/vdo:e03641e
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

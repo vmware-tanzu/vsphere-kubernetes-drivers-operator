@@ -20,30 +20,29 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
-	"github.com/vmware/govmomi/simulator"
-	"k8s.io/apimachinery/pkg/version"
-	restclient "k8s.io/client-go/rest"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/simulator"
 	v1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	restclient "k8s.io/client-go/rest"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fake2 "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
@@ -1516,3 +1515,75 @@ func createConfigFile(filePath, fileContents string) error {
 
 	return err
 }
+
+var _ = Describe("TestUpdatingKubeletPath", func() {
+	Context("when reconcile is queued", func() {
+		ctx := context.Background()
+		defer GinkgoRecover()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		daemonSet := &v1.DaemonSet{
+			TypeMeta: metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vsphere-csi-node",
+				Namespace: "kube-system",
+				Labels:    map[string]string{"app": "test-label"},
+			},
+			Spec: v1.DaemonSetSpec{
+				Template: v12.PodTemplateSpec{
+					Spec: v12.PodSpec{
+						Volumes: []v12.Volume{
+							{
+								Name: Pod_Vol,
+								VolumeSource: v12.VolumeSource{
+									HostPath: &v12.HostPathVolumeSource{
+										Path: "var/lib/kubelet",
+										Type: nil,
+									},
+								},
+							},
+						},
+						Containers: []v12.Container{
+							{
+								Name: CSI_DAEMONSET_NAME,
+								VolumeMounts: []v12.VolumeMount{
+									{
+										Name:      Pod_Vol,
+										MountPath: "/var/lib/kubelet",
+									},
+								},
+							},
+						},
+					}},
+			},
+			Status: v1.DaemonSetStatus{
+				NumberUnavailable: 1,
+			},
+		}
+
+		vdoConfig := initializeVDOConfig()
+
+		Expect(r.Create(vdoctx, daemonSet, &client.CreateOptions{})).NotTo(HaveOccurred())
+		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
+		It("Should update DaemonSet without error", func() {
+			Expect(r.updateDS(vdoctx, "kubePath")).Should(Succeed())
+		})
+
+	})
+})
