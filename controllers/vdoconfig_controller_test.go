@@ -1517,7 +1517,7 @@ func createConfigFile(filePath, fileContents string) error {
 }
 
 var _ = Describe("TestUpdatingKubeletPath", func() {
-	Context("when reconcile is queued", func() {
+	Context("when custom Kubelet Path is provided", func() {
 		ctx := context.Background()
 		defer GinkgoRecover()
 
@@ -1582,8 +1582,9 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 		Expect(r.Create(vdoctx, daemonSet, &client.CreateOptions{})).NotTo(HaveOccurred())
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 		It("Should update DaemonSet without error", func() {
-			Expect(r.updateDS(vdoctx, "kubePath")).Should(Succeed())
+			Expect(r.updateDS(vdoctx, "Custom kubeletPath")).Should(Succeed())
 		})
+
 
 	})
 })

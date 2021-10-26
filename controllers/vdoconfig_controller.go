@@ -20,7 +20,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
+	"github.com/pkg/errors"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
@@ -34,10 +36,6 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"sync"
-
-	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,7 +86,6 @@ type VDOConfigReconciler struct {
 var (
 	SessionFn = session.GetOrCreate
 	GetVMFn   = session.GetVMByIP
-	Wg        sync.WaitGroup
 )
 
 const (
