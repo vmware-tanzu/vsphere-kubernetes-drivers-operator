@@ -212,6 +212,7 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 	operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	$(MAKE) add-bundle-image-artifacts
 	$(MAKE) add-bundle-image-labels
 	operator-sdk bundle validate ./bundle
 
@@ -222,6 +223,9 @@ bundle-build: bundle ## Build the bundle image for OLM
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+add-bundle-image-artifacts: ## Add the Required labels for bundle image
+	echo "COPY artifacts /manifests/" >> bundle.Dockerfile
 
 add-bundle-image-labels: ## Add the Required labels for bundle image
 	echo "LABEL com.redhat.openshift.versions=\"v4.8\"" >> bundle.Dockerfile
