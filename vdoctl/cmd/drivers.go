@@ -248,7 +248,7 @@ var driversCmd = &cobra.Command{
 		}
 		csi.vsphereCloudConfig = vcc.Name
 
-		kubeletPath := utils.PromptGetInput("Do you wish to customize kubelet Path? (Y/N)", errors.New("invalid input"), utils.IsString)
+		kubeletPath := utils.PromptGetInput("Do you wish to provide custom kubelet Path? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if strings.EqualFold(kubeletPath, "Y") {
 			csi.kubeletPath = utils.PromptGetInput("Kubelet Path", errors.New("unable to get the kubelet Path"), utils.IsString)
