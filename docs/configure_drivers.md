@@ -67,6 +67,12 @@ Password *******
 Datacenter(s) Datacenter
 ```
 
+You can then provide custom Kubelet Path if required as vSphere CSI driver deployment provides an option to specify the path to kubelet.
+```shell
+Do you wish to customize kubelet Path? (Y/N) y
+Kubelet Path /var/lib/kubelet
+```
+
 Additionally, you can choose to configure Net Permissions for File volumes
 ```shell
 Do you wish to configure File Volumes? (Y/N) y
