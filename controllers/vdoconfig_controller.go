@@ -57,17 +57,17 @@ const (
 	VDO_NODE_LABEL_KEY            = "vdo.vmware.com/vdoconfig"
 	VDO_NAMESPACE                 = "vmware-system-vdo"
 	CPI_DEPLOYMENT_NAME           = "vsphere-cloud-controller-manager"
-	DEPLOYMENT_NS                 = "kube-system"
-	CPI_DAEMON_POD_KEY            = "k8s-app"
-	SECRET_NAME                   = "cpi-global-secret"
-	CONFIGMAP_NAME                = "cloud-config"
-	CSI_DAEMONSET_NAME            = "vsphere-csi-node"
-	CSI_DAEMON_POD_KEY            = "app"
-	CSI_SECRET_NAME               = "vsphere-config-secret"
-	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
-	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
-	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
-	Pod_Vol                       = "pods-mount-dir"
+	DEPLOYMENT_NS                = "kube-system"
+	CPI_DAEMON_POD_KEY           = "k8s-app"
+	SECRET_NAME                  = "cpi-global-secret"
+	CONFIGMAP_NAME               = "cloud-config"
+	CSI_DAEMONSET_NAME           = "vsphere-csi-node"
+	CSI_DAEMON_POD_KEY           = "app"
+	CSI_SECRET_NAME              = "vsphere-config-secret"
+	CSI_SECRET_CONFIG_FILE       = "/tmp/csi-vsphere.conf"
+	COMPAT_MATRIX_CONFIG_URL     = "MATRIX_CONFIG_URL"
+	COMPAT_MATRIX_CONFIG_CONTENT = "MATRIX_CONFIG_CONTENT"
+	POD_VOL_NAME                 = "pods-mount-dir"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -1351,7 +1351,7 @@ func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string
 	var updateDS bool
 	if len(*volumes) > 0 {
 		for i, vol := range *volumes {
-			if vol.Name == Pod_Vol && vol.HostPath.Path != kubPath {
+			if vol.Name == POD_VOL_NAME && vol.HostPath.Path != kubPath {
 				ctx.Logger.V(4).Info("updating the volume Hostpath", "path", kubPath)
 				(*volumes)[i].HostPath.Path = kubPath
 				updateDS = true
@@ -1364,7 +1364,7 @@ func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string
 		for i, con := range *containerList {
 			if con.Name == CSI_DAEMONSET_NAME {
 				for j, vm := range con.VolumeMounts {
-					if vm.Name == Pod_Vol && (*containerList)[i].VolumeMounts[j].MountPath != kubPath {
+					if vm.Name == POD_VOL_NAME && (*containerList)[i].VolumeMounts[j].MountPath != kubPath {
 						ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
 						(*containerList)[i].VolumeMounts[j].MountPath = kubPath
 						updateDS = true

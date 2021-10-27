@@ -1547,7 +1547,7 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 					Spec: v12.PodSpec{
 						Volumes: []v12.Volume{
 							{
-								Name: Pod_Vol,
+								Name: POD_VOL_NAME,
 								VolumeSource: v12.VolumeSource{
 									HostPath: &v12.HostPathVolumeSource{
 										Path: "/var/lib/kubelet",
@@ -1561,7 +1561,7 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 								Name: CSI_DAEMONSET_NAME,
 								VolumeMounts: []v12.VolumeMount{
 									{
-										Name:      Pod_Vol,
+										Name:      POD_VOL_NAME,
 										MountPath: "/var/lib/kubelet",
 									},
 								},
