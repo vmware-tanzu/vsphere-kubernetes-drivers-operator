@@ -1585,12 +1585,11 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 				Name:      CSI_DAEMONSET_NAME,
 			}
 			ds := v1.DaemonSet{}
-			r.Get(ctx,key, &ds)
+			Expect(r.Get(ctx, key, &ds)).Should(Succeed())
 
 			Expect(ds.Spec.Template.Spec.Volumes[0].HostPath.Path).Should(BeEquivalentTo("/var/data/kubelet"))
 			Expect(ds.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath).Should(BeEquivalentTo("/var/data/kubelet"))
 		})
-
 
 	})
 })

@@ -660,7 +660,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: vmware.com/vdo:e03641e
+        image: vmware.com/vdo:a3d3e1c
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
