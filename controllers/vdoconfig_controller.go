@@ -31,19 +31,18 @@ import (
 	. "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/client-go/discovery"
-	"os"
-	"reflect"
-	"sort"
-	"strings"
-
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
+	"os"
+	"reflect"
+	"sort"
+	"strings"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1336,7 +1335,6 @@ func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigConte
 }
 
 func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string) error {
-
 	ds := &appsv1.DaemonSet{}
 
 	key := types.NamespacedName{

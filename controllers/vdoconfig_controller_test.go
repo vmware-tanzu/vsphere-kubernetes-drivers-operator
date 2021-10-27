@@ -1535,9 +1535,6 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 			Logger:  r.Logger,
 		}
 
-		clientSet := fake.NewSimpleClientset()
-		Expect(clientSet).NotTo(BeNil())
-
 		daemonSet := &v1.DaemonSet{
 			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
@@ -1553,7 +1550,7 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 								Name: Pod_Vol,
 								VolumeSource: v12.VolumeSource{
 									HostPath: &v12.HostPathVolumeSource{
-										Path: "var/lib/kubelet",
+										Path: "/var/lib/kubelet",
 										Type: nil,
 									},
 								},
@@ -1582,7 +1579,16 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 		Expect(r.Create(vdoctx, daemonSet, &client.CreateOptions{})).NotTo(HaveOccurred())
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 		It("Should update DaemonSet without error", func() {
-			Expect(r.updateDS(vdoctx, "Custom kubeletPath")).Should(Succeed())
+			Expect(r.updateDS(vdoctx, "/var/data/kubelet")).Should(Succeed())
+			key := types.NamespacedName{
+				Namespace: DEPLOYMENT_NS,
+				Name:      CSI_DAEMONSET_NAME,
+			}
+			ds := v1.DaemonSet{}
+			r.Get(ctx,key, &ds)
+
+			Expect(ds.Spec.Template.Spec.Volumes[0].HostPath.Path).Should(BeEquivalentTo("/var/data/kubelet"))
+			Expect(ds.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath).Should(BeEquivalentTo("/var/data/kubelet"))
 		})
 
 
