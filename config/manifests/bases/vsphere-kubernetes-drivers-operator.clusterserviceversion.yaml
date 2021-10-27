@@ -22,7 +22,7 @@ spec:
       name: vdoconfigs.vdo.vmware.com
       version: v1alpha1
     - description: VsphereCloudConfig is the Schema for the vspherecloudconfigs API
-      displayName: Vsphere Cloud Config
+      displayName: VsphereCloudConfig
       kind: VsphereCloudConfig
       name: vspherecloudconfigs.vdo.vmware.com
       version: v1alpha1

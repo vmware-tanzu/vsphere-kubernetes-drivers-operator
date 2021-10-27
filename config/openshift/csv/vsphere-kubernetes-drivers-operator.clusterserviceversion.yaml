@@ -74,7 +74,7 @@ spec:
             path: config
       - kind: VsphereCloudConfig
         name: vspherecloudconfigs.vdo.vmware.com
-        displayName: Vsphere Cloud Config
+        displayName: VsphereCloudConfig
         description: VsphereCloudConfig is the Schema for the vspherecloudconfigs API
         version: v1alpha1
         resources:
