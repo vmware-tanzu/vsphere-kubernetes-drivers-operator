@@ -1574,10 +1574,8 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 			},
 		}
 
-		vdoConfig := initializeVDOConfig()
-
 		Expect(r.Create(vdoctx, daemonSet, &client.CreateOptions{})).NotTo(HaveOccurred())
-		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
+
 		It("Should update DaemonSet without error", func() {
 			Expect(r.updateDS(vdoctx, "/var/data/kubelet")).Should(Succeed())
 			key := types.NamespacedName{
