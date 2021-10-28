@@ -467,19 +467,19 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 		}
 	}
 
-	vdoctx.Logger.V(4).Info("reconciling deployment status for CSI")
-	err = r.reconcileCSIDeploymentStatus(vdoctx, clientset)
-	if err != nil {
-		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment status for CSI")
-		return ctrl.Result{}, err
-	}
-
 	kubPath := vdoConfig.Spec.StorageProvider.CustomKubeletPath
 	if len(kubPath) > 0 {
 		err = r.updateDS(vdoctx, kubPath)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+
+	vdoctx.Logger.V(4).Info("reconciling deployment status for CSI")
+	err = r.reconcileCSIDeploymentStatus(vdoctx, clientset)
+	if err != nil {
+		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of deployment status for CSI")
+		return ctrl.Result{}, err
 	}
 
 	if vdoConfig.Status.CSIStatus.Phase != vdov1alpha1.Deployed {
