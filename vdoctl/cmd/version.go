@@ -17,12 +17,14 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/spf13/cobra"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/controllers"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
+	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	v12 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -108,7 +110,13 @@ var versionCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		matrixConfig, err := dynclient.ParseMatrixYaml(configMap.Data["versionConfigURL"])
+		var matrixConfig models.CompatMatrix
+		if matrixConfigUrl, ok := configMap.Data["versionConfigURL"]; ok {
+			matrixConfig, err = dynclient.ParseMatrixYaml(matrixConfigUrl)
+		} else {
+			err = json.Unmarshal([]byte(configMap.Data["versionConfigContent"]), &matrixConfig)
+		}
+
 		if err != nil {
 			cobra.CheckErr(err)
 		}
