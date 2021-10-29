@@ -1348,29 +1348,32 @@ func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string
 		return err
 	}
 
-	volumes := &ds.Spec.Template.Spec.Volumes
+	volumes := ds.Spec.Template.Spec.Volumes
 	var updateDS bool
-	if len(*volumes) > 0 {
-		for i, vol := range *volumes {
+	if len(volumes) > 0 {
+		for _, vol := range volumes {
 			if vol.Name == POD_VOL_NAME && vol.HostPath.Path != kubPath {
 				ctx.Logger.V(4).Info("updating the volume Hostpath", "path", kubPath)
-				(*volumes)[i].HostPath.Path = kubPath
+				vol.HostPath.Path = kubPath
 				updateDS = true
+				break
 			}
 		}
 	}
 
-	containerList := &ds.Spec.Template.Spec.Containers
-	if len(*containerList) > 0 {
-		for i, con := range *containerList {
+	containerList := ds.Spec.Template.Spec.Containers
+	if len(containerList) > 0 {
+		for i, con := range containerList {
 			if con.Name == CSI_DAEMONSET_NAME {
 				for j, vm := range con.VolumeMounts {
-					if vm.Name == POD_VOL_NAME && (*containerList)[i].VolumeMounts[j].MountPath != kubPath {
+					if vm.Name == POD_VOL_NAME && (containerList)[i].VolumeMounts[j].MountPath != kubPath {
 						ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
-						(*containerList)[i].VolumeMounts[j].MountPath = kubPath
+						(containerList)[i].VolumeMounts[j].MountPath = kubPath
 						updateDS = true
+						break
 					}
 				}
+				break
 			}
 		}
 	}
