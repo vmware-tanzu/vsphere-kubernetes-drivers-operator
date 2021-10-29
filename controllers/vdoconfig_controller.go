@@ -1368,7 +1368,7 @@ func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string
 				for j, vm := range con.VolumeMounts {
 					if vm.Name == POD_VOL_NAME && (containerList)[i].VolumeMounts[j].MountPath != kubPath {
 						ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
-						(containerList)[i].VolumeMounts[j].MountPath = kubPath
+						containerList[i].VolumeMounts[j].MountPath = kubPath
 						updateDS = true
 						break
 					}
