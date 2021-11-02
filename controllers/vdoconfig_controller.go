@@ -1268,10 +1268,12 @@ func (r *VDOConfigReconciler) CheckCompatAndRetrieveSpec(ctx vdocontext.VDOConte
 		}
 	}
 
-	err = r.FetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
-	if err != nil {
-		ctx.Logger.Error(err, "Error occurred when fetching the CPI deployment yamls")
-		return err
+	if len(vdoConfig.Spec.CloudProvider.VsphereCloudConfigs) > 0 {
+		err = r.FetchCpiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
+		if err != nil {
+			ctx.Logger.Error(err, "Error occurred when fetching the CPI deployment yamls")
+			return err
+		}
 	}
 
 	err = r.FetchCsiDeploymentYamls(ctx, matrix, vSphereVersions, k8sVersion)
