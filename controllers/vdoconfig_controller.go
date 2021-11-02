@@ -20,7 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"reflect"
+	"sort"
+	"strings"
+
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
+	"github.com/pkg/errors"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
@@ -29,20 +36,12 @@ import (
 	. "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/client-go/discovery"
-	"os"
-	"reflect"
-	"sort"
-	"strings"
-
-	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
-
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
@@ -63,12 +62,13 @@ const (
 	CPI_DAEMON_POD_KEY            = "k8s-app"
 	SECRET_NAME                   = "cpi-global-secret"
 	CONFIGMAP_NAME                = "cloud-config"
-	CSI_DEPLOYMENT_NAME           = "vsphere-csi-node"
+	CSI_DAEMONSET_NAME            = "vsphere-csi-node"
 	CSI_DAEMON_POD_KEY            = "app"
 	CSI_SECRET_NAME               = "vsphere-config-secret"
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
 	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
+	POD_VOL_NAME                  = "pods-mount-dir"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -467,6 +467,14 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 		}
 	}
 
+	kubPath := vdoConfig.Spec.StorageProvider.CustomKubeletPath
+	if len(kubPath) > 0 {
+		err = r.updateDS(vdoctx, kubPath)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	vdoctx.Logger.V(4).Info("reconciling deployment status for CSI")
 	err = r.reconcileCSIDeploymentStatus(vdoctx, clientset)
 	if err != nil {
@@ -631,7 +639,7 @@ func (r *VDOConfigReconciler) reconcileCPIDeploymentStatus(ctx vdocontext.VDOCon
 func (r *VDOConfigReconciler) reconcileCSIDeploymentStatus(ctx vdocontext.VDOContext, clientset kubernetes.Interface) error {
 	ctx.Logger.V(4).Info("will attempt to reconcile deployment status of CSI")
 
-	err := r.fetchDaemonSetPodStatus(ctx, clientset, CSI_DEPLOYMENT_NAME, DEPLOYMENT_NS, CSI_DAEMON_POD_KEY)
+	err := r.fetchDaemonSetPodStatus(ctx, clientset, CSI_DAEMONSET_NAME, DEPLOYMENT_NS, CSI_DAEMON_POD_KEY)
 	if err != nil {
 		return errors.Wrapf(err, "unable to get CSI DaemonSet Pod Status")
 	}
@@ -1325,4 +1333,58 @@ func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigConte
 		err = errors.New("Matrix Config URL/Content not provided in proper format")
 		return "", err
 	}
+}
+
+func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string) error {
+	ds := &appsv1.DaemonSet{}
+
+	key := types.NamespacedName{
+		Namespace: DEPLOYMENT_NS,
+		Name:      CSI_DAEMONSET_NAME,
+	}
+	err := r.Get(ctx, key, ds)
+
+	if err != nil {
+		return err
+	}
+
+	volumes := ds.Spec.Template.Spec.Volumes
+	var updateDS bool
+	if len(volumes) > 0 {
+		for _, vol := range volumes {
+			if vol.Name == POD_VOL_NAME && vol.HostPath.Path != kubPath {
+				ctx.Logger.V(4).Info("updating the volume Hostpath", "path", kubPath)
+				vol.HostPath.Path = kubPath
+				updateDS = true
+				break
+			}
+		}
+	}
+
+	containerList := ds.Spec.Template.Spec.Containers
+	if len(containerList) > 0 {
+		for i, con := range containerList {
+			if con.Name == CSI_DAEMONSET_NAME {
+				for j, vm := range con.VolumeMounts {
+					if vm.Name == POD_VOL_NAME && (containerList)[i].VolumeMounts[j].MountPath != kubPath {
+						ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
+						containerList[i].VolumeMounts[j].MountPath = kubPath
+						updateDS = true
+						break
+					}
+				}
+				break
+			}
+		}
+	}
+
+	if updateDS {
+		ctx.Logger.V(4).Info("updating Kubelet path in DaemonSet", "path", kubPath)
+		err = r.Update(ctx, ds)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
 }

@@ -67,6 +67,10 @@ spec:
                     description: ClusterDistribution refers to the type of k8s distribution
                       such as TKGI, OpenShift
                     type: string
+                  customKubeletPath:
+                    description: CustomKubeletPath refers to the Kubelet Path in case
+                      of custom K8s deployments
+                    type: string
                   fileVolumes:
                     description: FileVolumes refers to the configuration required
                       for file volumes
