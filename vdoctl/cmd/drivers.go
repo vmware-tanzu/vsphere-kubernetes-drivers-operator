@@ -51,6 +51,7 @@ type credentials struct {
 	netPermissions      []v1alpha1.NetPermission
 	vsphereCloudConfigs []string
 	thumbprint          string
+	kubeletPath         string
 }
 
 const (
@@ -247,6 +248,11 @@ var driversCmd = &cobra.Command{
 		}
 		csi.vsphereCloudConfig = vcc.Name
 
+		kubeletPath := utils.PromptGetInput("Do you wish to provide custom kubelet Path? (Y/N)", errors.New("invalid input"), utils.IsString)
+
+		if strings.EqualFold(kubeletPath, "Y") {
+			csi.kubeletPath = utils.PromptGetInput("Kubelet Path", errors.New("unable to get the kubelet Path"), utils.IsString)
+		}
 		advConfig := utils.PromptGetInput("Do you wish to configure File Volumes? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if strings.EqualFold(advConfig, "Y") {
@@ -376,6 +382,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 					VSanDataStoreUrl: csi.vSANDataStoresUrl,
 					NetPermissions:   csi.netPermissions,
 				},
+				CustomKubeletPath: csi.kubeletPath,
 			},
 		},
 	}

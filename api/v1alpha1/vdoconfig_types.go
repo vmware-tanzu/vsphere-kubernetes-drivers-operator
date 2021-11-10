@@ -47,6 +47,8 @@ type StorageProviderConfig struct {
 	ClusterDistribution string `json:"clusterDistribution,omitempty"`
 	// FileVolumes refers to the configuration required for file volumes
 	FileVolumes FileVolume `json:"fileVolumes,omitempty"`
+	// CustomKubeletPath refers to the Kubelet Path in case of custom K8s deployments
+	CustomKubeletPath string `json:"customKubeletPath,omitempty"`
 }
 
 type FileVolume struct {
