@@ -34,6 +34,11 @@ else
 GOLANGCI_LINT_TIMEOUT = 2m
 endif
 
+# if kind node image is passed use that instead of the default one used by kind
+ifneq ($(origin KIND_NODE_IMAGE), undefined)
+LOCAL_KIND_NODE_IMAGE = --image ${KIND_NODE_IMAGE}
+endif
+
 # DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
 # To re-generate a bundle for any other default channel without changing the default setup, you can:
@@ -212,7 +217,7 @@ kind-cluster: kind ## Create a kind cluster if one does not exist
 		echo "Using existing kind cluster ${KIND_CLUSTER_NAME}" ; \
 	else \
 		echo "Creating cluster with kind..." ; \
-		$(KIND) create cluster --name ${KIND_CLUSTER_NAME} -v 3  ; \
+		$(KIND) create cluster --name ${KIND_CLUSTER_NAME} ${LOCAL_KIND_NODE_IMAGE} -v 3  ; \
 	fi
 
 .PHONY: bundle
