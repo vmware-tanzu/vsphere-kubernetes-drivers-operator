@@ -26,6 +26,19 @@ CRC					?= crc
 SPEC_FILE			?= vdo-spec.yaml
 CRC					?= crc
 
+# Configure the golangci-lint timeout if an environment variable exists
+ifneq ($(origin LINT_TIMEOUT), undefined)
+GOLANGCI_LINT_TIMEOUT = ${LINT_TIMEOUT}
+else
+# Set the default timeout to 2m
+GOLANGCI_LINT_TIMEOUT = 2m
+endif
+
+# if kind node image is passed use that instead of the default one used by kind
+ifneq ($(origin KIND_NODE_IMAGE), undefined)
+LOCAL_KIND_NODE_IMAGE = --image ${KIND_NODE_IMAGE}
+endif
+
 # DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
 # To re-generate a bundle for any other default channel without changing the default setup, you can:
@@ -204,7 +217,7 @@ kind-cluster: kind ## Create a kind cluster if one does not exist
 		echo "Using existing kind cluster ${KIND_CLUSTER_NAME}" ; \
 	else \
 		echo "Creating cluster with kind..." ; \
-		$(KIND) create cluster --name ${KIND_CLUSTER_NAME} -v 3  ; \
+		$(KIND) create cluster --name ${KIND_CLUSTER_NAME} ${LOCAL_KIND_NODE_IMAGE} -v 3  ; \
 	fi
 
 .PHONY: bundle
@@ -298,7 +311,7 @@ lint-go: golangci_lint ## Lint codebase
 	$(GOLANGCI_LINT) run -v $(GOLANGCI_LINT_FLAGS)
 
 .PHONY: lint-go-full
-lint-go-full: GOLANGCI_LINT_FLAGS = --fast=false
+lint-go-full: GOLANGCI_LINT_FLAGS = --fast=false --timeout ${GOLANGCI_LINT_TIMEOUT}
 lint-go-full: lint-go ## Run slower linters to detect possible issues
 
 .PHONY: lint-markdown
@@ -316,7 +329,7 @@ fix: GOLANGCI_LINT_FLAGS = --fast=false --fix
 fix: lint-go ## Tries to fix errors reported by lint-go-full target
 
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-golangci_lint: ## Download kustomize locally if necessary.
+golangci_lint: ## Download golangci-lint locally if necessary.
 	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint)
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
