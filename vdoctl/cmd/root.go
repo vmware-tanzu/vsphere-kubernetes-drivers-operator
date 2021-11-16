@@ -114,10 +114,12 @@ func initConfig() {
 				"Either use --kubeconfig flag or set KUBECONFIG environment variable"))
 		}
 	}
+
 	err := generateK8sClient(kubeconfig)
 	if err != nil {
 		cobra.CheckErr(err)
 	}
+
 }
 
 func generateK8sClient(kubeconfig string) error {
