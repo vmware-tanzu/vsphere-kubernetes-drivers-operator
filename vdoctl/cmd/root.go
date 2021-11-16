@@ -103,18 +103,20 @@ func initConfig() {
 	}
 
 	// Ignore the config check and client creation if help command is invoked
-	if os.Args[1] != "help" {
+	if os.Args[1] == "help" {
+		return
+	}
+
+	if len(kubeconfig) <= 0 {
+		kubeconfig = os.Getenv("KUBECONFIG")
 		if len(kubeconfig) <= 0 {
-			kubeconfig = os.Getenv("KUBECONFIG")
-			if len(kubeconfig) <= 0 {
-				cobra.CheckErr(errors.New("could not detect a target kubernetes cluster. " +
-					"Either use --kubeconfig flag or set KUBECONFIG environment variable"))
-			}
+			cobra.CheckErr(errors.New("could not detect a target kubernetes cluster. " +
+				"Either use --kubeconfig flag or set KUBECONFIG environment variable"))
 		}
-		err := generateK8sClient(kubeconfig)
-		if err != nil {
-			cobra.CheckErr(err)
-		}
+	}
+	err := generateK8sClient(kubeconfig)
+	if err != nil {
+		cobra.CheckErr(err)
 	}
 }
 
