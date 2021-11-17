@@ -1,5 +1,6 @@
 # Build the manager binary
-FROM golang:1.16 as builder
+ARG PROXY_PATH
+FROM ${PROXY_PATH}golang:1.16 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
