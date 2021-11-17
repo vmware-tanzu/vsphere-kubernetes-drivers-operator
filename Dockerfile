@@ -1,6 +1,6 @@
 # Build the manager binary
-ARG PROXY_PATH
-FROM ${PROXY_PATH}golang:1.16 as builder
+ARG DOCKER_PROXY
+FROM ${DOCKER_PROXY}golang:1.16 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
