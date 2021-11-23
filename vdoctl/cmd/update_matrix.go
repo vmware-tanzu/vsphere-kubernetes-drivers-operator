@@ -38,16 +38,16 @@ var matrixUpdateCmd = &cobra.Command{
 	Short:   "Command to update the Compatibility matrix of Drivers",
 	Long: `This command helps to update the Compatibility matrix of Drivers, 
 which in turns help to upgrade/downgrade the versions of CSI & CPI drivers.`,
-	Example: "vdoctl update matrix https://github.com/demo/demo.yaml\nvdoctl update matrix file://var/sample/sample.yaml",
+	Example: "vdoctl update compatibility-matrix https://github.com/demo/demo.yaml\nvdoctl update compatibility-matrix file://var/sample/sample.yaml",
 
 	Run: func(cmd *cobra.Command, args []string) {
 		cobra.MinimumNArgs(1)
-		updateMatrix(cmd, args)
+		updateMatrix(args)
 	},
 }
 
 // updateMatrix updates the ConfigMap containing the compatibility-matrix
-func updateMatrix(cmd *cobra.Command, args []string) {
+func updateMatrix(args []string) {
 
 	if len(args) < 1 {
 		cobra.CheckErr("At-least one argument should be provided")

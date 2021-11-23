@@ -25,7 +25,7 @@ var updateCmd = &cobra.Command{
 	Aliases: []string{"u"},
 	Short:   "Update the VDO Resources",
 	Long:    `This command helps to update the VDO Resources which is created by VDO Controller.`,
-	Example: `vdoctl update matrix https://sample/sample.yaml
+	Example: `vdoctl update compatibility-matrix https://sample/sample.yaml
 `,
 }
 
