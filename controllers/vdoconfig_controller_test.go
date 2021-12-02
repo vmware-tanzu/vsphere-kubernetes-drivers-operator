@@ -1380,6 +1380,8 @@ var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 
 var _ = Describe("TestReconcile", func() {
 	Context("when reconcile is queued", func() {
+
+		os.Setenv("VDO_NAMESPACE", "vmware-system-vdo")
 		ctx := context.Background()
 		defer GinkgoRecover()
 

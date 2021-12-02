@@ -56,7 +56,6 @@ const (
 	CLOUD_PROVIDER_INIT_TAINT_KEY = "node.cloudprovider.kubernetes.io/uninitialized"
 	TAINT_NOSCHEDULE_KEY          = "NoSchedule"
 	VDO_NODE_LABEL_KEY            = "vdo.vmware.com/vdoconfig"
-	VDO_NAMESPACE                 = "vmware-system-vdo"
 	CPI_DEPLOYMENT_NAME           = "vsphere-cloud-controller-manager"
 	DEPLOYMENT_NS                 = "kube-system"
 	CPI_DAEMON_POD_KEY            = "k8s-app"
@@ -69,6 +68,9 @@ const (
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
 	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
 	POD_VOL_NAME                  = "pods-mount-dir"
+	CM_NAME                       = "compat-matrix-config"
+	CM_URL_KEY                    = "versionConfigURL"
+	CM_CONTENT_KEY                = "versionConfigContent"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -84,14 +86,9 @@ type VDOConfigReconciler struct {
 }
 
 var (
-	SessionFn = session.GetOrCreate
-	GetVMFn   = session.GetVMByIP
-)
-
-const (
-	CM_NAME        = "compat-matrix-config"
-	CM_URL_KEY     = "versionConfigURL"
-	CM_CONTENT_KEY = "versionConfigContent"
+	SessionFn     = session.GetOrCreate
+	GetVMFn       = session.GetVMByIP
+	VDO_NAMESPACE = ""
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -120,6 +117,13 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	vdoctx := vdocontext.VDOContext{
 		Context: ctx,
 		Logger:  r.Logger,
+	}
+
+	// Get VDO Namespace
+	VDO_NAMESPACE = os.Getenv("VDO_NAMESPACE")
+
+	if VDO_NAMESPACE == "" {
+		return ctrl.Result{}, errors.New("Unable to determine operator namespace")
 	}
 
 	// Check if Reconcile is for ConfigMap Changes
