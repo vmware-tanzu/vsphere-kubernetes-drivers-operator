@@ -102,6 +102,11 @@ func initConfig() {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 
+	// Ignore the config check and client creation if help command is invoked
+	if os.Args[1] == "help" {
+		return
+	}
+
 	if len(kubeconfig) <= 0 {
 		kubeconfig = os.Getenv("KUBECONFIG")
 		if len(kubeconfig) <= 0 {
