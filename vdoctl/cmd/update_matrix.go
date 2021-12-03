@@ -56,6 +56,7 @@ func updateMatrix(cmd *cobra.Command, args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
+	checkVdoDeployment()
 	// Check for volumes which have PWX or ROX access mode,
 	// If any then manual steps are required before updating the driver
 	volumeAttachmentList := storagev1.VolumeAttachmentList{}
@@ -95,7 +96,7 @@ func updateConfigMap(filepath string, ctx context.Context) error {
 	var data map[string]string
 
 	configMetaData := types.NamespacedName{
-		Namespace: VdoNamespace,
+		Namespace: VdoCurrentNamespace,
 		Name:      CompatMatrixConfigMap,
 	}
 

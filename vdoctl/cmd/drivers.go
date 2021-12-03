@@ -70,6 +70,7 @@ var driversCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
+		checkVdoDeployment()
 		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -326,7 +327,7 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 	vcc := &v1alpha1.VsphereCloudConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
-			Namespace: VdoNamespace,
+			Namespace: VdoCurrentNamespace,
 		},
 		Spec: v1alpha1.VsphereCloudConfigSpec{
 			VcIP:        cred.vcIp,
@@ -344,7 +345,7 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 		if apierrors.IsAlreadyExists(err) {
 			key := types.NamespacedName{
 				Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
-				Namespace: VdoNamespace,
+				Namespace: VdoCurrentNamespace,
 			}
 			getObj := v1alpha1.VsphereCloudConfig{}
 
@@ -372,7 +373,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vdoConfigName + randstr.Hex(4),
-			Namespace: VdoNamespace,
+			Namespace: VdoCurrentNamespace,
 		},
 		Spec: v1alpha1.VDOConfigSpec{
 			StorageProvider: v1alpha1.StorageProviderConfig{

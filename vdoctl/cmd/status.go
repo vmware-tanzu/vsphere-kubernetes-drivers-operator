@@ -39,6 +39,7 @@ var statusCmd = &cobra.Command{
 
 		ctx := context.Background()
 
+		checkVdoDeployment()
 		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -89,7 +90,7 @@ var statusCmd = &cobra.Command{
 
 func IsVDODeployed(ctx context.Context) (error, *v12.Deployment) {
 	deployment := &v12.Deployment{}
-	ns := types.NamespacedName{Namespace: VdoNamespace, Name: VdoDeploymentName}
+	ns := types.NamespacedName{Namespace: VdoCurrentNamespace, Name: VdoDeploymentName}
 	err := K8sClient.Get(ctx, ns, deployment)
 	if deployment.Status.Replicas != deployment.Status.AvailableReplicas {
 		return fmt.Errorf("not enough replicas of VDO"), nil

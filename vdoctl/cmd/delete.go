@@ -20,9 +20,10 @@ Currently the command supports vanilla k8s cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
+		checkVdoDeployment()
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: VdoNamespace,
+				Name: VdoCurrentNamespace,
 			},
 		}
 

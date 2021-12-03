@@ -36,10 +36,6 @@ import (
 	"strings"
 )
 
-const (
-	VdoDeploymentName = "vdo-controller-manager"
-)
-
 var (
 	vdoVersion     = "Not Configured"
 	vsphereVersion []string
@@ -60,6 +56,7 @@ var versionCmd = &cobra.Command{
 			Logger:  ctrllog.Log.WithName("vdoctl:version"),
 		}
 
+		checkVdoDeployment()
 		k8sVersion = getK8sVersion()
 		err, vdoDeployment := IsVDODeployed(ctx)
 		if err != nil {
@@ -100,7 +97,7 @@ var versionCmd = &cobra.Command{
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      CompatMatrixConfigMAp,
-				Namespace: VdoNamespace,
+				Namespace: VdoCurrentNamespace,
 			},
 		}
 
