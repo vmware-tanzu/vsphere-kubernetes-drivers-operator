@@ -122,10 +122,6 @@ func initConfig() {
 	if err != nil {
 		cobra.CheckErr(err)
 	}
-
-	// Get the current namespace
-	getVdoNamespace()
-
 }
 
 func generateK8sClient(kubeconfig string) error {
@@ -163,12 +159,11 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
-func getVdoNamespace() string {
+func checkVdoDeployment() {
 	// List Deployments
 	ctxNew := context.Background()
 	deploymentList := &appsv1.DeploymentList{}
 	err := K8sClient.List(ctxNew, deploymentList)
-
 	if err != nil {
 		cobra.CheckErr(err)
 	}
@@ -176,12 +171,9 @@ func getVdoNamespace() string {
 	for _, deployment := range deploymentList.Items {
 		if deployment.Name == VdoDeploymentName {
 			VdoCurrentNamespace = deployment.Namespace
+			break
 		}
 	}
-	return VdoCurrentNamespace
-}
-
-func checkVdoDeployment() {
 	if VdoCurrentNamespace == "" {
 		cobra.CheckErr("VDO is currently not deployed, please deploy using `vdo deploy` command")
 	}
