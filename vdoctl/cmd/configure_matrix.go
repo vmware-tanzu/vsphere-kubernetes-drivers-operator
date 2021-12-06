@@ -77,6 +77,7 @@ var matrixConfigureCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
+		fmt.Println("Tip: Compatibility matrix has been configured, you might want to try 'vdoctl deploy' to deploy VDO.")
 	},
 }
 

@@ -87,6 +87,8 @@ func updateMatrix(args []string) {
 	if err != nil {
 		cobra.CheckErr(fmt.Sprintf("unable to read the updated matrix from %s", updatedMatrix))
 	}
+
+	fmt.Println("Compatibility matrix has been updated successfully.")
 }
 
 func updateConfigMap(filepath string, ctx context.Context) error {
