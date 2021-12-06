@@ -56,7 +56,9 @@ var versionCmd = &cobra.Command{
 			Logger:  ctrllog.Log.WithName("vdoctl:version"),
 		}
 
-		checkVdoDeployment()
+		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+		checkVdoDeployment(ctx)
+
 		k8sVersion = getK8sVersion()
 		err, vdoDeployment := IsVDODeployed(ctx)
 		if err != nil {

@@ -47,7 +47,8 @@ var matrixConfigureCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		checkVdoDeployment()
+		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+		checkVdoDeployment(ctx)
 
 		configKey := types.NamespacedName{
 			Namespace: VdoCurrentNamespace,

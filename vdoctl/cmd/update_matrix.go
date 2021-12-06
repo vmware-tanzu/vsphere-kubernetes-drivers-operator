@@ -56,7 +56,9 @@ func updateMatrix(cmd *cobra.Command, args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
-	checkVdoDeployment()
+	// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+	checkVdoDeployment(ctxNew)
+
 	// Check for volumes which have PWX or ROX access mode,
 	// If any then manual steps are required before updating the driver
 	volumeAttachmentList := storagev1.VolumeAttachmentList{}

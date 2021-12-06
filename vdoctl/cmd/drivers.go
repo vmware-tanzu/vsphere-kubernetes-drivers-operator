@@ -70,7 +70,9 @@ var driversCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		checkVdoDeployment()
+		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+		checkVdoDeployment(ctx)
+
 		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {

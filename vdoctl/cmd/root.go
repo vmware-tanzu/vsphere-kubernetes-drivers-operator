@@ -159,21 +159,24 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
-func checkVdoDeployment() {
+// checkVdoDeployment identifies the namespace in which vdo-operator is deployed
+func checkVdoDeployment(ctx context.Context) {
 	// List Deployments
-	ctxNew := context.Background()
 	deploymentList := &appsv1.DeploymentList{}
-	err := K8sClient.List(ctxNew, deploymentList)
+	err := K8sClient.List(ctx, deploymentList)
 	if err != nil {
 		cobra.CheckErr(err)
 	}
 
+	//Filter out the deployment using vdo-controller name
 	for _, deployment := range deploymentList.Items {
 		if deployment.Name == VdoDeploymentName {
 			VdoCurrentNamespace = deployment.Namespace
 			break
 		}
 	}
+
+	// If the controller namespace is not identified then it is assumed that vdo is not deployed
 	if VdoCurrentNamespace == "" {
 		cobra.CheckErr("VDO is currently not deployed, please deploy using `vdo deploy` command")
 	}
