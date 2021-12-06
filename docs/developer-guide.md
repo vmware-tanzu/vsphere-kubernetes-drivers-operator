@@ -1,6 +1,6 @@
 ## Developer Guide
 
-This document helps you get started using the Volcano code base. If you follow this guide and find some problem, please take a few minutes to update this file.
+This document helps you get started using the vSphere-Kubernetes-Drivers-Operator code base. If you follow this guide and find some problem, please take a few minutes to update this file.
 
 - [Setting up the developer env](#setting-up-the-developer-env)
 - [Building the code from source](#building-the-code-from-source)
