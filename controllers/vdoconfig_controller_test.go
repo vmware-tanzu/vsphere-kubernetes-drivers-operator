@@ -1146,6 +1146,7 @@ var _ = Describe("TestupdateMatrixInfo", func() {
 	Context("When creating new Matrix", func() {
 		RegisterFailHandler(Fail)
 		ctx := context.Background()
+		VDO_NAMESPACE = "vmware-system-vdo"
 
 		s := scheme.Scheme
 		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})

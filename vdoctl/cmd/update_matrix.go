@@ -56,6 +56,9 @@ func updateMatrix(args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
+	// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+	getVdoNamespace(ctxNew)
+
 	// Check for volumes which have PWX or ROX access mode,
 	// If any then manual steps are required before updating the driver
 	volumeAttachmentList := storagev1.VolumeAttachmentList{}
@@ -95,7 +98,7 @@ func updateConfigMap(filepath string, ctx context.Context) error {
 	var data map[string]string
 
 	configMetaData := types.NamespacedName{
-		Namespace: VdoNamespace,
+		Namespace: VdoCurrentNamespace,
 		Name:      CompatMatrixConfigMap,
 	}
 

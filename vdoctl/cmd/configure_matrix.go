@@ -47,8 +47,11 @@ var matrixConfigureCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
+		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+		getVdoNamespace(ctx)
+
 		configKey := types.NamespacedName{
-			Namespace: VdoNamespace,
+			Namespace: VdoCurrentNamespace,
 			Name:      CompatMatrixConfigMap,
 		}
 		cm := v1.ConfigMap{}
@@ -87,7 +90,7 @@ func init() {
 func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags) error {
 
 	configMapKey := types.NamespacedName{
-		Namespace: VdoNamespace,
+		Namespace: VdoCurrentNamespace,
 		Name:      CompatMatrixConfigMAp,
 	}
 	var data map[string]string
@@ -116,7 +119,7 @@ func CreateNamespace(client runtimeclient.Client, ctx context.Context) error {
 
 	nsSpec := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: VdoNamespace,
+			Name: VdoCurrentNamespace,
 		},
 	}
 
