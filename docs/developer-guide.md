@@ -12,7 +12,7 @@ This document helps you get started using the Volcano code base. If you follow t
 
 You will need to fork the repository `vsphere-kubernetes-drivers-operator` into your own workspace and clone the main branch to `$GOPATH/src/vsphere-kubernetes-drivers-operator` for the code to work correctly.
 
-```bash
+```shell
 git clone https://github.com/$USER/vsphere-kubernetes-drivers-operator.git
 ```
 
@@ -26,7 +26,7 @@ There are mainly two components which gets shipped with this project:
 
 To build VDO for the host architecture, go to the source root and run:
 
-```bash
+```shell
 make build
 ```
 
