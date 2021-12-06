@@ -16,11 +16,13 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,19 +36,20 @@ import (
 )
 
 const (
-	VdoNamespace = "vmware-system-vdo"
-	GroupName    = "vdo.vmware.com"
-	GroupVersion = "v1alpha1"
+	GroupName         = "vdo.vmware.com"
+	GroupVersion      = "v1alpha1"
+	VdoDeploymentName = "vdo-controller-manager"
 )
 
 var (
-	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
-	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme        = SchemeBuilder.AddToScheme
-	cfgFile            string
-	kubeconfig         string
-	K8sClient          client.Client
-	ClientConfig       *rest.Config
+	SchemeGroupVersion  = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	SchemeBuilder       = runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme         = SchemeBuilder.AddToScheme
+	cfgFile             string
+	kubeconfig          string
+	K8sClient           client.Client
+	ClientConfig        *rest.Config
+	VdoCurrentNamespace string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -119,7 +122,6 @@ func initConfig() {
 	if err != nil {
 		cobra.CheckErr(err)
 	}
-
 }
 
 func generateK8sClient(kubeconfig string) error {
@@ -155,4 +157,27 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
+}
+
+// getVdoNamespace identifies the namespace in which vdo-operator is deployed
+func getVdoNamespace(ctx context.Context) {
+	// List Deployments
+	deploymentList := &appsv1.DeploymentList{}
+	err := K8sClient.List(ctx, deploymentList)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+
+	//Filter out the deployment using vdo-controller name
+	for _, deployment := range deploymentList.Items {
+		if deployment.Name == VdoDeploymentName {
+			VdoCurrentNamespace = deployment.Namespace
+			break
+		}
+	}
+
+	// If the controller namespace is not identified then it is assumed that vdo is not deployed
+	if VdoCurrentNamespace == "" {
+		cobra.CheckErr("VDO is currently not deployed, please deploy using `vdo deploy` command")
+	}
 }
