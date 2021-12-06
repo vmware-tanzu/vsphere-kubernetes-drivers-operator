@@ -21,7 +21,7 @@ Currently the command supports vanilla k8s cluster`,
 		ctx := context.Background()
 
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		checkVdoDeployment(ctx)
+		getVdoNamespace(ctx)
 
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{

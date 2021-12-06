@@ -159,8 +159,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
-// checkVdoDeployment identifies the namespace in which vdo-operator is deployed
-func checkVdoDeployment(ctx context.Context) {
+// getVdoNamespace identifies the namespace in which vdo-operator is deployed
+func getVdoNamespace(ctx context.Context) {
 	// List Deployments
 	deploymentList := &appsv1.DeploymentList{}
 	err := K8sClient.List(ctx, deploymentList)
