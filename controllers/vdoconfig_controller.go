@@ -67,10 +67,10 @@ const (
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
 	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
-	POD_VOL_NAME                  = "pods-mount-dir"
-	CM_NAME                       = "compat-matrix-config"
-	CM_URL_KEY                    = "versionConfigURL"
-	CM_CONTENT_KEY                = "versionConfigContent"
+
+	CM_NAME        = "compat-matrix-config"
+	CM_URL_KEY     = "versionConfigURL"
+	CM_CONTENT_KEY = "versionConfigContent"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -84,6 +84,14 @@ type VDOConfigReconciler struct {
 	CurrentCSIDeployedVersion string
 	CurrentCPIDeployedVersion string
 }
+
+type csiVolumeMounts string
+
+const (
+	podVolName      csiVolumeMounts = "pods-mount-dir"
+	pluginDir       csiVolumeMounts = "plugin-dir"
+	registrationDir csiVolumeMounts = "registration-dir"
+)
 
 var (
 	SessionFn     = session.GetOrCreate
@@ -473,7 +481,7 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 
 	kubPath := vdoConfig.Spec.StorageProvider.CustomKubeletPath
 	if len(kubPath) > 0 {
-		err = r.updateDS(vdoctx, kubPath)
+		err = r.updateCSIDaemonSet(vdoctx, kubPath)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -1081,9 +1089,13 @@ func (r *VDOConfigReconciler) reconcileCSISecret(ctx vdocontext.VDOContext, conf
 		if err != nil {
 			return config, errors.Wrapf(err, fmt.Sprintf("could not update csi secret %s", csiSecret.Name))
 		}
-		err = r.updateCPIPhase(ctx, config, vdov1alpha1.Configuring, "")
+		err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
 		return config, err
+	}
 
+	if len(config.Status.CSIStatus.Phase) <= 0 {
+		err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+		return config, err
 	}
 
 	return config, nil
@@ -1339,8 +1351,9 @@ func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigConte
 	}
 }
 
-func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string) error {
+func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubPath string) error {
 	ds := &appsv1.DaemonSet{}
+	kubeletDefaultPath := "/var/lib/kubelet"
 
 	key := types.NamespacedName{
 		Namespace: DEPLOYMENT_NS,
@@ -1354,31 +1367,29 @@ func (r *VDOConfigReconciler) updateDS(ctx vdocontext.VDOContext, kubPath string
 
 	volumes := ds.Spec.Template.Spec.Volumes
 	var updateDS bool
-	if len(volumes) > 0 {
-		for _, vol := range volumes {
-			if vol.Name == POD_VOL_NAME && vol.HostPath.Path != kubPath {
-				ctx.Logger.V(4).Info("updating the volume Hostpath", "path", kubPath)
-				vol.HostPath.Path = kubPath
+	for _, vol := range volumes {
+		switch vol.Name {
+		case string(podVolName), string(pluginDir), string(registrationDir):
+			ctx.Logger.V(4).Info("updating the volume Hostpath", "path", kubPath)
+			if strings.HasPrefix(vol.HostPath.Path, kubeletDefaultPath) {
+				vol.HostPath.Path = strings.Replace(vol.HostPath.Path, kubeletDefaultPath, kubPath, 1)
 				updateDS = true
-				break
 			}
 		}
 	}
 
 	containerList := ds.Spec.Template.Spec.Containers
-	if len(containerList) > 0 {
-		for i, con := range containerList {
-			if con.Name == CSI_DAEMONSET_NAME {
-				for j, vm := range con.VolumeMounts {
-					if vm.Name == POD_VOL_NAME && (containerList)[i].VolumeMounts[j].MountPath != kubPath {
-						ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
-						containerList[i].VolumeMounts[j].MountPath = kubPath
-						updateDS = true
-						break
-					}
+	for i, con := range containerList {
+		if con.Name == CSI_DAEMONSET_NAME {
+			for j, vm := range con.VolumeMounts {
+				if vm.Name == string(podVolName) && (containerList)[i].VolumeMounts[j].MountPath != kubPath {
+					ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
+					containerList[i].VolumeMounts[j].MountPath = kubPath
+					updateDS = true
+					break
 				}
-				break
 			}
+			break
 		}
 	}
 
