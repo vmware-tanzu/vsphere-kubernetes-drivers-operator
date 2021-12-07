@@ -63,6 +63,9 @@ Currently the command supports vanilla k8s cluster`,
 				cobra.CheckErr(fmt.Errorf("Error occurred when deleting VDO,  %v", err))
 			}
 		}
+
+		fmt.Println("This command deletes the VDO operator deployment eventually the operator pods will be deleted")
+
 	},
 }
 
