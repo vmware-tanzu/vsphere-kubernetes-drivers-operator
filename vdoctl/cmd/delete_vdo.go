@@ -22,9 +22,12 @@ Currently the command supports vanilla k8s cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
+		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
+		getVdoNamespace(ctx)
+
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: VdoNamespace,
+				Name: VdoCurrentNamespace,
 			},
 		}
 
@@ -39,7 +42,7 @@ Currently the command supports vanilla k8s cluster`,
 
 		err = K8sClient.List(ctx, &clusterRBList, &client.ListOptions{LabelSelector: labelSelector})
 		if err != nil {
-			cobra.CheckErr(fmt.Errorf("Error occurred deleting VDO,  %v", err))
+			cobra.CheckErr(fmt.Errorf("Error occurred deleting VDO %v", err))
 		}
 
 		for _, crb := range clusterRBList.Items {
@@ -51,7 +54,7 @@ Currently the command supports vanilla k8s cluster`,
 
 		err = K8sClient.List(ctx, &clusterRoleList, &client.ListOptions{LabelSelector: labelSelector})
 		if err != nil {
-			cobra.CheckErr(fmt.Errorf("Error occurred deleting VDO,  %v", err))
+			cobra.CheckErr(fmt.Errorf("Error occurred deleting VDO %v", err))
 		}
 
 		for _, role := range clusterRoleList.Items {
@@ -60,8 +63,6 @@ Currently the command supports vanilla k8s cluster`,
 				cobra.CheckErr(fmt.Errorf("Error occurred when deleting VDO,  %v", err))
 			}
 		}
-
-		fmt.Println("This command deletes the VDO operator deployment eventually the operator pods will be deleted")
 	},
 }
 
