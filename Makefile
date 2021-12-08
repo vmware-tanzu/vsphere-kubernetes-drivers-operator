@@ -25,6 +25,7 @@ ARTIFACTS_DIR		?= artifacts
 CRC					?= crc
 SPEC_FILE			?= vdo-spec.yaml
 CRC					?= crc
+OC_CERTIFIED_LATEST_VERSION ?= 0.1.0
 
 # Configure the golangci-lint timeout if an environment variable exists
 ifneq ($(origin LINT_TIMEOUT), undefined)
@@ -107,12 +108,13 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/vanilla/vdo-spec.yaml
 
 manifests-openshift: kustomize
+	@echo "** Making manifest based on the latest oc certified version $(OC_CERTIFIED_LATEST_VERSION)"
 	@mkdir -p $(ARTIFACTS_DIR)/openshift
-	@cp config/openshift/csv/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/openshift/
+	@cp artifacts/oc-certified/$(OC_CERTIFIED_LATEST_VERSION)/manifests/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/openshift/
 	@cp config/openshift/crd/vdoconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/openshift/
 	@cp config/openshift/crd/vspherecloudconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/openshift/
 	@cp config/openshift/rbac/vdo-controller-manager-metrics-service-rbac.yaml $(ARTIFACTS_DIR)/openshift/
-
+	@echo "** Staging manifest has been created in artifacts/openshift"
 
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
