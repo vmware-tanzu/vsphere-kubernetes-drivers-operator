@@ -108,11 +108,12 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 
 manifests-openshift: kustomize
 	@mkdir -p $(ARTIFACTS_DIR)/openshift
-	$(KUSTOMIZE) build config/rbac > config/openshift/rbac/rbac.yaml
-	$(KUSTOMIZE) build config/crd > $(ARTIFACTS_DIR)/openshift/crd.yaml
-	cd config/openshift/rbac && $(KUSTOMIZE) edit set nameprefix vdo-
-	$(KUSTOMIZE) build config/openshift/rbac > $(ARTIFACTS_DIR)/openshift/rbac.yaml
 	@cp config/openshift/csv/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/openshift/
+	@cp config/openshift/crd/vdoconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/openshift/
+	@cp config/openshift/crd/vspherecloudconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/openshift/
+	@cp config/openshift/rbac/vdo-controller-manager-metrics-service-rbac.yaml $(ARTIFACTS_DIR)/openshift/
+
+
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
