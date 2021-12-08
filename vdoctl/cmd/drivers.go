@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	"k8s.io/apimachinery/pkg/types"
 	"regexp"
 	"strings"
@@ -59,6 +60,7 @@ const (
 	vdoConfigName       = "vdo-config"
 	secretType          = "kubernetes.io/basic-auth"
 	ClusterDistribution = "OpenShift"
+	defaultMatrixPath   = "https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/{VERSION}/compatibility.yaml"
 )
 
 // driversCmd represents the drivers command
@@ -73,13 +75,28 @@ var driversCmd = &cobra.Command{
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
 		getVdoNamespace(ctx)
 
-		err, _ := IsVDODeployed(ctx)
+		var isConfigRequired bool
+		configKey := types.NamespacedName{
+			Namespace: VdoCurrentNamespace,
+			Name:      CompatMatrixConfigMap,
+		}
+		cm := v1.ConfigMap{}
+
+		_ = K8sClient.Get(ctx, configKey, &cm)
+		if len(cm.Data) == 0 {
+			isConfigRequired = true
+			color.Yellow("Since you have not configured the Compatibility Matrix so the default values of the matrix will be taken, If you want to configure the matrix manually then you can skip this step and run 'vdoctl configure compatibility matrix")
+		}
+
+		err, deployment := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				fmt.Println(VDO_NOT_DEPLOYED)
 				return
 			} else {
-				cobra.CheckErr(err)
+				if !isConfigRequired {
+					cobra.CheckErr(err)
+				}
 			}
 		}
 
@@ -106,7 +123,7 @@ var driversCmd = &cobra.Command{
 		labels := credentials{
 			username: "Username",
 			password: "Password",
-			vcIp:     "VC IP",
+			vcIp:     "VC IP/ FQDN",
 			topology: v1alpha1.TopologyInfo{
 				Zone:   "Zones",
 				Region: "Regions",
@@ -115,6 +132,16 @@ var driversCmd = &cobra.Command{
 		}
 
 		isCPIRequired := utils.PromptGetInput("Do you want to configure CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
+
+		// Configure compatibility matrix , if not configured
+		if isConfigRequired {
+			vdoVersion := getVdoVersion(deployment)
+			currentMatrixPath := strings.Replace(defaultMatrixPath, "{VERSION}", vdoVersion, 1)
+			err = CreateConfigMap(currentMatrixPath, K8sClient, ctx, utils.IsURL)
+			if err != nil {
+				cobra.CheckErr(err)
+			}
+		}
 
 		if strings.EqualFold(isCPIRequired, "Y") {
 			fmt.Printf("Please provide the vcenter IP for configuring CloudProvider \n")
