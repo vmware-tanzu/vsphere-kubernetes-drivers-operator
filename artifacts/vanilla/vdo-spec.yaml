@@ -364,6 +364,18 @@ rules:
   - patch
   - update
 - apiGroups:
+  - '*'
+  resources:
+  - namespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - daemonsets
@@ -417,6 +429,7 @@ rules:
   - csidrivers
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -428,6 +441,7 @@ rules:
   - csinodes
   verbs:
   - create
+  - delete
   - get
   - list
   - watch
@@ -664,7 +678,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo:0.1.0
+        image: vmware.com/vdo:b1fe3ba
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
