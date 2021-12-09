@@ -109,11 +109,11 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 
 manifests-openshift: kustomize
 	@echo "** Making manifest based on the latest oc certified version $(OC_CERTIFIED_LATEST_VERSION)"
-	@mkdir -p $(ARTIFACTS_DIR)/openshift
-	@cp artifacts/oc-certified/$(OC_CERTIFIED_LATEST_VERSION)/manifests/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/openshift/
-	@cp config/openshift/crd/vdoconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/openshift/
-	@cp config/openshift/crd/vspherecloudconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/openshift/
-	@cp config/openshift/rbac/vdo-controller-manager-metrics-service-rbac.yaml $(ARTIFACTS_DIR)/openshift/
+	@mkdir -p $(ARTIFACTS_DIR)/staging-openshift
+	@cp artifacts/oc-certified/$(OC_CERTIFIED_LATEST_VERSION)/manifests/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/staging-openshift/
+	@cp config/openshift/crd/vdoconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/staging-openshift/
+	@cp config/openshift/crd/vspherecloudconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/staging-openshift/
+	@cp config/openshift/rbac/vdo-controller-manager-metrics-service-rbac.yaml $(ARTIFACTS_DIR)/staging-openshift/
 	@echo "** Staging manifest has been created in artifacts/openshift"
 
 

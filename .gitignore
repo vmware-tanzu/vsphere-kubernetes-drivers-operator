@@ -12,4 +12,4 @@ controllers/test_config.conf
 spec.yaml
 testbin/*
 *.DS_STORE
-artifacts/openshift
+artifacts/staging-openshift
