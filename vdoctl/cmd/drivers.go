@@ -85,7 +85,7 @@ var driversCmd = &cobra.Command{
 		_ = K8sClient.Get(ctx, configKey, &cm)
 		if len(cm.Data) == 0 {
 			isConfigRequired = true
-			color.Yellow("Since you have not configured the Compatibility Matrix so the default values of the matrix will be taken, If you want to configure the matrix manually then you can skip this step and run 'vdoctl configure compatibility matrix")
+			color.Yellow("VDO will use the default compatibility matrix to determine the versions. If you wish to configure compatibility matrix please run 'vdoctl configure compatibility matrix'")
 		}
 
 		err, deployment := IsVDODeployed(ctx)
