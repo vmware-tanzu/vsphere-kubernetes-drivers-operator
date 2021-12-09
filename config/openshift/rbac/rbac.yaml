@@ -114,6 +114,18 @@ rules:
   - patch
   - update
 - apiGroups:
+  - '*'
+  resources:
+  - namespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - daemonsets
@@ -167,6 +179,7 @@ rules:
   - csidrivers
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -178,6 +191,7 @@ rules:
   - csinodes
   verbs:
   - create
+  - delete
   - get
   - list
   - watch

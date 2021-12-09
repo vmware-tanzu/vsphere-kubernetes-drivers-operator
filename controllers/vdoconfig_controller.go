@@ -1445,10 +1445,9 @@ func (r *VDOConfigReconciler) createCSINamespace(ctx vdocontext.VDOContext) erro
 }
 
 func (r *VDOConfigReconciler) deleteCSINamespace(ctx vdocontext.VDOContext) error {
-	CsiNamespace = "vmware-system-csi"
 	nsSpec := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: CsiNamespace,
+			Name: "vmware-system-csi",
 		},
 	}
 
