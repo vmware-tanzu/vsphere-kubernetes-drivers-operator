@@ -2,6 +2,10 @@
 
 VDO currently supports configuring CloudProvider (CPI) and StorageProvider(CSI)
 
+You start the configuration run the following command, which will offer you a wizard to complete as explained in the below sections.
+
+````vdoctl configure drivers````
+
 ##### CloudProvider
 CloudProvider is an optional configuration. you can choose to skip this if you are not looking to install [Kubernetes vSphere Cloud Provider](https://github.com/kubernetes/cloud-provider-vsphere/)
 
