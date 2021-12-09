@@ -114,6 +114,4 @@ Typically, you would need:
   
  To get more detailed info please visit [configure drivers](configure_drivers.md)
 
-For Developer’s guide, please visit [here](developer-guide.md)
-
 
