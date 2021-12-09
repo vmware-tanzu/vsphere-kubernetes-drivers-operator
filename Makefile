@@ -113,7 +113,7 @@ manifests-openshift: kustomize
 	@cp artifacts/oc-certified/$(OC_CERTIFIED_LATEST_VERSION)/manifests/vsphere-kubernetes-drivers-operator.clusterserviceversion.yaml $(ARTIFACTS_DIR)/staging-openshift/
 	@cp config/openshift/crd/vdoconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/staging-openshift/
 	@cp config/openshift/crd/vspherecloudconfigs.vdo.vmware.com-crd.yaml $(ARTIFACTS_DIR)/staging-openshift/
-	@cp config/openshift/rbac/vdo-controller-manager-metrics-service-rbac.yaml $(ARTIFACTS_DIR)/staging-openshift/
+	@cp config/openshift/rbac/vdo-controller-manager-metrics-service.yaml $(ARTIFACTS_DIR)/staging-openshift/
 	@echo "** Staging manifest has been created in artifacts/openshift"
 
 

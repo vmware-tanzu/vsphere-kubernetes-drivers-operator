@@ -12,6 +12,8 @@ If you want to install `Kubernetes vSphere Cloud Provider`, you will be taken th
 - Login credentials for vcenter
 - Datacenter(s) - you can provide a comma separated list of datacenters
 
+Pre-requisites for installing CPI can be found [here.](https://cloud-provider-vsphere.sigs.k8s.io/tutorials/kubernetes-on-vsphere-with-kubeadm.html#:~:text=Check%20that%20all%20nodes%20are%20tainted)
+
 ```shell
 Please provide the vcenter IP for configuring CloudProvider 
 VC IP 10.10.10.10
@@ -38,7 +40,7 @@ Password *******
 Datacenter(s) dc2, dc3
 ```
 
-Once done you can choose to configure zones/regions if required. Please note, the tags for zone/regions need to be available in vcenter. Please refer [CPI](https://github.com/kubernetes/cloud-provider-vsphere/blob/master/docs/book/tutorials/deploying_cpi_and_csi_with_multi_dc_vc_aka_zones.md) documentation on how to configure zones/regions 
+Once done you can choose to configure zones/regions if required. Please note, the tags for zone/regions need to be available in vcenter. Please refer [CPI](https://github.com/kubernetes/cloud-provider-vsphere/blob/master/docs/book/tutorials/deploying_cpi_with_multi_dc_vc_aka_zones.md) documentation on how to configure zones/regions 
 
 ```shell
 Do you want to configure zones/regions for CloudProvider? (Y/N) y
