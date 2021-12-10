@@ -21,11 +21,11 @@ Docker image for VDO can be found [here](https://github.com/vmware-tanzu/vsphere
 
 ### Compatibility matrix
 
-To fetch the compatible CSI and CPI version according to the respective kubernetes, vSphere versions, a new [Compatibility matrix](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/compatibility.yaml) yaml is released with every release 
+To fetch the compatible CSI and CPI version according to the respective kubernetes/ vSphere versions, a new [Compatibility matrix](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/compatibility.yaml) yaml is released with every release 
 
 ### Source Code 
 
-If you wish to Contribute or setup the Developer's environment, you can download our source code in [zip](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/archive/refs/tags/0.1.1.zip) or [tar.gz](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/vdoctl-mac-0.1.1.tar.gz) format and further steps, refer to the [Developer guide](developer-guide.md)  
+If you wish to Contribute or setup the Developer's environment, you can download our source code in [zip](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/archive/refs/tags/0.1.1.zip) or [tar.gz](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/vdoctl-mac-0.1.1.tar.gz) format and for further steps, refer to the [Developer guide](developer-guide.md)  
 
 ### VDOCTL
 
@@ -72,7 +72,7 @@ For more details, please refer [vdo-spec-vanilla-k8s.yaml](https://github.com/vm
 
 #### Configure Compatibility Matrix
 
-Once the VDO is deployed, you will see that the VDO manager pod is in `CreateConfigError` state and expects for compatibility matrix to be present
+Once the VDO is deployed, you will see that the VDO manager pod is in `CreateConfigError` state and expects the compatibility matrix to be present
 ```shell
 vmware-system-vdo    vdo-controller-manager-5bd4ffcc88-z5ltl      1/2     CreateContainerConfigError   0          40s
 ```
