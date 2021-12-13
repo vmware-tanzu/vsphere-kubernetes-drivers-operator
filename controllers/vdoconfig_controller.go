@@ -71,6 +71,8 @@ const (
 	CM_NAME        = "compat-matrix-config"
 	CM_URL_KEY     = "versionConfigURL"
 	CM_CONTENT_KEY = "versionConfigContent"
+
+	CSI_DRIVER_REG_PATH = "DRIVER_REG_SOCK_PATH"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -91,6 +93,13 @@ const (
 	podVolName      csiVolumeMounts = "pods-mount-dir"
 	pluginDir       csiVolumeMounts = "plugin-dir"
 	registrationDir csiVolumeMounts = "registration-dir"
+)
+
+type csiContainerNames string
+
+const (
+	csiDaemonSetName     csiContainerNames = "vsphere-csi-node"
+	csiNodeDriverRegName csiContainerNames = "node-driver-registrar"
 )
 
 var (
@@ -1405,16 +1414,28 @@ func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubP
 
 	containerList := ds.Spec.Template.Spec.Containers
 	for i, con := range containerList {
-		if con.Name == CSI_DAEMONSET_NAME {
+		switch con.Name {
+		case string(csiDaemonSetName):
 			for j, vm := range con.VolumeMounts {
-				if vm.Name == string(podVolName) && (containerList)[i].VolumeMounts[j].MountPath != kubPath {
-					ctx.Logger.V(4).Info("updating volume MountPath", "path", kubPath)
-					containerList[i].VolumeMounts[j].MountPath = kubPath
+				if vm.Name == string(podVolName) {
+					ctx.Logger.V(4).Info("updating volume MountPath",
+						"container", con.Name, "specPath", vm.MountPath, "customPath", kubPath)
+					containerList[i].VolumeMounts[j].MountPath = strings.Replace(
+						vm.MountPath, kubeletDefaultPath, kubPath, 1)
 					updateDS = true
 					break
 				}
 			}
-			break
+		case string(csiNodeDriverRegName):
+			for e, env := range con.Env {
+				if env.Name == CSI_DRIVER_REG_PATH {
+					ctx.Logger.V(4).Info("updating environment variables",
+						"container", con.Name, "envValue", env.Value, "customPath", kubPath)
+					containerList[i].Env[e].Value = strings.Replace(env.Value, kubeletDefaultPath, kubPath, 1)
+					updateDS = true
+					break
+				}
+			}
 		}
 	}
 
