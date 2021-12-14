@@ -36,6 +36,8 @@ const (
 	CompatMatrixConfigMAp = "compat-matrix-config"
 	LocalFilepath         = "Local filepath"
 	WebURL                = "Web URL"
+	DefaultConfig         = "default"
+	UserConfig            = "user"
 )
 
 // matrixConfigureCmd represents the compat command
@@ -75,7 +77,7 @@ var matrixConfigureCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		err = CreateConfigMap(filePath, K8sClient, ctx, flag)
+		err = CreateConfigMap(filePath, K8sClient, ctx, flag, UserConfig)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
@@ -88,7 +90,7 @@ func init() {
 	configureCmd.AddCommand(matrixConfigureCmd)
 }
 
-func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags) error {
+func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags, configFlag string) error {
 
 	configMapKey := types.NamespacedName{
 		Namespace: VdoCurrentNamespace,
@@ -97,13 +99,13 @@ func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.C
 	var data map[string]string
 
 	if flag == utils.IsURL {
-		data = map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled"}
+		data = map[string]string{"versionConfigURL": filepath, "auto-upgrade": "disabled", "configured-by": configFlag}
 	} else {
 		fileBytes, err := vdoClient.GenerateYamlFromFilePath(filepath)
 		if err != nil {
 			cobra.CheckErr(fmt.Sprintf("unable to read the matrix from %s", filepath))
 		}
-		data = map[string]string{"versionConfigContent": string(fileBytes), "auto-upgrade": "disabled"}
+		data = map[string]string{"versionConfigContent": string(fileBytes), "auto-upgrade": "disabled", "configured-by": configFlag}
 	}
 
 	configMapObj := metav1.ObjectMeta{Name: configMapKey.Name, Namespace: configMapKey.Namespace}

@@ -19,8 +19,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
 	"regexp"
 	"strings"
 
@@ -60,7 +60,6 @@ const (
 	vdoConfigName       = "vdo-config"
 	secretType          = "kubernetes.io/basic-auth"
 	ClusterDistribution = "OpenShift"
-	defaultMatrixPath   = "https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/{VERSION}/compatibility.yaml"
 )
 
 // driversCmd represents the drivers command
@@ -75,7 +74,6 @@ var driversCmd = &cobra.Command{
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
 		getVdoNamespace(ctx)
 
-		var isConfigRequired bool
 		configKey := types.NamespacedName{
 			Namespace: VdoCurrentNamespace,
 			Name:      CompatMatrixConfigMap,
@@ -83,20 +81,28 @@ var driversCmd = &cobra.Command{
 		cm := v1.ConfigMap{}
 
 		_ = K8sClient.Get(ctx, configKey, &cm)
-		if len(cm.Data) == 0 {
-			isConfigRequired = true
-			color.Yellow("VDO will use the default compatibility matrix to determine the versions. If you wish to configure compatibility matrix please run 'vdoctl configure compatibility matrix'")
+		configFlag := cm.Data["configured-by"]
+
+		if !strings.EqualFold(configFlag, UserConfig) {
+			isConfigRequired := utils.PromptGetInput("Compatibility matrix is not configured. VDO will use the default compatibility matrix. Do you want to configure compatibility matrix? (Y/N) ", errors.New("invalid input"), utils.IsString)
+			if strings.EqualFold(isConfigRequired, "Y") {
+				os.Exit(0)
+			} else {
+				cm.Data["configured-by"] = DefaultConfig
+				err := K8sClient.Update(ctx, &cm, &client.UpdateOptions{})
+				if err != nil {
+					cobra.CheckErr(fmt.Sprintf("Error received in updating config Map  %s", err))
+				}
+			}
 		}
 
-		err, deployment := IsVDODeployed(ctx)
+		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				fmt.Println(VDO_NOT_DEPLOYED)
 				return
 			} else {
-				if !isConfigRequired {
-					cobra.CheckErr(err)
-				}
+				cobra.CheckErr(err)
 			}
 		}
 
@@ -132,16 +138,6 @@ var driversCmd = &cobra.Command{
 		}
 
 		isCPIRequired := utils.PromptGetInput("Do you want to configure CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
-
-		// Configure compatibility matrix , if not configured
-		if isConfigRequired {
-			vdoVersion := getVdoVersion(deployment)
-			currentMatrixPath := strings.Replace(defaultMatrixPath, "{VERSION}", vdoVersion, 1)
-			err = CreateConfigMap(currentMatrixPath, K8sClient, ctx, utils.IsURL)
-			if err != nil {
-				cobra.CheckErr(err)
-			}
-		}
 
 		if strings.EqualFold(isCPIRequired, "Y") {
 			fmt.Printf("Please provide the vcenter IP for configuring CloudProvider \n")
