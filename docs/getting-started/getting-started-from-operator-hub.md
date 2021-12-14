@@ -53,7 +53,7 @@ users:
 - system:serviceaccount:vsphere-kubernetes-drivers-operator:vdo-controller-manager
 - system:serviceaccount:vmware-system-csi:vsphere-csi-node
 ```
-**Note:** It's purely upto cluster admin on how to configure these settings, prime goal is to have an scc which can give access to create hostNetwork and hostPath to serviceaccount `vdo-controller-manager` for a project. 
+**Note:** It's purely upto cluster admin on how to configure these settings, prime goal is to have an scc which can give access to create hostNetwork and hostPath to serviceaccount `vdo-controller-manager` and `vsphere-csi-node`(in case if you are using CSI  >=  2.3.0) for a project. 
 
 
 
