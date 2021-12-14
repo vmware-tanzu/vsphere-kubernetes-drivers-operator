@@ -67,7 +67,7 @@ Click on install and select the namespace which has required permissions as desc
 
 
 With this vSphere-kubernetes-drivers-operator will be ready to use.
-Now we are ready to configure the drivers, for configuring we have two options for user.
+Now we are ready to configure the drivers, for configuring we have two options for user.  
 [1. Configure the CRD's via Openshift UI.](configure-via-openshift-ui.md)  
 [2. Configure the CRD's via `vdoctl`](configure_drivers.md)
 
