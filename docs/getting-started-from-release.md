@@ -58,6 +58,10 @@ export KUBECONFIG=~/.kube/config
 or YOUR-KUBECONFIG_PATH
 ```
 
+#### User flow
+
+![VDO user flow](images/vdo-user-flow.png)
+
 #### Deploy VDO Operator
 
 Run the [vdoctl deploy](vdoctl/vdoctl_deploy.md) command to deploy VDO 
