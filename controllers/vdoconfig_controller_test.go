@@ -1588,6 +1588,19 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 									},
 								},
 							},
+							{
+								Name: string(csiNodeDriverRegName),
+								Env: []v12.EnvVar{
+									{
+										Name:  CSI_DRIVER_REG_PATH,
+										Value: "/var/lib/kubelet/plugins/csi.vsphere.vmware.com/csi.sock",
+									},
+									{
+										Name:  "ADDRESS",
+										Value: "/csi/csi.sock",
+									},
+								},
+							},
 						},
 					}},
 			},
