@@ -1,21 +1,25 @@
 ## Configuring VDO via Openshift Web Console
 
-The easiest way to configure VDO is to configure the CRD's via Openshift Web Console, follow the steps below for the configuration.
+To configure VDO using OpenShift UI please follow the below steps
 
 #### Pre-requisite
 
-You should have below data in handy.
+Please ensure you have the following information:
 
-- IP address of vcenter
+- IP address or FQDN of Vcenter
 - Secure Connection - If you choose to establish a secure connection to vcenter, you need to provide a ssl thumbprint
 - Login credentials for vcenter
-- Datacenter(s) - you can provide a comma separated list of datacenters
+- Datacenter(s) - you can provide a comma separated list of datacenters, datacenters in which the kubernetes nodes are present. This is required by CPI and CSI to manage the cluster
 
 
 ### Step-1
 Make sure the VDO is up and running, for this you can go to `Installed Operator` side menu and confirm the status of the operator as Succeeded.
 
 ### Step-2
+Now that we have installed VDO, we need to setup few pre-requisite to configure VDO.
+Let's create a secret to store the credentials with which you would want CSI and CPI to connect to VC. Please note if CPI and CSI use different credentials then create secret for each set of credentials. This will be required to configure cloud and storage providers.
+Please refer a sample here.
+
 Create the secret with the credentials for your VC of a type `Source secret`
 Main Page --> Right Side Menu --> Workloads --> Create Secret(Source secret type)  
 **Make sure you create secret in the `kube-system` namespace**
@@ -26,15 +30,17 @@ Click on the running operator from Step-1 and see the list of `Provided API's`.
 ![](../images/provided-apis.png)
 
 ### Step-4
-If you want to configure CPI then click on `Create Instance` in `VsphereCloudConfig` from the last Step.
+Now lets start configuring VDO. 
+At first Create an Instance of `Vsphere Cloud Config` resource. This resource represents the information required to connect to vcenter.
+In the credentials field please enter the name of the secret configured in step 2.
+Please note: if you have configured different secrets for CPI and CSI then please create an instance of vspherecloudconfig resource for each of the secret
 ![](../images/create-vsphere-cloud-config.png)
 
-Important Points to be noted here : 
-1. You have to use the same name of the secret which you created in Step-2 in the `Credentials` field.
-2. Giving Datacenter is must in this step.
 
 ### Step-5
-Configure CSI by clicking on `Create Instance` in `VDOConfig` from the Step-3.
+Once done with the above step lets now proceed to configure the cloud and storage drivers for vsphere.
+
+You can start by  `Creating Instance` in `VDOConfig` from the Step-3.
 
 **5.a** Configure CSI
 ![](../images/create-vdoconfig-1.png)

@@ -67,6 +67,10 @@ Click on install and select the namespace which has required permissions as desc
 
 
 With this vSphere-kubernetes-drivers-operator will be ready to use.
-Now we need to configure the drivers, for configuring we have two options for user.  
+Now we are ready to configure the drivers, for configuring we have two options for user.
 [1. Configure the CRD's via Openshift UI.](configure-via-openshift-ui.md)  
-[2. Configure the CRD's via `vdoctl`](configure-drivers.md)
+[2. Configure the CRD's via `vdoctl`](configure_drivers.md)
+
+**Note** : The easiest way to configure VDO is through VDOCTL. we highly recommend downloading the VDO command line utility to configure VDO from our [release page.](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases)
+
+Once you have successfully completed the Configuration of Drivers(CSI/CPI), you can use `vdoctl status/version` command to see the status of VDO.
