@@ -1120,7 +1120,9 @@ func (r *VDOConfigReconciler) compareVersions(minVersion, currentVersion, maxVer
 		return false, err
 	}
 
-	currentVer, err := version.NewVersion(currentVersion)
+	// This is done to normalize the versions having + sign like 1.23+
+	normalizeCurrentVersion := strings.Replace(currentVersion, "+", "", -1)
+	currentVer, err := version.NewVersion(normalizeCurrentVersion)
 	if err != nil {
 		return false, err
 	}
@@ -1140,7 +1142,9 @@ func (r *VDOConfigReconciler) compareVersions(minVersion, currentVersion, maxVer
 // compareSkewVersions checks if the given version matches with the skew version
 func (r *VDOConfigReconciler) compareSkewVersions(currentVersion, supportedVersion string) (bool, error) {
 
-	currentVer, err := version.NewVersion(currentVersion)
+	// This is done to normalize the versions having + sign like 1.23+
+	normalizeCurrentVersion := strings.Replace(currentVersion, "+", "", -1)
+	currentVer, err := version.NewVersion(normalizeCurrentVersion)
 	if err != nil {
 		return false, err
 	}

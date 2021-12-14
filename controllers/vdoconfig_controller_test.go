@@ -700,6 +700,54 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 
 })
 
+var _ = Describe("TestCompareVersions", func() {
+	Context("Compare version with boundaries", func() {
+		RegisterFailHandler(Fail)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		result, err := r.compareVersions("1.2.0", "1.3.0", "1.4.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeTrue())
+
+		result, err = r.compareVersions("1.2.0", "1.5.0", "1.4.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeFalse())
+
+		result, err = r.compareVersions("1.2.0", "1.2.0", "1.2.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeTrue())
+
+		result, err = r.compareVersions("1.2.0", "1.2.1", "1.2.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeFalse())
+
+		result, err = r.compareVersions("1.2.0", "1.2+", "1.2.2")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeTrue())
+
+		result, err = r.compareSkewVersions("1.2.0", "1.2.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeTrue())
+
+		result, err = r.compareSkewVersions("1.2.0", "1.1.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeFalse())
+
+		result, err = r.compareSkewVersions("1.2+", "1.2.0")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(BeTrue())
+
+	})
+})
+
 var _ = Describe("TestReconcileNodeLabel", func() {
 	node1 := v12.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-node1"},
