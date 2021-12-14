@@ -69,19 +69,19 @@ Run the [vdoctl deploy](vdoctl/vdoctl_deploy.md) command to deploy VDO
 ```shell
 vdoctl deploy --spec https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/vdo-spec-vanilla-k8s.yaml
 ```
-Here, `spec` flag inputs the file containing details about the CRD, docker image
+Here, `spec` flag inputs the file containing details about the CRD, docker image, default compatibility matrix
 
 For more details, please refer [vdo-spec-vanilla-k8s.yaml](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/)
 
 
 #### Configure Compatibility Matrix
 
-Once the VDO is deployed, you will see that the VDO manager pod is in `CreateConfigError` state and expects the compatibility matrix to be present
+Once the VDO is deployed, you will see that the VDO manager pod is in `Running` state and configures the default compatibility matrix
 ```shell
-vmware-system-vdo    vdo-controller-manager-5bd4ffcc88-z5ltl      1/2     CreateContainerConfigError   0          40s
+vmware-system-vdo    vdo-controller-manager-5bd4ffcc88-z5ltl      2/2     Running   0          40s
 ```
 
-Configure the compatibility matrix to fetch compatible CSI and CPI yamls using [vdoctl configure compatibility-matrix](vdoctl/vdoctl_configure_compatibility-matrix.md) command
+Configure custom compatibility matrix to fetch compatible CSI and CPI yamls using [vdoctl configure compatibility-matrix](vdoctl/vdoctl_configure_compatibility-matrix.md) command
 
 ```shell
 vdoctl configure compatibility-matrix
