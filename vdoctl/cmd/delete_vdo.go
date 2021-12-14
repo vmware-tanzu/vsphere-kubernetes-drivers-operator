@@ -23,7 +23,10 @@ Currently the command supports vanilla k8s cluster`,
 		ctx := context.Background()
 
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		getVdoNamespace(ctx)
+		err := getVdoNamespace(ctx)
+		if err != nil {
+			cobra.CheckErr(err)
+		}
 
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -31,7 +34,7 @@ Currently the command supports vanilla k8s cluster`,
 			},
 		}
 
-		err := K8sClient.Delete(ctx, &ns, &client.DeleteOptions{})
+		err = K8sClient.Delete(ctx, &ns, &client.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			cobra.CheckErr(fmt.Errorf("Error occurred deleting VDO,  %v", err))
 		}

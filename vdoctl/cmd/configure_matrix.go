@@ -38,6 +38,7 @@ const (
 	WebURL                = "Web URL"
 	DefaultConfig         = "default"
 	UserConfig            = "user"
+	DefaultNs             = "vmware-system-vdo"
 )
 
 // matrixConfigureCmd represents the compat command
@@ -50,7 +51,10 @@ var matrixConfigureCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		getVdoNamespace(ctx)
+		err := getVdoNamespace(ctx)
+		if err != nil {
+			VdoCurrentNamespace = DefaultNs
+		}
 
 		configKey := types.NamespacedName{
 			Namespace: VdoCurrentNamespace,
@@ -72,7 +76,7 @@ var matrixConfigureCmd = &cobra.Command{
 		}
 		filePath := utils.PromptGetInput(item, errors.New("invalid input"), flag)
 
-		err := CreateNamespace(K8sClient, ctx)
+		err = CreateNamespace(K8sClient, ctx)
 		if err != nil {
 			cobra.CheckErr(err)
 		}

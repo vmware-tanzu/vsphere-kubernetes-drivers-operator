@@ -3,7 +3,6 @@ module github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator
 go 1.16
 
 require (
-	github.com/fatih/color v1.7.0
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v0.3.0
 	github.com/hashicorp/go-version v1.3.0

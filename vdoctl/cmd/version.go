@@ -57,7 +57,10 @@ var versionCmd = &cobra.Command{
 		}
 
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		getVdoNamespace(ctx)
+		err := getVdoNamespace(ctx)
+		if err != nil {
+			cobra.CheckErr(err)
+		}
 
 		k8sVersion = getK8sVersion()
 		err, vdoDeployment := IsVDODeployed(ctx)

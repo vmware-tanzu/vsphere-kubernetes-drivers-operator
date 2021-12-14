@@ -40,9 +40,12 @@ var statusCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		getVdoNamespace(ctx)
+		err := getVdoNamespace(ctx)
+		if err != nil {
+			cobra.CheckErr(err)
+		}
 
-		err, _ := IsVDODeployed(ctx)
+		err, _ = IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				fmt.Println(VDO_NOT_DEPLOYED)

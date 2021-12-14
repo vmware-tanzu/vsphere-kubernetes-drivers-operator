@@ -72,7 +72,10 @@ var driversCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		getVdoNamespace(ctx)
+		err := getVdoNamespace(ctx)
+		if err != nil {
+			cobra.CheckErr(err)
+		}
 
 		configKey := types.NamespacedName{
 			Namespace: VdoCurrentNamespace,
@@ -84,19 +87,19 @@ var driversCmd = &cobra.Command{
 		configFlag := cm.Data["configured-by"]
 
 		if !strings.EqualFold(configFlag, UserConfig) {
-			isConfigRequired := utils.PromptGetInput("Compatibility matrix is not configured. VDO will use the default compatibility matrix. Do you want to configure compatibility matrix? (Y/N) ", errors.New("invalid input"), utils.IsString)
+			isConfigRequired := utils.PromptGetInput("Compatibility matrix is not configured. VDO will use the default compatibility matrix. You can run 'vdoctl update compatibility-matrix' command to configure. Do you want to continue with default compatibility matrix? (Y/N)  ", errors.New("invalid input"), utils.IsString)
 			if strings.EqualFold(isConfigRequired, "Y") {
-				os.Exit(0)
-			} else {
 				cm.Data["configured-by"] = DefaultConfig
 				err := K8sClient.Update(ctx, &cm, &client.UpdateOptions{})
 				if err != nil {
 					cobra.CheckErr(fmt.Sprintf("Error received in updating config Map  %s", err))
 				}
+			} else {
+				os.Exit(0)
 			}
 		}
 
-		err, _ := IsVDODeployed(ctx)
+		err, _ = IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				fmt.Println(VDO_NOT_DEPLOYED)
