@@ -1648,10 +1648,19 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 										Value: "/csi/csi.sock",
 									},
 								},
+								LivenessProbe: &v12.Probe{
+									Handler: v12.Handler{
+										Exec: &v12.ExecAction{
+											Command: []string{
+												"/csi-node-driver-registrar",
+												"--kubelet-registration-path=/var/lib/kubelet/plugins/csi.vsphere.vmware.com/csi.sock",
+												"--mode=kubelet-registration-probe",
+											},
+										},
+									},
+								},
 							},
-						},
-					}},
-			},
+						}}}},
 			Status: v1.DaemonSetStatus{
 				NumberUnavailable: 1,
 			},
@@ -1670,6 +1679,7 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 
 			Expect(ds.Spec.Template.Spec.Volumes[0].HostPath.Path).Should(BeEquivalentTo("/var/data/kubelet"))
 			Expect(ds.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath).Should(BeEquivalentTo("/var/data/kubelet"))
+			Expect(ds.Spec.Template.Spec.Containers[1].LivenessProbe.Exec.Command[1]).Should(BeEquivalentTo("--kubelet-registration-path=/var/data/kubelet/plugins/csi.vsphere.vmware.com/csi.sock"))
 		})
 
 	})

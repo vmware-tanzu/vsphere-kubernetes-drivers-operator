@@ -1421,7 +1421,7 @@ func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubP
 		switch con.Name {
 		case string(csiDaemonSetName):
 			for j, vm := range con.VolumeMounts {
-				if vm.Name == string(podVolName) {
+				if vm.Name == string(podVolName) && strings.Contains(vm.MountPath, kubeletDefaultPath) {
 					ctx.Logger.V(4).Info("updating volume MountPath",
 						"container", con.Name, "specPath", vm.MountPath, "customPath", kubPath)
 					containerList[i].VolumeMounts[j].MountPath = strings.Replace(
@@ -1432,12 +1432,26 @@ func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubP
 			}
 		case string(csiNodeDriverRegName):
 			for e, env := range con.Env {
-				if env.Name == CSI_DRIVER_REG_PATH {
+				if env.Name == CSI_DRIVER_REG_PATH && strings.Contains(env.Value, kubeletDefaultPath) {
 					ctx.Logger.V(4).Info("updating environment variables",
 						"container", con.Name, "envValue", env.Value, "customPath", kubPath)
 					containerList[i].Env[e].Value = strings.Replace(env.Value, kubeletDefaultPath, kubPath, 1)
 					updateDS = true
 					break
+				}
+
+				if con.LivenessProbe != nil && con.LivenessProbe.Exec != nil {
+					cmds := con.LivenessProbe.Exec.Command
+					for k, cmd := range cmds {
+						if strings.Contains(cmd, kubeletDefaultPath) {
+							ctx.Logger.V(4).Info("updating kubelet path in livenessprobe",
+								"container", con.Name, "command", cmd, "customPath", kubPath)
+							containerList[i].LivenessProbe.Exec.Command[k] =
+								strings.Replace(cmd, kubeletDefaultPath, kubPath, 1)
+							updateDS = true
+							break
+						}
+					}
 				}
 			}
 		}
