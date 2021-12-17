@@ -1439,18 +1439,18 @@ func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubP
 					updateDS = true
 					break
 				}
+			}
 
-				if con.LivenessProbe != nil && con.LivenessProbe.Exec != nil {
-					cmds := con.LivenessProbe.Exec.Command
-					for k, cmd := range cmds {
-						if strings.Contains(cmd, kubeletDefaultPath) {
-							ctx.Logger.V(4).Info("updating kubelet path in livenessprobe",
-								"container", con.Name, "command", cmd, "customPath", kubPath)
-							containerList[i].LivenessProbe.Exec.Command[k] =
-								strings.Replace(cmd, kubeletDefaultPath, kubPath, 1)
-							updateDS = true
-							break
-						}
+			if con.LivenessProbe != nil && con.LivenessProbe.Exec != nil {
+				cmds := con.LivenessProbe.Exec.Command
+				for k, cmd := range cmds {
+					if strings.Contains(cmd, kubeletDefaultPath) {
+						ctx.Logger.V(4).Info("updating kubelet path in livenessprobe",
+							"container", con.Name, "command", cmd, "customPath", kubPath)
+						containerList[i].LivenessProbe.Exec.Command[k] =
+							strings.Replace(cmd, kubeletDefaultPath, kubPath, 1)
+						updateDS = true
+						break
 					}
 				}
 			}
