@@ -36,7 +36,6 @@ const (
 	CompatMatrixConfigMAp = "compat-matrix-config"
 	LocalFilepath         = "Local filepath"
 	WebURL                = "Web URL"
-	DefaultConfig         = "default"
 	UserConfig            = "user"
 	DefaultNs             = "vmware-system-vdo"
 )
@@ -50,8 +49,8 @@ var matrixConfigureCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		err := getVdoNamespace(ctx)
+		// Confirm if VDO operator is running in the env and get the vdoDeployment Namespace
+		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			VdoCurrentNamespace = DefaultNs
 		}
@@ -81,7 +80,7 @@ var matrixConfigureCmd = &cobra.Command{
 			cobra.CheckErr(err)
 		}
 
-		err = CreateConfigMap(filePath, K8sClient, ctx, flag, UserConfig)
+		err = CreateConfigMap(ctx, filePath, K8sClient, flag, UserConfig)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
@@ -94,7 +93,7 @@ func init() {
 	configureCmd.AddCommand(matrixConfigureCmd)
 }
 
-func CreateConfigMap(filepath string, client runtimeclient.Client, ctx context.Context, flag utils.ValidationFlags, configFlag string) error {
+func CreateConfigMap(ctx context.Context, filepath string, client runtimeclient.Client, flag utils.ValidationFlags, configFlag string) error {
 
 	configMapKey := types.NamespacedName{
 		Namespace: VdoCurrentNamespace,

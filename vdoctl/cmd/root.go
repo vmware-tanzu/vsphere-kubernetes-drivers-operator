@@ -159,18 +159,19 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
-// getVdoNamespace identifies the namespace in which vdo-operator is deployed
-func getVdoNamespace(ctx context.Context) error {
+func IsVDODeployed(ctx context.Context) (error, *appsv1.Deployment) {
 	// List Deployments
 	deploymentList := &appsv1.DeploymentList{}
+	vdoDeployment := &appsv1.Deployment{}
 	err := K8sClient.List(ctx, deploymentList)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	//Filter out the deployment using vdo-controller name
 	for _, deployment := range deploymentList.Items {
 		if deployment.Name == VdoDeploymentName {
+			vdoDeployment = &deployment
 			VdoCurrentNamespace = deployment.Namespace
 			break
 		}
@@ -178,7 +179,12 @@ func getVdoNamespace(ctx context.Context) error {
 
 	// If the controller namespace is not identified then it is assumed that vdo is not deployed
 	if VdoCurrentNamespace == "" {
-		return fmt.Errorf("VDO is currently not deployed, please deploy using `vdo deploy` command")
+		return fmt.Errorf("VDO is currently not deployed, please deploy using `vdo deploy` command"), nil
 	}
-	return nil
+
+	if vdoDeployment.Status.Replicas != vdoDeployment.Status.AvailableReplicas {
+		return fmt.Errorf("not enough replicas of VDO"), nil
+	}
+	return err, vdoDeployment
+
 }

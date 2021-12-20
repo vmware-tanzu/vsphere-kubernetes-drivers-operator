@@ -56,8 +56,8 @@ func updateMatrix(args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
-	// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-	err := getVdoNamespace(ctxNew)
+	// Confirm if VDO operator is running in the env and get the vdoDeployment Namespace
+	err, _ := IsVDODeployed(ctxNew)
 	if err != nil {
 		cobra.CheckErr(err)
 	}

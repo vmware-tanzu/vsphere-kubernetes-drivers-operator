@@ -22,8 +22,8 @@ Currently the command supports vanilla k8s cluster`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		err := getVdoNamespace(ctx)
+		// Confirm if VDO operator is running in the env and get the vdoDeployment Namespace
+		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
