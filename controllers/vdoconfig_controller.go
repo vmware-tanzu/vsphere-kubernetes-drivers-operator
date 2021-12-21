@@ -493,7 +493,7 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 	}
 
 	// Update CSI feature state Configmap for version 2.5.0 and above
-	isCsiConfigUpdateReq, err := r.compareVersions("2.3.0", r.CurrentCSIDeployedVersion, "100.0.0")
+	isCsiConfigUpdateReq, err := r.compareVersions("2.5.0", r.CurrentCSIDeployedVersion, "100.0.0")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
