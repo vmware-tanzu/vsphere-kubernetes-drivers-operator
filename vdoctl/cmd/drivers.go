@@ -106,7 +106,7 @@ var driversCmd = &cobra.Command{
 		labels := credentials{
 			username: "Username",
 			password: "Password",
-			vcIp:     "VC IP",
+			vcIp:     "VC IP/FQDN",
 			topology: v1alpha1.TopologyInfo{
 				Zone:   "Zones",
 				Region: "Regions",
@@ -117,7 +117,7 @@ var driversCmd = &cobra.Command{
 		isCPIRequired := utils.PromptGetInput("Do you want to configure CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if strings.EqualFold(isCPIRequired, "Y") {
-			fmt.Printf("Please provide the vcenter IP for configuring CloudProvider \n")
+			fmt.Printf("Please provide the vcenter IP/FQDN for configuring CloudProvider \n")
 
 		multivcloop:
 			for {
@@ -203,7 +203,7 @@ var driversCmd = &cobra.Command{
 			csi.insecure = cpi.insecure
 			csi.thumbprint = cpi.thumbprint
 		} else {
-			fmt.Printf("Please provide the vcenter IP for configuring StorageProvider \n")
+			fmt.Printf("Please provide the vcenter IP/FQDN for configuring StorageProvider \n")
 			fetchVCIP(&csi, labels)
 			if !csi.insecure {
 				fetchThumbprint(&csi, labels)
@@ -408,7 +408,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 }
 
 func fetchVCIP(cred *credentials, labels credentials) {
-	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the IP Address - Invalid input"), utils.IsIP)
+	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the IP Address/ FQDN - Invalid input"), utils.IsIPorFQDN)
 	cred.vcIp = vcIp
 
 	res := utils.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), utils.IsString)

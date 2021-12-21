@@ -7,16 +7,17 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
 type ValidationFlags string
 
 const (
-	IsPwd    ValidationFlags = "isPwd"
-	IsURL    ValidationFlags = "isURL"
-	IsIP     ValidationFlags = "isIP"
-	IsString ValidationFlags = "isString"
+	IsPwd      ValidationFlags = "isPwd"
+	IsURL      ValidationFlags = "isURL"
+	IsIPorFQDN ValidationFlags = "isIP"
+	IsString   ValidationFlags = "isString"
 )
 
 func CheckIfUrl(str string) bool {
@@ -39,6 +40,12 @@ func checkIPAddress(ip string) bool {
 	return net.ParseIP(ip) != nil
 }
 
+func checkIfFQDN(domain string) bool {
+	RegExp := regexp.MustCompile(`^([a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62}){1}(\.[a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62})+[\._]?[^\.]$`)
+	return RegExp.MatchString(domain)
+
+}
+
 func PromptGetInput(label string, err error, flag ValidationFlags) string {
 	validate := func(input string) error {
 		if len(input) <= 0 {
@@ -50,8 +57,8 @@ func PromptGetInput(label string, err error, flag ValidationFlags) string {
 
 		}
 
-		if flag == IsIP && !checkIPAddress(input) {
-			return errors.New("Please provide a valid IP address")
+		if flag == IsIPorFQDN && !(checkIPAddress(input) || checkIfFQDN(input)) {
+			return errors.New("Please provide a valid IP address/ FQDN")
 		}
 		return nil
 	}
