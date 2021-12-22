@@ -1507,16 +1507,19 @@ func (r *VDOConfigReconciler) updateCSIConfigmap(ctx vdocontext.VDOContext) erro
 		Name:      CSI_FSS_CONFIGMAP,
 	}
 
-	cm := v1.ConfigMap{}
-	err := r.Get(ctx, configKey, &cm)
+	configMap := v1.ConfigMap{}
+	err := r.Get(ctx, configKey, &configMap)
 	if err != nil {
 		return err
 	}
 
-	cm.Data[CSI_NODE_ID] = "true"
-	err = r.Update(ctx, &cm, &client.UpdateOptions{})
-	if err != nil {
-		return err
+	if configMap.Data != nil {
+		ctx.Logger.V(4).Info("updating use-csinode-id feature state in CSI Configmap", "name", configMap.Name)
+		configMap.Data[CSI_NODE_ID] = "true"
+		err = r.Update(ctx, &configMap, &client.UpdateOptions{})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
