@@ -16,7 +16,7 @@ type ValidationFlags string
 const (
 	IsPwd      ValidationFlags = "isPwd"
 	IsURL      ValidationFlags = "isURL"
-	IsIPorFQDN ValidationFlags = "isIP"
+	IsIPorFQDN ValidationFlags = "isIPorFQDN"
 	IsString   ValidationFlags = "isString"
 )
 
