@@ -13,5 +13,5 @@ Choose the desrired deployment scheme and follow the relevant guide to bring up 
 | Deployment Method| Links | Remarks |
 | ----------- | ----------- | ---------|
 | Deployment via source code |  [Guide](getting-started/getting-started-via-code.md)       |          |
-| Deployment via Releases   | TBD        |          |
+| Deployment via Releases   | [Guide](getting-started/getting-started-from-release.md)        |          |
 | Deployment via Operator Hub | [Guide](getting-started/getting-started-from-operator-hub.md) | Recommended|
