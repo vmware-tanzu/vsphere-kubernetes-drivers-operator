@@ -56,13 +56,16 @@ func updateMatrix(args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
-	// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-	getVdoNamespace(ctxNew)
+	// Confirm if VDO operator is running in the env and get the vdoDeployment Namespace
+	err, _ := IsVDODeployed(ctxNew)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
 
 	// Check for volumes which have PWX or ROX access mode,
 	// If any then manual steps are required before updating the driver
 	volumeAttachmentList := storagev1.VolumeAttachmentList{}
-	err := K8sClient.List(ctxNew, &volumeAttachmentList)
+	err = K8sClient.List(ctxNew, &volumeAttachmentList)
 	if err != nil {
 		cobra.CheckErr("unable to read the  volume list to do pre-check for upgrade")
 	}

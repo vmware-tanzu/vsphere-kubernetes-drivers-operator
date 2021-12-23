@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
 	"regexp"
 	"strings"
 
@@ -70,9 +71,6 @@ var driversCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 
-		// Check the vdoDeployment Namespace and confirm if VDO operator is running in the env
-		getVdoNamespace(ctx)
-
 		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -80,6 +78,22 @@ var driversCmd = &cobra.Command{
 				return
 			} else {
 				cobra.CheckErr(err)
+			}
+		}
+
+		configKey := types.NamespacedName{
+			Namespace: VdoCurrentNamespace,
+			Name:      CompatMatrixConfigMap,
+		}
+		cm := v1.ConfigMap{}
+
+		_ = K8sClient.Get(ctx, configKey, &cm)
+		configFlag := cm.Data["configured-by"]
+
+		if !strings.EqualFold(configFlag, UserConfig) {
+			isConfigRequired := utils.PromptGetInput("VDO is configured with default compatiblity matrix. you can update compatiblity-matrix using 'vdoctl update compatiblity-matrix'. Do you want to use the defaults for compatiblity matrix (Y/N) ? ", errors.New("invalid input"), utils.IsString)
+			if !strings.EqualFold(isConfigRequired, "Y") {
+				os.Exit(0)
 			}
 		}
 
@@ -106,7 +120,7 @@ var driversCmd = &cobra.Command{
 		labels := credentials{
 			username: "Username",
 			password: "Password",
-			vcIp:     "VC IP",
+			vcIp:     "VC IP/ FQDN",
 			topology: v1alpha1.TopologyInfo{
 				Zone:   "Zones",
 				Region: "Regions",
