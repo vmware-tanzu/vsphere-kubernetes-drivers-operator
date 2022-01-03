@@ -106,7 +106,7 @@ var driversCmd = &cobra.Command{
 		labels := credentials{
 			username: "Username",
 			password: "Password",
-			vcIp:     "VC IP/FQDN",
+			vcIp:     "VC IP/ FQDN",
 			topology: v1alpha1.TopologyInfo{
 				Zone:   "Zones",
 				Region: "Regions",
