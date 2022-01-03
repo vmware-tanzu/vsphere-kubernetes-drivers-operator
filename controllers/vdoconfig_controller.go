@@ -64,6 +64,8 @@ const (
 	CSI_DAEMONSET_NAME            = "vsphere-csi-node"
 	CSI_DAEMON_POD_KEY            = "app"
 	CSI_SECRET_NAME               = "vsphere-config-secret"
+	CSI_FSS_CONFIGMAP             = "internal-feature-states.csi.vsphere.vmware.com"
+	CSI_NODE_ID                   = "use-csinode-id"
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
 	COMPAT_MATRIX_CONFIG_URL      = "MATRIX_CONFIG_URL"
 	COMPAT_MATRIX_CONFIG_CONTENT  = "MATRIX_CONFIG_CONTENT"
@@ -487,6 +489,18 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 				vdoctx.Logger.Error(err, "Error occurred when reconciling deployment for CSI")
 				return ctrl.Result{}, err
 			}
+		}
+	}
+
+	// Update CSI feature state Configmap for version 2.5.0 and above
+	isCsiConfigUpdateReq, err := r.compareVersions("2.5.0", r.CurrentCSIDeployedVersion, "100.0.0")
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if isCsiConfigUpdateReq {
+		err = r.updateCSIConfigmap(vdoctx)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -1499,4 +1513,27 @@ func (r *VDOConfigReconciler) deleteCSINamespace(ctx vdocontext.VDOContext) erro
 		}
 	}
 	return err
+}
+
+func (r *VDOConfigReconciler) updateCSIConfigmap(ctx vdocontext.VDOContext) error {
+	configKey := types.NamespacedName{
+		Namespace: CsiNamespace,
+		Name:      CSI_FSS_CONFIGMAP,
+	}
+
+	configMap := v1.ConfigMap{}
+	err := r.Get(ctx, configKey, &configMap)
+	if err != nil {
+		return err
+	}
+
+	if configMap.Data != nil {
+		ctx.Logger.V(4).Info("updating use-csinode-id feature state in CSI Configmap", "name", configMap.Name)
+		configMap.Data[CSI_NODE_ID] = "true"
+		err = r.Update(ctx, &configMap, &client.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

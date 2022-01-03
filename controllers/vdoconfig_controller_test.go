@@ -1684,3 +1684,54 @@ var _ = Describe("TestUpdatingKubeletPath", func() {
 
 	})
 })
+
+var _ = Describe("TestUpdatingCSIConfigmap", func() {
+	Context("when feature state is updated successfully", func() {
+		ctx := context.Background()
+		defer GinkgoRecover()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		configMap := &v12.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "internal-feature-states.csi.vsphere.vmware.com",
+				Namespace: "kube-system",
+			},
+			Immutable: nil,
+			Data: map[string]string{
+				"improved-csi-idempotency": "false",
+				"improved-volume-topology": "false",
+				"online-volume-extend":     "true",
+				"trigger-csi-fullsync:":    "false",
+				"async-query-volume":       "false",
+				"csi-auth-check":           "true",
+				"csi-migration":            "false",
+			},
+			BinaryData: nil,
+		}
+
+		Expect(r.Create(vdoctx, configMap, &client.CreateOptions{})).NotTo(HaveOccurred())
+
+		It("Should update Configmap without error", func() {
+			Expect(r.updateCSIConfigmap(vdoctx)).Should(Succeed())
+			Expect(configMap.Data[CSI_NODE_ID]).ShouldNot(BeNil())
+		})
+
+	})
+})
