@@ -91,6 +91,7 @@ Tip: Compatibility matrix has been configured, you might want to try 'vdoctl con
 ```
 The Compatibility matrix used can be found [here (compatibility.yaml)](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/)
 
+**Note:** vdoctl deploys vdo with a default compatibility matrix. This uses the default matrix available at [compatibility.yaml](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/). Once VDO is deployed, user can choose to update the compatiblity matrix using [vdoctl update command](../vdoctl/vdoctl_update_compatibility-matrix.md)
 
 #### Configure Drivers
 
