@@ -727,3 +727,12 @@ spec:
           path: /etc/kubernetes
           type: DirectoryOrCreate
         name: vsphere-config-volume
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compat-matrix-config
+  namespace: vmware-system-vdo
+data:
+  versionConfigURL: "https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/compatibility.yaml"
+  auto-upgrade: "disabled"
