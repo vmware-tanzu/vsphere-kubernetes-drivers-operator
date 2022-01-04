@@ -105,7 +105,7 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) output:rbac:dir=./config/rbac rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	@mkdir -p $(ARTIFACTS_DIR)/vanilla
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > $(ARTIFACTS_DIR)/vanilla/vdo-spec.yaml
+	$(KUSTOMIZE) build config/vanilla_k8s > $(ARTIFACTS_DIR)/vanilla/vdo-spec.yaml
 
 manifests-openshift: kustomize
 	@echo "** Making manifest based on the latest oc certified version $(OC_CERTIFIED_LATEST_VERSION)"
