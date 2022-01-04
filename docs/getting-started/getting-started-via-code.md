@@ -83,20 +83,6 @@ compatibility-matrix using `vdoctl` command line tool. You can either use the
 self made binary of vdoctl from the above steps or you can download the
 vdoctl binary from our release page and place the binary in your system path.
 
-```shell
-vdoctl configure compatibility-matrix
-✔ Web URL
-Web URL https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml
-```
-You can either use this sample url or create your own matrix.
-
-Local file path can be provided by appending `file:/` before the absolute path
-
-For example,
-Matrix located at `$HOME/matrix.yaml` can be provided as
-```shell
-file:/$HOME/matrix.yaml
-```
 
 Generally with each new release a New Compatibility Matrix will be released,
 you can get more details from [here](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases).
