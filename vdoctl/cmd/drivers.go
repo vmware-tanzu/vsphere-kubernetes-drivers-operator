@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
 	"regexp"
 	"strings"
 
@@ -80,6 +81,22 @@ var driversCmd = &cobra.Command{
 			}
 		}
 
+		configKey := types.NamespacedName{
+			Namespace: VdoCurrentNamespace,
+			Name:      CompatMatrixConfigMap,
+		}
+		cm := v1.ConfigMap{}
+
+		_ = K8sClient.Get(ctx, configKey, &cm)
+		configFlag := cm.Data["configured-by"]
+
+		if !strings.EqualFold(configFlag, UserConfig) {
+			isConfigRequired := utils.PromptGetInput("VDO is configured with default compatiblity matrix. you can update compatiblity-matrix using 'vdoctl update compatiblity-matrix'. Do you want to use the defaults for compatiblity matrix (Y/N) ? ", errors.New("invalid input"), utils.IsString)
+			if !strings.EqualFold(isConfigRequired, "Y") {
+				os.Exit(0)
+			}
+		}
+
 		var vdoConfigList v1alpha1.VDOConfigList
 
 		err = K8sClient.List(ctx, &vdoConfigList)
@@ -103,7 +120,7 @@ var driversCmd = &cobra.Command{
 		labels := credentials{
 			username: "Username",
 			password: "Password",
-			vcIp:     "VC IP",
+			vcIp:     "VC IP/ FQDN",
 			topology: v1alpha1.TopologyInfo{
 				Zone:   "Zones",
 				Region: "Regions",
@@ -114,7 +131,7 @@ var driversCmd = &cobra.Command{
 		isCPIRequired := utils.PromptGetInput("Do you want to configure CloudProvider? (Y/N)", errors.New("invalid input"), utils.IsString)
 
 		if strings.EqualFold(isCPIRequired, "Y") {
-			fmt.Printf("Please provide the vcenter IP for configuring CloudProvider \n")
+			fmt.Printf("Please provide the vcenter IP/FQDN for configuring CloudProvider \n")
 
 		multivcloop:
 			for {
@@ -200,7 +217,7 @@ var driversCmd = &cobra.Command{
 			csi.insecure = cpi.insecure
 			csi.thumbprint = cpi.thumbprint
 		} else {
-			fmt.Printf("Please provide the vcenter IP for configuring StorageProvider \n")
+			fmt.Printf("Please provide the vcenter IP/FQDN for configuring StorageProvider \n")
 			fetchVCIP(&csi, labels)
 			if !csi.insecure {
 				fetchThumbprint(&csi, labels)
@@ -326,7 +343,7 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 	vcc := &v1alpha1.VsphereCloudConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
-			Namespace: VdoNamespace,
+			Namespace: VdoCurrentNamespace,
 		},
 		Spec: v1alpha1.VsphereCloudConfigSpec{
 			VcIP:        cred.vcIp,
@@ -344,7 +361,7 @@ func createVsphereCloudConfig(cl client.Client, ctx context.Context, cred creden
 		if apierrors.IsAlreadyExists(err) {
 			key := types.NamespacedName{
 				Name:      fmt.Sprintf("%s-%s", cred.vcIp, driver),
-				Namespace: VdoNamespace,
+				Namespace: VdoCurrentNamespace,
 			}
 			getObj := v1alpha1.VsphereCloudConfig{}
 
@@ -372,7 +389,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vdoConfigName + randstr.Hex(4),
-			Namespace: VdoNamespace,
+			Namespace: VdoCurrentNamespace,
 		},
 		Spec: v1alpha1.VDOConfigSpec{
 			StorageProvider: v1alpha1.StorageProviderConfig{
@@ -405,7 +422,7 @@ func createVDOConfig(cl client.Client, ctx context.Context, cpi credentials, csi
 }
 
 func fetchVCIP(cred *credentials, labels credentials) {
-	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the IP Address - Invalid input"), utils.IsIP)
+	vcIp := utils.PromptGetInput(labels.vcIp, errors.New("unable to get the IP Address/ FQDN - Invalid input"), utils.IsIPorFQDN)
 	cred.vcIp = vcIp
 
 	res := utils.PromptGetInput("Do you want to establish a secure connection? (Y/N)", errors.New("invalid input"), utils.IsString)

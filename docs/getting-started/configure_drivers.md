@@ -2,6 +2,10 @@
 
 VDO currently supports configuring CloudProvider (CPI) and StorageProvider(CSI)
 
+Run the following command to provide VDO with the necessary configuration enabling VDO to install/configure vSphere CPI and CSI drivers
+
+``` vdoctl configure drivers```
+
 ##### CloudProvider
 CloudProvider is an optional configuration. you can choose to skip this if you are not looking to install [Kubernetes vSphere Cloud Provider](https://github.com/kubernetes/cloud-provider-vsphere/)
 
@@ -11,6 +15,8 @@ If you want to install `Kubernetes vSphere Cloud Provider`, you will be taken th
 - Secure Connection - If you choose to establish a secure connection to vcenter, you need to provide a ssl thumbprint
 - Login credentials for vcenter
 - Datacenter(s) - you can provide a comma separated list of datacenters
+
+Pre-requisites for installing CPI can be found [here.](https://cloud-provider-vsphere.sigs.k8s.io/tutorials/kubernetes-on-vsphere-with-kubeadm.html#:~:text=Check%20that%20all%20nodes%20are%20tainted)
 
 ```shell
 Please provide the vcenter IP for configuring CloudProvider 
@@ -38,7 +44,7 @@ Password *******
 Datacenter(s) dc2, dc3
 ```
 
-Once done you can choose to configure zones/regions if required. Please note, the tags for zone/regions need to be available in vcenter. Please refer [CPI](https://github.com/kubernetes/cloud-provider-vsphere/blob/master/docs/book/tutorials/deploying_cpi_and_csi_with_multi_dc_vc_aka_zones.md) documentation on how to configure zones/regions 
+Once done you can choose to configure zones/regions if required. Please note, the tags for zone/regions need to be available in vcenter. Please refer [CPI](https://github.com/kubernetes/cloud-provider-vsphere/blob/master/docs/book/tutorials/deploying_cpi_with_multi_dc_vc_aka_zones.md) documentation on how to configure zones/regions 
 
 ```shell
 Do you want to configure zones/regions for CloudProvider? (Y/N) y
@@ -89,6 +95,8 @@ Allow Root Access? (Y/N) y█
 ```
 
 To get more info on Net Permissions, please refer [CSI](https://vsphere-csi-driver.sigs.k8s.io/driver-deployment/installation.html#vsphereconf_for_file) document
+
+**Note**: For CSI driver version >= 2.5, that does not rely on vSphere Cloud Provider in order to obtain the VM node uuid, VDO updates the `internal-feature-states.csi.vsphere.vmware.com` configmap to set the "use-csinode-id" key as true.
 
 
 This completes VDO configuration. You can check the status of drivers using `vdoctl status` command.

@@ -11,3 +11,5 @@ pkg/drivers/cpi/test_config.conf
 controllers/test_config.conf
 spec.yaml
 testbin/*
+*.DS_STORE
+artifacts/staging-openshift

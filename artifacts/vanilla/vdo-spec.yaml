@@ -364,6 +364,18 @@ rules:
   - patch
   - update
 - apiGroups:
+  - '*'
+  resources:
+  - namespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - daemonsets
@@ -417,6 +429,7 @@ rules:
   - csidrivers
   verbs:
   - create
+  - delete
   - get
   - list
   - patch
@@ -428,6 +441,7 @@ rules:
   - csinodes
   verbs:
   - create
+  - delete
   - get
   - list
   - watch
@@ -564,6 +578,15 @@ subjects:
 ---
 apiVersion: v1
 data:
+  auto-upgrade: disabled
+  versionConfigURL: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/compatibility.yaml
+kind: ConfigMap
+metadata:
+  name: compat-matrix-config
+  namespace: vmware-system-vdo
+---
+apiVersion: v1
+data:
   controller_manager_config.yaml: |
     apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
     kind: ControllerManagerConfig
@@ -655,12 +678,16 @@ spec:
               key: versionConfigURL
               name: compat-matrix-config
               optional: true
+        - name: VDO_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         - name: AUTO_UPGRADE
           valueFrom:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo:v0.1.0-beta
+        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo@sha256:a89deecd215d19f40ddd140a12bc34416e24839fab72ebf8b11d855a30e05fce
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

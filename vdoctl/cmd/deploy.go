@@ -69,7 +69,7 @@ Currently the command supports deployment on vanilla k8s cluster`,
 			cobra.CheckErr(applyErr)
 		}
 
-		fmt.Println("Tip: now that you have deployed VDO, you might want to try 'vdoctl configure drivers' to configure vsphere drivers")
+		fmt.Println("Tip: now that you have deployed VDO, you might want to try 'vdoctl configure compatibility-matrix' to configure compatibility matrix")
 	},
 }
 

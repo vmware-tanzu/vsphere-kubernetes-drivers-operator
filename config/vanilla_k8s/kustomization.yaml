@@ -1,0 +1,9 @@
+# Adds namespace to all resources.
+namespace: vmware-system-vdo
+# namespace: default
+
+bases:
+  - ../default
+
+resources:
+  - compat_matrix_configmap.yaml

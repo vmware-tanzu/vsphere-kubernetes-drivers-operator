@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
-	v12 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const VDO_NOT_DEPLOYED = "VDO is not deployed. you can run `vdoctl deploy` command to deploy VDO"
@@ -39,6 +37,7 @@ var statusCmd = &cobra.Command{
 
 		ctx := context.Background()
 
+		// Confirm if VDO operator is running in the env and get the vdoDeployment Namespace
 		err, _ := IsVDODeployed(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -85,16 +84,6 @@ var statusCmd = &cobra.Command{
 		fmt.Printf("\nStorageProvider : %s", vdoConfig.Status.CSIStatus.Phase)
 		fetchVcenterIp(vsphereCloudConfigList, vdoConfig.Spec.StorageProvider.VsphereCloudConfig)
 	},
-}
-
-func IsVDODeployed(ctx context.Context) (error, *v12.Deployment) {
-	deployment := &v12.Deployment{}
-	ns := types.NamespacedName{Namespace: VdoNamespace, Name: VdoDeploymentName}
-	err := K8sClient.Get(ctx, ns, deployment)
-	if deployment.Status.Replicas != deployment.Status.AvailableReplicas {
-		return fmt.Errorf("not enough replicas of VDO"), nil
-	}
-	return err, deployment
 }
 
 // Fetch VC IP of given VsphereCloudConfig

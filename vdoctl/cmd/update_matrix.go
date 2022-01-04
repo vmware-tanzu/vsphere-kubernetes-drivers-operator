@@ -38,16 +38,16 @@ var matrixUpdateCmd = &cobra.Command{
 	Short:   "Command to update the Compatibility matrix of Drivers",
 	Long: `This command helps to update the Compatibility matrix of Drivers, 
 which in turns help to upgrade/downgrade the versions of CSI & CPI drivers.`,
-	Example: "vdoctl update matrix https://github.com/demo/demo.yaml\nvdoctl update matrix file://var/sample/sample.yaml",
+	Example: "vdoctl update compatibility-matrix https://github.com/demo/demo.yaml\nvdoctl update compatibility-matrix file://var/sample/sample.yaml",
 
 	Run: func(cmd *cobra.Command, args []string) {
 		cobra.MinimumNArgs(1)
-		updateMatrix(cmd, args)
+		updateMatrix(args)
 	},
 }
 
 // updateMatrix updates the ConfigMap containing the compatibility-matrix
-func updateMatrix(cmd *cobra.Command, args []string) {
+func updateMatrix(args []string) {
 
 	if len(args) < 1 {
 		cobra.CheckErr("At-least one argument should be provided")
@@ -56,10 +56,16 @@ func updateMatrix(cmd *cobra.Command, args []string) {
 	updatedMatrix := args[0]
 	ctxNew := context.Background()
 
+	// Confirm if VDO operator is running in the env and get the vdoDeployment Namespace
+	err, _ := IsVDODeployed(ctxNew)
+	if err != nil {
+		cobra.CheckErr(err)
+	}
+
 	// Check for volumes which have PWX or ROX access mode,
 	// If any then manual steps are required before updating the driver
 	volumeAttachmentList := storagev1.VolumeAttachmentList{}
-	err := K8sClient.List(ctxNew, &volumeAttachmentList)
+	err = K8sClient.List(ctxNew, &volumeAttachmentList)
 	if err != nil {
 		cobra.CheckErr("unable to read the  volume list to do pre-check for upgrade")
 	}
@@ -87,6 +93,8 @@ func updateMatrix(cmd *cobra.Command, args []string) {
 	if err != nil {
 		cobra.CheckErr(fmt.Sprintf("unable to read the updated matrix from %s", updatedMatrix))
 	}
+
+	fmt.Println("Compatibility matrix has been updated successfully.")
 }
 
 func updateConfigMap(filepath string, ctx context.Context) error {
@@ -95,7 +103,7 @@ func updateConfigMap(filepath string, ctx context.Context) error {
 	var data map[string]string
 
 	configMetaData := types.NamespacedName{
-		Namespace: VdoNamespace,
+		Namespace: VdoCurrentNamespace,
 		Name:      CompatMatrixConfigMap,
 	}
 
