@@ -63,7 +63,7 @@ export K8S_MASTER_SSH_PWD=PASSWORD
 make deploy-k8s-cluster
 ```
 
-Refer the [MakeFile](../Makefile) for more details.
+Refer the [MakeFile](../../Makefile) for more details.
 
 
 ### Deploying Drivers
@@ -83,20 +83,6 @@ compatibility-matrix using `vdoctl` command line tool. You can either use the
 self made binary of vdoctl from the above steps or you can download the
 vdoctl binary from our release page and place the binary in your system path.
 
-```shell
-vdoctl configure compatibility-matrix
-✔ Web URL
-Web URL https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml
-```
-Note: You can either use this sample url or create your own matrix.
-
-Local file path can be provided by appending `file:/` before the absolute path
-
-For example,
-Matrix located at `$HOME/matrix.yaml` can be provided as
-```shell
-file:/$HOME/matrix.yaml
-```
 
 Generally with each new release a New Compatibility Matrix will be released,
 you can get more details from [here](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases).
@@ -106,6 +92,8 @@ Once the compatibility matrix is configured, you can re-check the vdo operator r
 kubectl get pods -n vmware-system-vdo
 vmware-system-vdo    vdo-controller-manager-66758456d8-mnqgv      2/2     Running   0          99s
 ```
+
+**Note:** vdoctl deploys vdo with a default compatibility matrix. This uses the default matrix available at [compatibility.yaml](https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/). Once VDO is deployed, user can choose to update the compatiblity matrix using [vdoctl update command](../vdoctl/vdoctl_update_compatibility-matrix.md)
 
 #### Configure Drivers
 vdoctl configure drivers command is used to provide VDO with the necessary configuration enabling VDO to install/configure vSphere CPI and CSI drivers

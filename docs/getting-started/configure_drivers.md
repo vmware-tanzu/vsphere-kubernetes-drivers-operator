@@ -96,5 +96,7 @@ Allow Root Access? (Y/N) y█
 
 To get more info on Net Permissions, please refer [CSI](https://vsphere-csi-driver.sigs.k8s.io/driver-deployment/installation.html#vsphereconf_for_file) document
 
+**Note**: For CSI driver version >= 2.5, that does not rely on vSphere Cloud Provider in order to obtain the VM node uuid, VDO updates the `internal-feature-states.csi.vsphere.vmware.com` configmap to set the "use-csinode-id" key as true.
+
 
 This completes VDO configuration. You can check the status of drivers using `vdoctl status` command.
