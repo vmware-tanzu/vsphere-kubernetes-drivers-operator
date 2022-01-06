@@ -11,8 +11,6 @@ Please ensure you have the following information:
 - Login credentials for vcenter
 - Datacenter(s) - you can provide a comma separated list of datacenters, datacenters in which the kubernetes nodes are present. This is required by CPI and CSI to manage the cluster
 
-**Note** : In order to bring up CPI and some versions of CSI successfully, the nodes need to be tainted with
-`node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule`
 
 ### Step-1
 Make sure the VDO is up and running, for this you can go to `Installed Operator` side menu and confirm the status of the operator as Succeeded.

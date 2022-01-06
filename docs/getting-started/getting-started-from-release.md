@@ -58,9 +58,6 @@ export KUBECONFIG=~/.kube/config
 or YOUR-KUBECONFIG_PATH
 ```
 
-**Note** : In order to bring up CPI and some versions of CSI successfully, the nodes need to be tainted with
-`node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule`
-
 #### User flow
 
 ![VDO user flow](../images/vdo-user-flow.png)

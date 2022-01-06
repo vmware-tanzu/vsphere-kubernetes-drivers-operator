@@ -63,9 +63,6 @@ export K8S_MASTER_SSH_PWD=PASSWORD
 make deploy-k8s-cluster
 ```
 
-**Note** : In order to bring up CPI and some versions of CSI successfully, the nodes need to be tainted with
-`node.cloudprovider.kubernetes.io/uninitialized=true:NoSchedule`
-
 Refer the [MakeFile](../../Makefile) for more details.
 
 
