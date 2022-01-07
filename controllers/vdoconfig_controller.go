@@ -852,8 +852,9 @@ nodeloop:
 func (r *VDOConfigReconciler) reconcileNodeProviderID(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, clientset kubernetes.Interface, vsphereCloudConfigs *[]vdov1alpha1.VsphereCloudConfig) (bool, error) {
 	nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
 	var updReq bool
+	allNodesReady := true
 
-	cpiStatus := vdov1alpha1.Configured
+	var cpiStatus vdov1alpha1.VDOConfigPhase
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return updReq, errors.Wrapf(err, "Error reconciling the providerID for CPI, unable to fetch list of nodes")
@@ -867,6 +868,7 @@ nodeLoop:
 			continue nodeLoop
 		}
 
+		allNodesReady = false
 		for _, taint := range node.Spec.Taints {
 			if taint.Key == CLOUD_PROVIDER_INIT_TAINT_KEY {
 
@@ -894,6 +896,14 @@ nodeLoop:
 
 		}
 
+	}
+
+	if len(nodeStatus) <= 0 {
+		return false, nil
+	}
+
+	if allNodesReady {
+		cpiStatus = vdov1alpha1.Configured
 	}
 
 	if config.Status.CPIStatus.Phase != cpiStatus ||
