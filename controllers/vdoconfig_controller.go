@@ -868,13 +868,13 @@ nodeLoop:
 			continue nodeLoop
 		}
 
-		allNodesReady = false
 		for _, taint := range node.Spec.Taints {
 			if taint.Key == CLOUD_PROVIDER_INIT_TAINT_KEY {
 
 				if _, ok := config.Status.CPIStatus.NodeStatus[node.Name]; ok {
 					nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
 					cpiStatus = vdov1alpha1.Configuring
+					allNodesReady = false
 					continue nodeLoop
 				}
 
@@ -886,6 +886,7 @@ nodeLoop:
 				if nodeExistsInVC {
 					nodeStatus[node.Name] = vdov1alpha1.NodeStatusPending
 					cpiStatus = vdov1alpha1.Configuring
+					allNodesReady = false
 					continue nodeLoop
 				}
 
