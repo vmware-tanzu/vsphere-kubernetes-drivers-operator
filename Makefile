@@ -75,6 +75,11 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Get the golang image path
+ifneq ($(origin DOCKER_PROXY), undefined)
+DOCKER_IMAGE_PROXY = --build-arg DOCKER_PROXY=${DOCKER_PROXY}
+endif
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -147,7 +152,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} --rm .
+	docker build -t ${IMG} ${DOCKER_IMAGE_PROXY} --rm .
 
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
@@ -193,7 +198,7 @@ deploy: manifests kustomize deploy-local-kind ## Deploy controller to the K8s cl
 .PHONY: deploy-k8s-cluster
 deploy-k8s-cluster: manifests kustomize build ## Build manager and Deploy the deployment to kind cluster.
 	mkdir -p export
-	docker build -t ${IMG} --output type=tar,dest=export/vdo.tar .
+	docker build -t ${IMG} ${DOCKER_IMAGE_PROXY} --output type=tar,dest=export/vdo.tar .
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	./hack/deploy-vdo-cluster.sh ${IMG}
 
@@ -234,7 +239,7 @@ bundle: manifests kustomize ## Generate bundle manifests and metadata, then vali
 
 .PHONY: bundle-build
 bundle-build: bundle ## Build the bundle image for OLM
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) ${DOCKER_IMAGE_PROXY}.
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
