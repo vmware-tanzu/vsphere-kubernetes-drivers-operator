@@ -39,18 +39,19 @@ type CompatibiltyConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=vdo.vmware.com,resources=compatibilityconfig,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=vdo.vmware.com,resources=compatibilityconfig/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=vdo.vmware.com,resources=compatibilityconfig/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch;delete;
-// +kubebuilder:rbac:groups=*,resources=namespaces,verbs=create;get;list;watch;update;patch;delete;
+// +kubebuilder:rbac:groups=vdo.vmware.com,resources=compatibilityconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=vdo.vmware.com,resources=compatibilityconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=vdo.vmware.com,resources=compatibilityconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch;
+// +kubebuilder:rbac:groups=*,resources=namespaces,verbs=get;list;watch;update;patch;
 
 func (r *CompatibiltyConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace)
 
 	logger.V(4).Info("processing CompatibilityConfig reconcile")
-
+	if req.NamespacedName.Name != "" || req.Namespace != "" {
+		return ctrl.Result{}, nil
+	}
 	compatibilityConfig := &vdov1alpha1.CompatibilityConfig{}
 	if err := r.Get(ctx, req.NamespacedName, compatibilityConfig); err != nil {
 		logger.Error(err, "Error occurred when fetching CompatibilityConfig resource", "name", req.NamespacedName)

@@ -156,7 +156,7 @@ rules:
 - apiGroups:
   - vdo.vmware.com
   resources:
-  - compatibilityconfig
+  - compatibilityconfigs
   verbs:
   - create
   - delete
@@ -168,13 +168,13 @@ rules:
 - apiGroups:
   - vdo.vmware.com
   resources:
-  - compatibilityconfig/finalizers
+  - compatibilityconfigs/finalizers
   verbs:
   - update
 - apiGroups:
   - vdo.vmware.com
   resources:
-  - compatibilityconfig/status
+  - compatibilityconfigs/status
   verbs:
   - get
   - patch

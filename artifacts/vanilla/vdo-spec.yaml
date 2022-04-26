@@ -14,23 +14,23 @@ metadata:
   creationTimestamp: null
   labels:
     vdo.vmware.com/managed-by: vdo
-  name: compatibilityconfig.vdo.vmware.com
+  name: compatibilityconfigs.vdo.vmware.com
 spec:
   group: vdo.vmware.com
   names:
     kind: CompatibilityConfig
     listKind: CompatibilityConfigList
-    plural: compatibilityconfig
+    plural: compatibilityconfigs
     singular: compatibilityconfig
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: CompatibilityConfig is the Schema for the configuring the compatibility matrix
+        description: CompatibilityConfig is the Schema for the Compatibility Matrix Configuration
         properties:
           apiVersion:
-            description: CompatibilityConfig is the Schema for configuring the compatibility matrix which defines the version matrix for drivers with vSphere and K8s Version
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
             description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
@@ -38,27 +38,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: CompatibilityConfig configures the desired state of Compatibility Matrix
+            description: CompatibilitySpec is the Schema to get MatrixURL
             properties:
               matrixURL:
-                description: MatrixURL defines the url to fetch the Compatibility Matrix
                 type: string
-            required:
-            - matrixURL
-            type: object
-          status:
-            description: CompatibilityConfig defines the observed state of Compatibility Matrix
-            properties:
-              configured:
-                description: Configured refers to the status of the Compatibility Matrix
-                properties:
-                  cpi:
-                    description: CPI indicates the version of CPI driver configured
-                    type: string
-                  csi:
-                    description: CSI indicates the version of CSI driver configured
-                    type: string
-                type: object
             type: object
         type: object
     served: true
@@ -514,7 +497,7 @@ rules:
 - apiGroups:
   - vdo.vmware.com
   resources:
-  - compatibilityconfig
+  - compatibilityconfigs
   verbs:
   - create
   - delete
@@ -526,13 +509,13 @@ rules:
 - apiGroups:
   - vdo.vmware.com
   resources:
-  - compatibilityconfig/finalizers
+  - compatibilityconfigs/finalizers
   verbs:
   - update
 - apiGroups:
   - vdo.vmware.com
   resources:
-  - compatibilityconfig/status
+  - compatibilityconfigs/status
   verbs:
   - get
   - patch
@@ -671,19 +654,11 @@ subjects:
 apiVersion: v1
 data:
   auto-upgrade: disabled
-  versionConfigURL: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.3.0-rc/compatibility.yaml
+  versionConfigURL: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/compatibility.yaml
 kind: ConfigMap
 metadata:
   name: compat-matrix-config
   namespace: vmware-system-vdo
----
-apiVersion: vdo.vmware.com/v1alpha1
-kind: CompatibilityConfig
-metadata:
-  name: compat-matrix-config
-  namespace: vmware-system-vdo
-spec:
-  matrixURL: "https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.3.0-rc/compatibility.yaml"
 ---
 apiVersion: v1
 data:
@@ -787,7 +762,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo@sha256:a46a09376084d2cda3a6f240cd80e4b40fe8a97a6a8348fd46375dc9f4e53804
+        image: vmware.com/vdo:0.2.0-6-g6bea2be
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
