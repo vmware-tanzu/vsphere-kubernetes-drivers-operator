@@ -671,11 +671,19 @@ subjects:
 apiVersion: v1
 data:
   auto-upgrade: disabled
-  versionConfigURL: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.1.1/compatibility.yaml
+  versionConfigURL: https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.3.0-rc/compatibility.yaml
 kind: ConfigMap
 metadata:
   name: compat-matrix-config
   namespace: vmware-system-vdo
+---
+apiVersion: vdo.vmware.com/v1alpha1
+kind: CompatibilityConfig
+metadata:
+  name: compat-matrix-config
+  namespace: vmware-system-vdo
+spec:
+  matrixURL: "https://github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/releases/download/0.3.0-rc/compatibility.yaml"
 ---
 apiVersion: v1
 data:
@@ -779,7 +787,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: vmware.com/vdo:0.2.0-1-g5bf9500
+        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo@sha256:a46a09376084d2cda3a6f240cd80e4b40fe8a97a6a8348fd46375dc9f4e53804
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
