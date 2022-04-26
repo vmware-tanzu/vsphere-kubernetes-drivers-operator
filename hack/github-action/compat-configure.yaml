@@ -1,0 +1,7 @@
+apiVersion: vdo.vmware.com/v1alpha1
+kind: CompatibilityConfig
+metadata:
+  name: compat-matrix-config
+  namespace: vmware-system-vdo
+spec:
+  matrixURL: "https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml"

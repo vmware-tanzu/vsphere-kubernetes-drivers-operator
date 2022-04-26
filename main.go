@@ -93,6 +93,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controllers.CompatibiltyConfigReconciler{
+		Client: mgr.GetClient(),
+		Logger: ctrllog.Log.WithName("controllers").WithName("CompatibiltyConfig"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CompatibiltyConfig")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.VDOConfigReconciler{
 		Client:       mgr.GetClient(),
 		Logger:       ctrllog.Log.WithName("controllers").WithName("VDOConfig"),

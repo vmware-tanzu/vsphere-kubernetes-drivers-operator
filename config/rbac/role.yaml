@@ -156,6 +156,32 @@ rules:
 - apiGroups:
   - vdo.vmware.com
   resources:
+  - compatibilityconfig
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - compatibilityconfig/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - compatibilityconfig/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - vdo.vmware.com
+  resources:
   - vdoconfigs
   verbs:
   - create

@@ -7,6 +7,7 @@ commonLabels:
 resources:
 - bases/vdo.vmware.com_vspherecloudconfigs.yaml
 - bases/vdo.vmware.com_vdoconfigs.yaml
+- bases/vdo.vmware.com_compatibilityconfig.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

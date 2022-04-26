@@ -1,8 +1,8 @@
 apiVersion: v1
+data:
+  auto-upgrade: disabled
+  versionConfigURL: https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/81da198c43d4671f01464a885259e039bd10d94a/artifacts/compatibility-yaml/compatibility-v0.2.1.yaml
 kind: ConfigMap
 metadata:
   name: compat-matrix-config
   namespace: vmware-system-vdo
-data:
-  versionConfigURL: "https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml"
-  auto-upgrade: "disabled"
