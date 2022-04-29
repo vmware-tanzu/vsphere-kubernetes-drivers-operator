@@ -6,13 +6,12 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: compatibilityconfigs.vdo.vmware.com
+  name: compatibilityconfig.vdo.vmware.com
 spec:
   group: vdo.vmware.com
   names:
     kind: CompatibilityConfig
     listKind: CompatibilityConfigList
-    plural: compatibilityconfigs
     singular: compatibilityconfig
   scope: Namespaced
   versions:
