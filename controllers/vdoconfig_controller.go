@@ -727,7 +727,7 @@ func (r *VDOConfigReconciler) deleteCPIDeployment(ctx vdocontext.VDOContext) (bo
 	for _, deploymentYaml := range r.CpiDeploymentYamls {
 		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.DELETE)
 		if err != nil {
-			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CPI : ", deploymentYaml, updateStatus)
+			ctx.Logger.V(4).Info("Error occurred when deleting the deployment for CPI : ", deploymentYaml, updateStatus)
 		}
 	}
 	return updateStatus, nil
@@ -740,7 +740,7 @@ func (r *VDOConfigReconciler) deleteCSIDeployment(ctx vdocontext.VDOContext) (bo
 	for _, deploymentYaml := range r.CsiDeploymentYamls {
 		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.DELETE)
 		if err != nil {
-			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CSI : ", deploymentYaml, updateStatus)
+			ctx.Logger.V(4).Info("Error occurred when deleting the deployment for CSI : ", deploymentYaml, updateStatus)
 		}
 	}
 	return updateStatus, nil

@@ -172,7 +172,7 @@ func GenerateYamlFromUrl(url string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("Recieved response code %d reading from url %s", resp.StatusCode, url)
+		return nil, errors.Errorf("Received response code %d reading from url %s", resp.StatusCode, url)
 	}
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)

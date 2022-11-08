@@ -1458,7 +1458,7 @@ var _ = Describe("TestReconcile", func() {
 		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfigList{})
 		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VsphereCloudConfig{})
 
-		It("should fail loading compatiblity matrix", func() {
+		It("should fail loading compatibility matrix", func() {
 			r := VDOConfigReconciler{
 				Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
 				Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
