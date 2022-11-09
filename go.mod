@@ -1,4 +1,4 @@
-module github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator
+module github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/0.3.0
 
 go 1.16
 
