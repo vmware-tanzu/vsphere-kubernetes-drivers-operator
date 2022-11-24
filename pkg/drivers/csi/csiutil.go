@@ -20,7 +20,6 @@ import (
 	"fmt"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	"gopkg.in/ini.v1"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -112,7 +111,7 @@ func CreateCSISecretConfig(vdoConfig *vdov1alpha1.VDOConfig, cloudConfig *vdov1a
 		return "", err
 	}
 
-	s, err := ioutil.ReadFile(csiSecretFileName)
+	s, err := os.ReadFile(csiSecretFileName)
 
 	if err != nil {
 		return "", err
