@@ -333,7 +333,6 @@ fix: lint-go ## Tries to fix errors reported by lint-go-full target
 
 GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
 golangci_lint: ## Download golangci-lint locally if necessary.
-	#curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.1
 	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1)
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
