@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the vdo v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=vdo.vmware.com
+// +kubebuilder:object:generate=true
+// +groupName=vdo.vmware.com
 package v1alpha1
 
 import (
