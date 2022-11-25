@@ -104,7 +104,7 @@ var _ = Describe("vc session functions", func() {
 
 			networkSpec := types.CustomizationSpec{
 				NicSettingMap: []types.CustomizationAdapterMapping{
-					types.CustomizationAdapterMapping{
+					{
 						Adapter: types.CustomizationIPSettings{
 							Ip: &types.CustomizationFixedIp{
 								IpAddress: "192.168.1.100",
