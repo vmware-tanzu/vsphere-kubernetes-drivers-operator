@@ -69,7 +69,7 @@ var _ = Describe("TestSecretCreation", func() {
 					FileVolumes: v1alpha1.FileVolume{
 						VSanDataStoreUrl: []string{"ds:///vmfs/volumes/vsan:123/"},
 						NetPermissions: []v1alpha1.NetPermission{
-							v1alpha1.NetPermission{
+							{
 								Ip:         "10.10.10.0/24",
 								Permission: "READ_WRITE",
 								RootSquash: true,

@@ -91,7 +91,7 @@ var driversCmd = &cobra.Command{
 		configFlag := cm.Data["configured-by"]
 
 		if !strings.EqualFold(configFlag, UserConfig) {
-			isConfigRequired := utils.PromptGetInput("VDO is configured with default compatiblity matrix. you can update compatiblity-matrix using 'vdoctl update compatiblity-matrix'. Do you want to use the defaults for compatiblity matrix (Y/N) ? ", errors.New("invalid input"), utils.IsString)
+			isConfigRequired := utils.PromptGetInput("VDO is configured with default compatibility matrix. you can update compatibility-matrix using 'vdoctl update compatibility-matrix'. Do you want to use the defaults for compatibility matrix (Y/N) ? ", errors.New("invalid input"), utils.IsString)
 			if !strings.EqualFold(isConfigRequired, "Y") {
 				os.Exit(0)
 			}
