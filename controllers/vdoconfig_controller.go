@@ -132,6 +132,7 @@ var (
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch;delete;
 // +kubebuilder:rbac:groups=*,resources=namespaces,verbs=create;get;list;watch;update;patch;delete;
 
+//gocyclo:ignore
 func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.Logger.Info("Inside VDOConfig reconciler", "name", req.NamespacedName)
 
@@ -355,6 +356,7 @@ func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config 
 	return sess, nil
 }
 
+//gocyclo:ignore
 func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
 
 	vsphereCloudConfigsList := vdoConfig.Spec.CloudProvider.VsphereCloudConfigs
@@ -450,6 +452,7 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	return ctrl.Result{}, nil
 }
 
+//gocyclo:ignore
 func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
 
 	vsphereCloudConfig, err := r.fetchVSphereCloudConfig(vdoctx, vdoConfig.Spec.StorageProvider.VsphereCloudConfig, req.Namespace)
@@ -1414,6 +1417,7 @@ func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigConte
 	}
 }
 
+//gocyclo:ignore
 func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubPath string) error {
 	ds := &appsv1.DaemonSet{}
 	kubeletDefaultPath := "/var/lib/kubelet"
