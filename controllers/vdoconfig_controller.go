@@ -357,7 +357,7 @@ func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config 
 }
 
 //gocyclo:ignore
-func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
+func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset kubernetes.Interface) (ctrl.Result, error) {
 
 	vsphereCloudConfigsList := vdoConfig.Spec.CloudProvider.VsphereCloudConfigs
 	if len(vsphereCloudConfigsList) <= 0 {
@@ -453,7 +453,7 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 }
 
 //gocyclo:ignore
-func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
+func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset kubernetes.Interface) (ctrl.Result, error) {
 
 	vsphereCloudConfig, err := r.fetchVSphereCloudConfig(vdoctx, vdoConfig.Spec.StorageProvider.VsphereCloudConfig, req.Namespace)
 	if err != nil {
