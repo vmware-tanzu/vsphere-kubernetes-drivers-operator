@@ -154,10 +154,15 @@ var _ = Describe("TestReconcileCSIDeploymentStatus", func() {
 
 			_, err = clientSet.StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
 			Expect(err).NotTo(HaveOccurred())
+
+			err = r.createCSINamespace(vdoctx)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = r.createCSINamespace(vdoctx)
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should reconcile deployment status without error", func() {
-
 			Expect(r.reconcileCSIDeploymentStatus(vdoctx, clientSet)).NotTo(HaveOccurred())
 		})
 
@@ -1884,6 +1889,9 @@ var _ = Describe("TestReconcile", func() {
 			_, err := r.Reconcile(ctx, req)
 			Expect(err).To(HaveOccurred())
 			os.Setenv("MATRIX_CONFIG_URL", "")
+			_, err = r.Reconcile(ctx, req)
+			Expect(err).To(HaveOccurred())
+
 		})
 	})
 })
