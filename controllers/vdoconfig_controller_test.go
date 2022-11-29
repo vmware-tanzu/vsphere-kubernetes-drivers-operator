@@ -1475,51 +1475,6 @@ var _ = Describe("TestGetMatrixConfig", func() {
 		})
 
 	})
-	Context("When Compat matrix configmap contains matrixConfigUrl", func() {
-		RegisterFailHandler(Fail)
-		ctx := context.Background()
-
-		s := scheme.Scheme
-		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
-
-		clientSet := fake.NewSimpleClientset()
-		Expect(clientSet).NotTo(BeNil())
-
-		r := VDOConfigReconciler{
-			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
-			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
-			Scheme: s,
-		}
-
-		vdoctx := vdocontext.VDOContext{
-			Context: ctx,
-			Logger:  r.Logger,
-		}
-
-		configMap := &v12.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "compat-matrix-config",
-				Namespace: "default",
-			},
-			Immutable: nil,
-			Data: map[string]string{
-				"auto-upgrade":         "disabled",
-				"versionConfigContent": "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.1\", \"max\": \"7.0.4\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.22\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.1\", \"max\": \"7.0.4\"},\n                    \"k8s\" : {\"skewVersion\": \"1.22\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}",
-			},
-			BinaryData: nil,
-		}
-
-		Expect(r.Create(vdoctx, configMap)).Should(Succeed())
-		It("should fetch the matrix config without error", func() {
-			_, err := r.getMatrixConfig("https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/main/artifacts/compatibility-yaml/compatibility-v0.3.1.yaml", "")
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-	})
 
 	Context("When Compat matrix configmap doesn't contain expected data", func() {
 		RegisterFailHandler(Fail)
@@ -1882,16 +1837,11 @@ var _ = Describe("TestReconcile", func() {
 			Expect(r.Create(vdoctx, cloudConfig)).Should(Succeed())
 			Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
-			os.Setenv("MATRIX_CONFIG_URL", "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/main/artifacts/compatibility-yaml/compatibility-v0.3.1.yaml")
 			ns := types.NamespacedName{Name: "vdo-sample",
 				Namespace: "default"}
 			req := ctrl.Request{NamespacedName: ns}
 			_, err := r.Reconcile(ctx, req)
-			Expect(err).To(HaveOccurred())
-			os.Setenv("MATRIX_CONFIG_URL", "")
-			_, err = r.Reconcile(ctx, req)
-			Expect(err).To(HaveOccurred())
-
+			Expect(err.Error()).To(BeEquivalentTo("Matrix Config URL/Content not provided in proper format"))
 		})
 	})
 })
