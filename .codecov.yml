@@ -17,7 +17,7 @@ coverage:
     patch: true
     project: true
 parsers:
-   javascript:
-     enable_partials: no
+  go:
+    partials_as_hits: true
 github_checks:
    annotations: true
