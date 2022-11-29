@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/simulator"
 	v1 "k8s.io/api/apps/v1"
+
 	v12 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -274,6 +275,334 @@ var _ = Describe("TestReconcileCSIDeploymentStatus", func() {
 	})
 })
 
+var _ = Describe("TestCPIReconcile", func() {
+	Context("reconcileCPIConfiguration success..", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("reconcileCPIConfigurationTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		vdoConfig := initializeVDOConfig("kube-system")
+		req := *new(ctrl.Request)
+		req.Namespace = "kube-system"
+
+		It("should reconcile CPI configuration, configStatus Failed", func() {
+			cloudConfigStatus := v1alpha1.VsphereCloudConfigStatus{}
+			cloudConfigStatus.Config = "failed"
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "kube-system",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: cloudConfigStatus,
+			}
+			Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
+			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
+
+			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).To(HaveOccurred())
+			Expect(r.Delete(ctx, cloudConfig)).Should(Succeed())
+		})
+
+		It("should reconcile CPI configuration, configStatus Not Verified", func() {
+			cloudConfigStatus := v1alpha1.VsphereCloudConfigStatus{}
+			cloudConfigStatus.Config = "unknown"
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "kube-system",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: cloudConfigStatus,
+			}
+
+			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
+			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).To(HaveOccurred())
+			Expect(r.Delete(ctx, cloudConfig)).Should(Succeed())
+		})
+
+		It("should reconcile CPI configuration, configStatus Verified", func() {
+			vc_user := "test_user"
+			vc_pwd := "test_user_pwd"
+			cloudConfigStatus := v1alpha1.VsphereCloudConfigStatus{}
+			cloudConfigStatus.Config = "verified"
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "kube-system",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: cloudConfigStatus,
+			}
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte(vc_user),
+					"password": []byte(vc_pwd),
+				},
+			}
+
+			daemonSet := &v1.DaemonSet{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vsphere-cloud-controller-manager",
+					Namespace: "kube-system",
+					Labels:    map[string]string{"app": "k8s-app"},
+				},
+				Spec: v1.DaemonSetSpec{},
+				Status: v1.DaemonSetStatus{
+					NumberUnavailable: 0,
+				},
+			}
+
+			Expect(r.Create(ctx, daemonSet)).Should(Succeed())
+			Expect(r.Create(ctx, secret)).Should(Succeed())
+			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
+			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).NotTo(HaveOccurred())
+		})
+
+	})
+})
+
+var _ = Describe("TestCSIConfigurationReconcile", func() {
+	Context("reconcileCSIConfiguration all sceanrios", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("reconcileCPIConfigurationTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		vdoConfig := initializeVDOConfig("kube-system")
+		req := *new(ctrl.Request)
+		req.Namespace = "kube-system"
+
+		It("should reconcileCSIConfiguration, configStatus Failed", func() {
+			_, errcpi := r.reconcileCSIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).To(HaveOccurred())
+		})
+
+		It("should reconcileCSIConfiguration, configStatus Found, Not Configured", func() {
+			vc_user := "test_user"
+			vc_pwd := "test_user_pwd"
+			cloudConfigStatus := v1alpha1.VsphereCloudConfigStatus{}
+			cloudConfigStatus.Config = "verified"
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "kube-system",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: cloudConfigStatus,
+			}
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte(vc_user),
+					"password": []byte(vc_pwd),
+				},
+			}
+
+			daemonSet := &v1.DaemonSet{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vsphere-cloud-controller-manager",
+					Namespace: "kube-system",
+					Labels:    map[string]string{"app": "k8s-app"},
+				},
+				Spec: v1.DaemonSetSpec{},
+				Status: v1.DaemonSetStatus{
+					NumberUnavailable: 0,
+				},
+			}
+
+			Expect(r.Create(ctx, daemonSet)).Should(Succeed())
+			Expect(r.Create(ctx, secret)).Should(Succeed())
+			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
+			_, errcpi := r.reconcileCSIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).To(HaveOccurred())
+			Expect(r.Delete(ctx, daemonSet)).Should(Succeed())
+			Expect(r.Delete(ctx, secret)).Should(Succeed())
+			Expect(r.Delete(ctx, cloudConfig)).Should(Succeed())
+		})
+
+		It("should reconcileCSIConfiguration, configStatus Found, Configured", func() {
+			vc_user := "test_user"
+			vc_pwd := "test_user_pwd"
+			cloudConfigStatus := v1alpha1.VsphereCloudConfigStatus{}
+			cloudConfigStatus.Config = "verified"
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "kube-system",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: cloudConfigStatus,
+			}
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte(vc_user),
+					"password": []byte(vc_pwd),
+				},
+			}
+
+			daemonSet := &v1.DaemonSet{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vsphere-cloud-controller-manager",
+					Namespace: "kube-system",
+					Labels:    map[string]string{"app": "k8s-app"},
+				},
+				Spec: v1.DaemonSetSpec{},
+				Status: v1.DaemonSetStatus{
+					NumberUnavailable: 0,
+				},
+			}
+
+			configMap := &v12.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "internal-feature-states.csi.vsphere.vmware.com",
+					Namespace: "kube-system",
+				},
+				Immutable: nil,
+				Data: map[string]string{
+					"use-csinode-id": "true",
+				},
+				BinaryData: nil,
+			}
+
+			csiDaemonSet := &v1.DaemonSet{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vsphere-csi-node",
+					Namespace: "kube-system",
+					Labels:    map[string]string{"app": "app"},
+				},
+				Spec: v1.DaemonSetSpec{},
+				Status: v1.DaemonSetStatus{
+					NumberUnavailable: 0,
+				},
+			}
+
+			node := &v12.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-node"},
+				Spec:       v12.NodeSpec{ProviderID: "vsphere://testid"},
+			}
+
+			csiNode := &storagev1.CSINode{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-node",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: node.APIVersion,
+							Kind:       node.Kind,
+							Name:       node.Name,
+							UID:        node.UID,
+						},
+					},
+				},
+				Spec: storagev1.CSINodeSpec{
+					Drivers: []storagev1.CSINodeDriver{},
+				},
+			}
+			r.CurrentCSIDeployedVersion = "2.6.0"
+
+			Expect(r.Create(vdoctx, configMap)).Should(Succeed())
+			Expect(r.Create(ctx, daemonSet)).Should(Succeed())
+			Expect(r.Create(ctx, csiDaemonSet)).Should(Succeed())
+			Expect(r.Create(ctx, secret)).Should(Succeed())
+			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
+			_, err := clientSet.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = clientSet.StorageV1().CSINodes().Create(ctx, csiNode, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+			_, errcpi := r.reconcileCSIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).To(HaveOccurred())
+			_, errcpi = r.reconcileCSIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(errcpi).To(HaveOccurred())
+			Expect(r.Delete(ctx, daemonSet)).Should(Succeed())
+			Expect(r.Delete(ctx, secret)).Should(Succeed())
+			Expect(r.Delete(ctx, cloudConfig)).Should(Succeed())
+		})
+
+	})
+})
+
 var _ = Describe("TestDeleteReconcile", func() {
 	Context("When Upgrade scenario hits", func() {
 		RegisterFailHandler(Fail)
@@ -335,7 +664,7 @@ var _ = Describe("TestReconcileConfigMap", func() {
 
 		cloudconfiglist := initializeVsphereConfigList()
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 
 		Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
 
@@ -352,6 +681,7 @@ var _ = Describe("TestReconcileConfigMap", func() {
 			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, secretTestKey)
 			Expect(err).NotTo(HaveOccurred())
 		})
+
 	})
 })
 
@@ -395,7 +725,7 @@ var _ = Describe("TestReconcileCSISecret", func() {
 			Status: v1alpha1.VsphereCloudConfigStatus{},
 		}
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 
 		BeforeEach(func() {
 			secret := &v12.Secret{
@@ -447,7 +777,7 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 
 		cloudconfiglist := initializeVsphereConfigList()
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
 		node1 := v12.Node{
@@ -521,7 +851,7 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 		Expect(clientSet).NotTo(BeNil())
 
 		cloudconfiglist := initializeVsphereConfigList()
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 
 		SessionFn = func(ctx context.Context,
 			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
@@ -607,7 +937,7 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 		}
 		cloudconfiglist := []v1alpha1.VsphereCloudConfig{cloudConfig}
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 
 		SessionFn = func(ctx context.Context,
 			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
@@ -678,7 +1008,7 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 
 		cloudconfiglist := initializeVsphereConfigList()
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 
 		SessionFn = func(ctx context.Context,
 			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
@@ -786,7 +1116,7 @@ var _ = Describe("TestReconcileNodeLabel", func() {
 			},
 		}
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
 		vdoConfig.Status.CPIStatus.NodeStatus = map[string]v1alpha1.NodeStatus{node1.Name: v1alpha1.NodeStatusReady}
@@ -1245,7 +1575,7 @@ var _ = Describe("TestupdateMatrixInfo", func() {
 			}, nil
 
 		}
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
 		It("should create the resources without error", func() {
@@ -1370,7 +1700,7 @@ var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 
 		matrixString := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
 
-		vdoConfig := initializeVDOConfig()
+		vdoConfig := initializeVDOConfig("default")
 		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
 
 		//Setup VC SIM
@@ -1436,7 +1766,7 @@ var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 			Expect(err.Error()).Should(Equal("could not fetch compatible CPI version for vSphere version and k8s version "))
 		})
 
-		vdoConfigWithoutCpi := initializeVDOConfig()
+		vdoConfigWithoutCpi := initializeVDOConfig("default")
 		vdoConfigWithoutCpi.Spec.CloudProvider = v1alpha1.CloudProviderConfig{}
 		It("Should fetch deployment yamls without errors if only CSI is configured", func() {
 			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfigWithoutCpi, matrixStringIncompatibleCPI)
@@ -1496,7 +1826,7 @@ var _ = Describe("TestReconcile", func() {
 				Status: v1alpha1.VsphereCloudConfigStatus{},
 			}
 
-			vdoConfig := initializeVDOConfig()
+			vdoConfig := initializeVDOConfig("default")
 
 			Expect(r.Create(vdoctx, secret)).Should(Succeed())
 			Expect(r.Create(vdoctx, cloudConfig)).Should(Succeed())
@@ -1543,12 +1873,12 @@ func initializeVsphereConfigList() []v1alpha1.VsphereCloudConfig {
 	return cloudconfiglist
 }
 
-func initializeVDOConfig() *v1alpha1.VDOConfig {
+func initializeVDOConfig(namespace string) *v1alpha1.VDOConfig {
 	vdoConfig := &v1alpha1.VDOConfig{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vdo-sample",
-			Namespace: "default",
+			Namespace: namespace,
 		},
 		Spec: v1alpha1.VDOConfigSpec{
 			CloudProvider: v1alpha1.CloudProviderConfig{
