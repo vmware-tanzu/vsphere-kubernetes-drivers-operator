@@ -431,6 +431,8 @@ var _ = Describe("TestCPIReconcile", func() {
 			}
 			Expect(r.Update(ctx, secretCPI)).Should(Succeed())
 			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
+			Expect(err).NotTo(HaveOccurred())
+			
 			_, err = r.reconcileCPISecret(vdoctx, vdoConfig, &vsphereCloudConfigItems, cpiSecretKey)
 			Expect(err).NotTo(HaveOccurred())
 
