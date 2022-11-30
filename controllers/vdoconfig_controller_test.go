@@ -164,6 +164,17 @@ var _ = Describe("TestReconcileCSIDeploymentStatus", func() {
 
 		It("should reconcile deployment status without error", func() {
 			Expect(r.reconcileCSIDeploymentStatus(vdoctx, clientSet)).NotTo(HaveOccurred())
+
+			// Verify verifyCSINodeStatus all scenarios
+			node := &v12.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-node-2"},
+				Spec:       v12.NodeSpec{ProviderID: "vsphere://testid2"},
+			}
+			_, err := clientSet.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = r.verifyCSINodeStatus(vdoctx, clientSet)
+			Expect(err).To(HaveOccurred())
 		})
 
 	})
