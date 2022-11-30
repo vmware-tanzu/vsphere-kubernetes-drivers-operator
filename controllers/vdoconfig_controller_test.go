@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
@@ -164,6 +165,17 @@ var _ = Describe("TestReconcileCSIDeploymentStatus", func() {
 
 		It("should reconcile deployment status without error", func() {
 			Expect(r.reconcileCSIDeploymentStatus(vdoctx, clientSet)).NotTo(HaveOccurred())
+
+			// Verify verifyCSINodeStatus all scenarios
+			node := &v12.Node{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-node-2"},
+				Spec:       v12.NodeSpec{ProviderID: "vsphere://testid2"},
+			}
+			_, err := clientSet.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = r.verifyCSINodeStatus(vdoctx, clientSet)
+			Expect(err).To(HaveOccurred())
 		})
 
 	})
@@ -401,6 +413,37 @@ var _ = Describe("TestCPIReconcile", func() {
 			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
 			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
 			Expect(errcpi).NotTo(HaveOccurred())
+
+			// update reconcileCPISecret
+			secretCPI := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cpi-global-secret",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte("test-user-2"),
+					"password": []byte(vc_pwd),
+				},
+			}
+			cpiSecretKey := types.NamespacedName{
+				Namespace: VC_CREDS_SECRET_NS,
+				Name:      SECRET_NAME,
+			}
+			Expect(r.Update(ctx, secretCPI)).Should(Succeed())
+			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = r.reconcileCPISecret(vdoctx, vdoConfig, &vsphereCloudConfigItems, cpiSecretKey)
+			Expect(err).NotTo(HaveOccurred())
+
+			// updateVdoConfigWithNodeStatus failure
+			nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
+			vdoConfig.Status.CPIStatus.Phase = "pending"
+			nodeStatus["trial-fail"] = vdov1alpha1.NodeStatusPending
+			vdoConfig.Status.CPIStatus.NodeStatus = nodeStatus
+			err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, nodeStatus)
+			Expect(err).NotTo(HaveOccurred())
+
 		})
 
 	})
@@ -633,7 +676,21 @@ var _ = Describe("TestDeleteReconcile", func() {
 		r.CsiDeploymentYamls = append(r.CsiDeploymentYamls, "https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
 		r.CpiDeploymentYamls = append(r.CpiDeploymentYamls, "https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
 
-		_, err := r.applyYaml(r.CsiDeploymentYamls[0], vdoctx, false, dynclient.CREATE)
+		_, err := r.reconcileCPIDeployment(vdoctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = r.reconcileCSIDeployment(vdoctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		r.CpiDeploymentYamls = append(r.CpiDeploymentYamls, "")
+		r.CsiDeploymentYamls = append(r.CsiDeploymentYamls, "")
+		_, err = r.reconcileCPIDeployment(vdoctx)
+		Expect(err).To(HaveOccurred())
+
+		_, err = r.reconcileCSIDeployment(vdoctx)
+		Expect(err).To(HaveOccurred())
+
+		_, err = r.applyYaml(r.CsiDeploymentYamls[0], vdoctx, false, dynclient.CREATE)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = r.deleteCSIDeployment(vdoctx)
@@ -644,49 +701,6 @@ var _ = Describe("TestDeleteReconcile", func() {
 
 		_, err = r.deleteCPIDeployment(vdoctx)
 		Expect(err).NotTo(HaveOccurred())
-	})
-})
-
-var _ = Describe("TestReconcileConfigMap", func() {
-
-	Context("When Configmap Creation succeeds", func() {
-		RegisterFailHandler(Fail)
-		ctx := context.Background()
-
-		s := scheme.Scheme
-		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
-
-		r := VDOConfigReconciler{
-			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
-			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
-			Scheme: s,
-		}
-
-		vdoctx := vdocontext.VDOContext{
-			Context: ctx,
-			Logger:  r.Logger,
-		}
-
-		cloudconfiglist := initializeVsphereConfigList()
-
-		vdoConfig := initializeVDOConfig("default")
-
-		Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
-
-		clientSet := fake.NewSimpleClientset()
-		Expect(clientSet).NotTo(BeNil())
-
-		secretTestKey := types.NamespacedName{
-			Name:      "test-secret",
-			Namespace: "kube-system",
-		}
-
-		cpi.CPI_VSPHERE_CONF_FILE = "test_config.conf"
-		It("should reconcile configmap without error", func() {
-			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, secretTestKey)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
 	})
 })
 
@@ -1644,143 +1658,6 @@ var _ = Describe("TestupdateMatrixInfo", func() {
 	})
 })
 
-var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
-
-	Context("When fetching deployment yamls", func() {
-		RegisterFailHandler(Fail)
-		ctx := context.Background()
-
-		var sim *simulator.Server
-		var vc_user, vc_pwd string
-
-		s := scheme.Scheme
-		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
-
-		clientSet := fake.NewSimpleClientset()
-		Expect(clientSet).NotTo(BeNil())
-
-		expect := version.Info{
-			Major:     "1",
-			Minor:     "21",
-			GitCommit: "v1.21.1",
-		}
-		// get server object with expected version info
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			output, err := json.Marshal(expect)
-			Expect(err).NotTo(HaveOccurred())
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, err = w.Write(output)
-			Expect(err).NotTo(HaveOccurred())
-		}))
-
-		r := VDOConfigReconciler{
-			Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
-			Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
-			Scheme:       s,
-			ClientConfig: &restclient.Config{Host: server.URL},
-		}
-
-		vdoctx := vdocontext.VDOContext{
-			Context: ctx,
-			Logger:  r.Logger,
-		}
-
-		req := reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      "test-resource",
-				Namespace: "default",
-			},
-		}
-
-		SessionFn = func(ctx context.Context,
-			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
-			return &session.Session{
-				Client:         nil,
-				Datacenters:    nil,
-				VsphereVersion: "7.0.3",
-			}, nil
-
-		}
-
-		matrixString := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
-
-		vdoConfig := initializeVDOConfig("default")
-		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
-
-		//Setup VC SIM
-		model := simulator.VPX()
-		model.Host = 0 // ClusterHost only
-
-		defer model.Remove()
-		err := model.Create()
-		if err != nil {
-			Expect(err).NotTo(HaveOccurred())
-		}
-		model.Service.TLS = new(tls.Config)
-
-		sim = model.Service.NewServer()
-		vc_pwd, _ = sim.URL.User.Password()
-		vc_user = sim.URL.User.Username()
-
-		It("should create the resources without error", func() {
-
-			secret := &v12.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "secret-ref",
-					Namespace: "kube-system",
-				},
-				Data: map[string][]byte{
-					"username": []byte(vc_user),
-					"password": []byte(vc_pwd),
-				},
-			}
-			Expect(r.Create(ctx, secret)).Should(Succeed())
-
-			cloudConfig := &v1alpha1.VsphereCloudConfig{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-resource",
-					Namespace: "default",
-				},
-				Spec: v1alpha1.VsphereCloudConfigSpec{
-					VcIP:        "1.1.1.1",
-					Insecure:    true,
-					Credentials: "secret-ref",
-					DataCenters: []string{"datacenter-1"},
-				},
-				Status: v1alpha1.VsphereCloudConfigStatus{},
-			}
-			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
-			defer sim.Close()
-		})
-
-		It("Should fetch deployment yamls without error", func() {
-			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixString)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		matrixStringIncompatibleCSI := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.23\", \"max\": \"1.24\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
-		It("Should fail with CSI Version not available error when CSI/CPI is configured", func() {
-			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixStringIncompatibleCSI)
-			Expect(err.Error()).Should(Equal("could not fetch compatible CSI version for vSphere version and k8s version "))
-		})
-
-		matrixStringIncompatibleCPI := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.22\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
-		It("Should fail with CPI Version not available error when CSI/CPI is configured", func() {
-			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixStringIncompatibleCPI)
-			Expect(err.Error()).Should(Equal("could not fetch compatible CPI version for vSphere version and k8s version "))
-		})
-
-		vdoConfigWithoutCpi := initializeVDOConfig("default")
-		vdoConfigWithoutCpi.Spec.CloudProvider = v1alpha1.CloudProviderConfig{}
-		It("Should fetch deployment yamls without errors if only CSI is configured", func() {
-			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfigWithoutCpi, matrixStringIncompatibleCPI)
-			Expect(err).NotTo(HaveOccurred())
-			defer server.Close()
-		})
-	})
-})
-
 var _ = Describe("TestReconcile", func() {
 	Context("when reconcile is queued", func() {
 
@@ -1800,7 +1677,6 @@ var _ = Describe("TestReconcile", func() {
 				Scheme:       s,
 				ClientConfig: testRestConfig,
 			}
-
 			vdoctx := vdocontext.VDOContext{
 				Context: ctx,
 				Logger:  r.Logger,
@@ -1842,7 +1718,78 @@ var _ = Describe("TestReconcile", func() {
 			req := ctrl.Request{NamespacedName: ns}
 			_, err := r.Reconcile(ctx, req)
 			Expect(err.Error()).To(BeEquivalentTo("Matrix Config URL/Content not provided in proper format"))
+
+			vdoNamespace := os.Getenv("VDO_NAMESPACE")
+			os.Unsetenv("VDO_NAMESPACE")
+			_, err = r.Reconcile(ctx, req)
+			Expect(err.Error()).To(BeEquivalentTo("Unable to determine operator namespace"))
+			os.Setenv("VDO_NAMESPACE", vdoNamespace)
+
+			ns2 := types.NamespacedName{Name: "vdo-sample:2",
+				Namespace: "default"}
+			req2 := ctrl.Request{NamespacedName: ns2}
+			_, err = r.Reconcile(ctx, req2)
+			Expect(err).To(HaveOccurred())
+			req.Name = "vdo-sample"
+			_, err = r.Reconcile(ctx, req)
+			Expect(err).To(HaveOccurred())
 		})
+	})
+})
+
+var _ = Describe("TestReconcileConfigMap", func() {
+
+	Context("When Configmap Creation succeeds", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		cloudconfiglist := initializeVsphereConfigList()
+
+		vdoConfig := initializeVDOConfig("default")
+
+		Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		secretTestKey := types.NamespacedName{
+			Name:      "test-secret",
+			Namespace: "kube-system",
+		}
+
+		cpi.CPI_VSPHERE_CONF_FILE = "test_config.conf"
+		It("should reconcile configmap without error", func() {
+			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, secretTestKey)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("when cloud-config map exist", func() {
+			configMapKey := types.NamespacedName{
+				Namespace: VC_CREDS_SECRET_NS,
+				Name:      CONFIGMAP_NAME,
+			}
+			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, configMapKey)
+			Expect(err).NotTo(HaveOccurred())
+
+			// When configMapIsSame is true
+			_, err = r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, configMapKey)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 	})
 })
 
@@ -2068,5 +2015,170 @@ var _ = Describe("TestUpdatingCSIConfigmap", func() {
 			Expect(configMap.Data[CSI_NODE_ID]).ShouldNot(BeNil())
 		})
 
+	})
+})
+
+var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
+
+	Context("When fetching deployment yamls", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		var sim *simulator.Server
+		var vc_user, vc_pwd string
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		expect := version.Info{
+			Major:     "1",
+			Minor:     "21",
+			GitCommit: "v1.21.1",
+		}
+		// get server object with expected version info
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			output, err := json.Marshal(expect)
+			Expect(err).NotTo(HaveOccurred())
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, err = w.Write(output)
+			Expect(err).NotTo(HaveOccurred())
+		}))
+
+		r := VDOConfigReconciler{
+			Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme:       s,
+			ClientConfig: &restclient.Config{Host: server.URL},
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      "test-resource",
+				Namespace: "default",
+			},
+		}
+
+		SessionFn = func(ctx context.Context,
+			server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+			return &session.Session{
+				Client:         nil,
+				Datacenters:    nil,
+				VsphereVersion: "7.0.3",
+			}, nil
+
+		}
+
+		matrixString := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
+
+		vdoConfig := initializeVDOConfig("default")
+		Expect(r.Create(vdoctx, vdoConfig)).Should(Succeed())
+
+		//Setup VC SIM
+		model := simulator.VPX()
+		model.Host = 0 // ClusterHost only
+
+		defer model.Remove()
+		err := model.Create()
+		if err != nil {
+			Expect(err).NotTo(HaveOccurred())
+		}
+		model.Service.TLS = new(tls.Config)
+
+		sim = model.Service.NewServer()
+		vc_pwd, _ = sim.URL.User.Password()
+		vc_user = sim.URL.User.Username()
+
+		It("should create the resources without error", func() {
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte(vc_user),
+					"password": []byte(vc_pwd),
+				},
+			}
+			Expect(r.Create(ctx, secret)).Should(Succeed())
+
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: v1alpha1.VsphereCloudConfigStatus{},
+			}
+			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
+			defer sim.Close()
+		})
+
+		It("Test Config URL", func() {
+			matrixConfig := "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/main/artifacts/compatibility-yaml/compatibility-v0.2.1.yaml"
+			os.Setenv(COMPAT_MATRIX_CONFIG_URL, matrixConfig)
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfig)
+			Expect(err).NotTo(HaveOccurred())
+			os.Setenv(COMPAT_MATRIX_CONFIG_URL, "")
+		})
+
+		It("Should fetch deployment yamls without error", func() {
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixString)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		matrixStringIncompatibleCSI := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.23\", \"max\": \"1.24\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.21\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
+		It("Should fail with CSI Version not available error when CSI/CPI is configured", func() {
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixStringIncompatibleCSI)
+			Expect(err.Error()).Should(Equal("could not fetch compatible CSI version for vSphere version and k8s version "))
+		})
+
+		matrixStringIncompatibleCPI := "{\n    \"CSI\" : {\n            \"2.2.1\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"min\": \"1.18\", \"max\": \"1.21\"},\n                    \"isCPIRequired\" : false,\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml\"]\n                    }\n        },\n    \"CPI\" : {\n            \"1.20.0\" : {\n                    \"vSphere\" : { \"min\" : \"6.7.0\", \"max\": \"7.0.7\"},\n                    \"k8s\" : {\"skewVersion\": \"1.22\"},\n                    \"deploymentPath\": [\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml\",\n                    \"https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml\"]\n                    }\n        }\n             \n}"
+		It("Should fail with CPI Version not available error when CSI/CPI is configured", func() {
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixStringIncompatibleCPI)
+			Expect(err.Error()).Should(Equal("could not fetch compatible CPI version for vSphere version and k8s version "))
+		})
+
+		vdoConfigWithoutCpi := initializeVDOConfig("default")
+		vdoConfigWithoutCpi.Spec.CloudProvider = v1alpha1.CloudProviderConfig{}
+		It("Should fetch deployment yamls without errors if only CSI is configured", func() {
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfigWithoutCpi, matrixStringIncompatibleCPI)
+			Expect(err).NotTo(HaveOccurred())
+			defer server.Close()
+		})
+	})
+})
+
+var _ = Describe("Test SetupWithMgs", func() {
+	Context("SettingUpWithMgs", func() {
+		RegisterFailHandler(Fail)
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		It("When SettingUp with Mgr success", func() {
+			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{})
+			Expect(err).NotTo(HaveOccurred())
+			err = (&VDOConfigReconciler{
+				Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+				Logger: ctrllog.Log.WithName("reconcileCPIConfigurationTest"),
+				Scheme: s,
+			}).SetupWithManager(mgr)
+			Expect(err).NotTo(HaveOccurred())
+		})
 	})
 })

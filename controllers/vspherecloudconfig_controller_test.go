@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"crypto/tls"
+
+	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -138,10 +140,30 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 				},
 			}
 
-			Expect(client.Create(ctx, secret)).Should(Succeed())
-
+			// When the secret is unknown
 			_, error := r.Reconcile(ctx, req)
+			Expect(error).To(HaveOccurred())
+
+			// When session fails
+			tempConfig := &vdov1alpha1.VsphereCloudConfig{}
+			Expect(client.Create(ctx, secret)).Should(Succeed())
+			err := r.Get(ctx, req.NamespacedName, tempConfig)
+			if err == nil {
+				// Let the URL parsing Fail
+				tempConfig.Spec.VcIP = "DEL"
+				tempConfig.Spec.Thumbprint = ""
+				_, error = r.reconcileVCCredentials(ctx, tempConfig)
+				Expect(error).To(HaveOccurred())
+			}
+
+			// When all configs are available
+			_, error = r.Reconcile(ctx, req)
 			Expect(error).ToNot(HaveOccurred())
+
+			// When the namespace is unknown
+			req.NamespacedName.Namespace = "nonexistent"
+			_, error = r.Reconcile(ctx, req)
+			Expect(error).To(HaveOccurred())
 
 			config := v1alpha1.VsphereCloudConfig{}
 			Eventually(func() v1alpha1.ConfigStatus {
