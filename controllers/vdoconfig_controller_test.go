@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
+	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	dynclient "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/client"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/cpi"
@@ -412,6 +413,14 @@ var _ = Describe("TestCPIReconcile", func() {
 			Expect(r.Create(ctx, cloudConfig)).Should(Succeed())
 			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
 			Expect(errcpi).NotTo(HaveOccurred())
+
+			// updateVdoConfigWithNodeStatus failure
+			nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
+			vdoConfig.Status.CPIStatus.Phase = "pending"
+			nodeStatus["trial-fail"] = vdov1alpha1.NodeStatusPending
+			vdoConfig.Status.CPIStatus.NodeStatus = nodeStatus
+			err := r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, nodeStatus)
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 	})
