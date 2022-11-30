@@ -143,17 +143,20 @@ var _ = Describe("VsphereCloudConfig controller", func() {
 			// When the secret is unknown
 			_, error := r.Reconcile(ctx, req)
 			Expect(error).To(HaveOccurred())
+
+			// When session fails
 			tempConfig := &vdov1alpha1.VsphereCloudConfig{}
-			r.Get(ctx, req.NamespacedName, tempConfig)
-			// Let the URL parsing Fail
-			tempConfig.Spec.VcIP = "DEL"
-			tempConfig.Spec.Thumbprint = ""
 			Expect(client.Create(ctx, secret)).Should(Succeed())
-			_, error = r.reconcileVCCredentials(ctx, tempConfig)
-			Expect(error).To(HaveOccurred())
+			err := r.Get(ctx, req.NamespacedName, tempConfig)
+			if err == nil {
+				// Let the URL parsing Fail
+				tempConfig.Spec.VcIP = "DEL"
+				tempConfig.Spec.Thumbprint = ""
+				_, error = r.reconcileVCCredentials(ctx, tempConfig)
+				Expect(error).To(HaveOccurred())
+			}
 
 			// When all configs are available
-			//Expect(client.Create(ctx, secret)).Should(Succeed())
 			_, error = r.Reconcile(ctx, req)
 			Expect(error).ToNot(HaveOccurred())
 
