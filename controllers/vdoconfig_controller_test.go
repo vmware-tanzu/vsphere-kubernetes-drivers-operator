@@ -432,7 +432,7 @@ var _ = Describe("TestCPIReconcile", func() {
 			Expect(r.Update(ctx, secretCPI)).Should(Succeed())
 			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
 			Expect(err).NotTo(HaveOccurred())
-			
+
 			_, err = r.reconcileCPISecret(vdoctx, vdoConfig, &vsphereCloudConfigItems, cpiSecretKey)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -1677,7 +1677,6 @@ var _ = Describe("TestReconcile", func() {
 				Scheme:       s,
 				ClientConfig: testRestConfig,
 			}
-
 			vdoctx := vdocontext.VDOContext{
 				Context: ctx,
 				Logger:  r.Logger,
@@ -1719,6 +1718,21 @@ var _ = Describe("TestReconcile", func() {
 			req := ctrl.Request{NamespacedName: ns}
 			_, err := r.Reconcile(ctx, req)
 			Expect(err.Error()).To(BeEquivalentTo("Matrix Config URL/Content not provided in proper format"))
+
+			vdoNamespace := os.Getenv("VDO_NAMESPACE")
+			os.Unsetenv("VDO_NAMESPACE")
+			_, err = r.Reconcile(ctx, req)
+			Expect(err.Error()).To(BeEquivalentTo("Unable to determine operator namespace"))
+			os.Setenv("VDO_NAMESPACE", vdoNamespace)
+
+			ns2 := types.NamespacedName{Name: "vdo-sample:2",
+				Namespace: "default"}
+			req2 := ctrl.Request{NamespacedName: ns2}
+			_, err = r.Reconcile(ctx, req2)
+			Expect(err).To(HaveOccurred())
+			req.Name = "vdo-sample"
+			_, err = r.Reconcile(ctx, req)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })
