@@ -644,7 +644,21 @@ var _ = Describe("TestDeleteReconcile", func() {
 		r.CsiDeploymentYamls = append(r.CsiDeploymentYamls, "https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
 		r.CpiDeploymentYamls = append(r.CpiDeploymentYamls, "https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
 
-		_, err := r.applyYaml(r.CsiDeploymentYamls[0], vdoctx, false, dynclient.CREATE)
+		_, err := r.reconcileCPIDeployment(vdoctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = r.reconcileCSIDeployment(vdoctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		r.CpiDeploymentYamls = append(r.CpiDeploymentYamls, "")
+		r.CsiDeploymentYamls = append(r.CsiDeploymentYamls, "")
+		_, err = r.reconcileCPIDeployment(vdoctx)
+		Expect(err).To(HaveOccurred())
+
+		_, err = r.reconcileCSIDeployment(vdoctx)
+		Expect(err).To(HaveOccurred())
+
+		_, err = r.applyYaml(r.CsiDeploymentYamls[0], vdoctx, false, dynclient.CREATE)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, err = r.deleteCSIDeployment(vdoctx)
