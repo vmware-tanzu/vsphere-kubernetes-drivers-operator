@@ -414,13 +414,34 @@ var _ = Describe("TestCPIReconcile", func() {
 			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
 			Expect(errcpi).NotTo(HaveOccurred())
 
+			// update reconcileCPISecret
+			secretCPI := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cpi-global-secret",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte("test-user-2"),
+					"password": []byte(vc_pwd),
+				},
+			}
+			cpiSecretKey := types.NamespacedName{
+				Namespace: VC_CREDS_SECRET_NS,
+				Name:      SECRET_NAME,
+			}
+			Expect(r.Update(ctx, secretCPI)).Should(Succeed())
+			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
+			_, err = r.reconcileCPISecret(vdoctx, vdoConfig, &vsphereCloudConfigItems, cpiSecretKey)
+			Expect(err).NotTo(HaveOccurred())
+
 			// updateVdoConfigWithNodeStatus failure
 			nodeStatus := make(map[string]vdov1alpha1.NodeStatus)
 			vdoConfig.Status.CPIStatus.Phase = "pending"
 			nodeStatus["trial-fail"] = vdov1alpha1.NodeStatusPending
 			vdoConfig.Status.CPIStatus.NodeStatus = nodeStatus
-			err := r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, nodeStatus)
+			err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, nodeStatus)
 			Expect(err).NotTo(HaveOccurred())
+
 		})
 
 	})
@@ -678,49 +699,6 @@ var _ = Describe("TestDeleteReconcile", func() {
 
 		_, err = r.deleteCPIDeployment(vdoctx)
 		Expect(err).NotTo(HaveOccurred())
-	})
-})
-
-var _ = Describe("TestReconcileConfigMap", func() {
-
-	Context("When Configmap Creation succeeds", func() {
-		RegisterFailHandler(Fail)
-		ctx := context.Background()
-
-		s := scheme.Scheme
-		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
-
-		r := VDOConfigReconciler{
-			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
-			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
-			Scheme: s,
-		}
-
-		vdoctx := vdocontext.VDOContext{
-			Context: ctx,
-			Logger:  r.Logger,
-		}
-
-		cloudconfiglist := initializeVsphereConfigList()
-
-		vdoConfig := initializeVDOConfig("default")
-
-		Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
-
-		clientSet := fake.NewSimpleClientset()
-		Expect(clientSet).NotTo(BeNil())
-
-		secretTestKey := types.NamespacedName{
-			Name:      "test-secret",
-			Namespace: "kube-system",
-		}
-
-		cpi.CPI_VSPHERE_CONF_FILE = "test_config.conf"
-		It("should reconcile configmap without error", func() {
-			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, secretTestKey)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
 	})
 })
 
@@ -1877,6 +1855,62 @@ var _ = Describe("TestReconcile", func() {
 			_, err := r.Reconcile(ctx, req)
 			Expect(err.Error()).To(BeEquivalentTo("Matrix Config URL/Content not provided in proper format"))
 		})
+	})
+})
+
+var _ = Describe("TestReconcileConfigMap", func() {
+
+	Context("When Configmap Creation succeeds", func() {
+		RegisterFailHandler(Fail)
+		ctx := context.Background()
+
+		s := scheme.Scheme
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.VDOConfig{})
+
+		r := VDOConfigReconciler{
+			Client: fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+			Logger: ctrllog.Log.WithName("VDOConfigControllerTest"),
+			Scheme: s,
+		}
+
+		vdoctx := vdocontext.VDOContext{
+			Context: ctx,
+			Logger:  r.Logger,
+		}
+
+		cloudconfiglist := initializeVsphereConfigList()
+
+		vdoConfig := initializeVDOConfig("default")
+
+		Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
+
+		clientSet := fake.NewSimpleClientset()
+		Expect(clientSet).NotTo(BeNil())
+
+		secretTestKey := types.NamespacedName{
+			Name:      "test-secret",
+			Namespace: "kube-system",
+		}
+
+		cpi.CPI_VSPHERE_CONF_FILE = "test_config.conf"
+		It("should reconcile configmap without error", func() {
+			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, secretTestKey)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("when cloud-config map exist", func() {
+			configMapKey := types.NamespacedName{
+				Namespace: VC_CREDS_SECRET_NS,
+				Name:      CONFIGMAP_NAME,
+			}
+			_, err := r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, configMapKey)
+			Expect(err).NotTo(HaveOccurred())
+
+			// When configMapIsSame is true
+			_, err = r.reconcileConfigMap(vdoctx, vdoConfig, &cloudconfiglist, configMapKey)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 	})
 })
 
