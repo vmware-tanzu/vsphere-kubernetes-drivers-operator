@@ -318,6 +318,14 @@ var _ = Describe("TestCPIReconcile", func() {
 		req := *new(ctrl.Request)
 		req.Namespace = "kube-system"
 
+		It("when cloudconfig is empty", func() {
+			vdoConfigTemp := *vdoConfig
+			vdoConfigTemp.Spec.CloudProvider.VsphereCloudConfigs = []string{}
+
+			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, &vdoConfigTemp, clientSet)
+			Expect(errcpi).NotTo(HaveOccurred())
+		})
+
 		It("should reconcile CPI configuration, configStatus Failed", func() {
 			cloudConfigStatus := v1alpha1.VsphereCloudConfigStatus{}
 			cloudConfigStatus.Config = "failed"
@@ -414,6 +422,8 @@ var _ = Describe("TestCPIReconcile", func() {
 			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
 			Expect(errcpi).NotTo(HaveOccurred())
 
+
+
 			// update reconcileCPISecret
 			secretCPI := &v12.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -433,6 +443,11 @@ var _ = Describe("TestCPIReconcile", func() {
 			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
 			Expect(err).NotTo(HaveOccurred())
 
+			//Provide unknown cloudconfig
+			req.NamespacedName.Namespace = "unknown"
+			vsphereCloudConfigItems, err = r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, []string{"un-known"})
+			Expect(err).To(HaveOccurred())
+
 			_, err = r.reconcileCPISecret(vdoctx, vdoConfig, &vsphereCloudConfigItems, cpiSecretKey)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -444,8 +459,29 @@ var _ = Describe("TestCPIReconcile", func() {
 			err = r.updateVdoConfigWithNodeStatus(vdoctx, vdoConfig, vdoConfig.Status.CPIStatus.Phase, nodeStatus)
 			Expect(err).NotTo(HaveOccurred())
 
-		})
+			// Error CloudConfig
+			cloudConfig2 := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource-2",
+					Namespace: "kube-system",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref-2",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: cloudConfigStatus,
+			}
+			Expect(r.Create(ctx, cloudConfig2)).Should(Succeed())
+			_, err = r.getVcSession(vdoctx, cloudConfig2)
+			Expect(err).To(HaveOccurred())
 
+			vdoConfig.Spec.CloudProvider.VsphereCloudConfigs = []string{"test-resource-2"}
+			_, err = r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
+			Expect(err).To(HaveOccurred())
+
+		})
 	})
 })
 
