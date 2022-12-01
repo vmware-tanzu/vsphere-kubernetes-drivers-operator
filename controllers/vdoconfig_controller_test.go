@@ -1707,7 +1707,7 @@ var _ = Describe("TestReconcile", func() {
 				Status: v1alpha1.VsphereCloudConfigStatus{},
 			}
 
-			vdoConfig := initializeVDOConfig("default")
+			vdoConfig := initializeVDOConfigWithStatus("default")
 
 			Expect(r.Create(vdoctx, secret)).Should(Succeed())
 			Expect(r.Create(vdoctx, cloudConfig)).Should(Succeed())
@@ -1725,11 +1725,12 @@ var _ = Describe("TestReconcile", func() {
 			Expect(err.Error()).To(BeEquivalentTo("Unable to determine operator namespace"))
 			os.Setenv("VDO_NAMESPACE", vdoNamespace)
 
-			ns2 := types.NamespacedName{Name: "vdo-sample:2",
+			ns2 := types.NamespacedName{Name: "vdo-sample:21",
 				Namespace: "default"}
 			req2 := ctrl.Request{NamespacedName: ns2}
+			os.Setenv("MATRIX_CONFIG_URL", "https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml")
 			_, err = r.Reconcile(ctx, req2)
-			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 			req.Name = "vdo-sample"
 			_, err = r.Reconcile(ctx, req)
 			Expect(err).To(HaveOccurred())
@@ -1848,6 +1849,39 @@ func initializeVDOConfig(namespace string) *v1alpha1.VDOConfig {
 		},
 		Status: v1alpha1.VDOConfigStatus{
 			CPIStatus: v1alpha1.CPIStatus{},
+			CSIStatus: v1alpha1.CSIStatus{},
+		},
+	}
+	return vdoConfig
+}
+func initializeVDOConfigWithStatus(namespace string) *v1alpha1.VDOConfig {
+	cpiStatus := v1alpha1.CPIStatus{
+		Phase:      "Deploying",
+		StatusMsg:  "",
+		NodeStatus: map[string]vdov1alpha1.NodeStatus{"21": "ready"},
+	}
+	vdoConfig := &v1alpha1.VDOConfig{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vdo-sample",
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.VDOConfigSpec{
+			CloudProvider: v1alpha1.CloudProviderConfig{
+				VsphereCloudConfigs: []string{"test-resource"},
+				Topology: v1alpha1.TopologyInfo{
+					Zone:   "k8s-zone-A",
+					Region: "k8s-region-A",
+				},
+			},
+			StorageProvider: v1alpha1.StorageProviderConfig{
+				VsphereCloudConfig:  "test-resource",
+				ClusterDistribution: "",
+				FileVolumes:         v1alpha1.FileVolume{},
+			},
+		},
+		Status: v1alpha1.VDOConfigStatus{
+			CPIStatus: cpiStatus,
 			CSIStatus: v1alpha1.CSIStatus{},
 		},
 	}
