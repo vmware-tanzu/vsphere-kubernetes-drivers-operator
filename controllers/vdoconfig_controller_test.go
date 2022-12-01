@@ -422,8 +422,6 @@ var _ = Describe("TestCPIReconcile", func() {
 			_, errcpi := r.reconcileCPIConfiguration(vdoctx, req, vdoConfig, clientSet)
 			Expect(errcpi).NotTo(HaveOccurred())
 
-
-
 			// update reconcileCPISecret
 			secretCPI := &v12.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -440,12 +438,12 @@ var _ = Describe("TestCPIReconcile", func() {
 				Name:      SECRET_NAME,
 			}
 			Expect(r.Update(ctx, secretCPI)).Should(Succeed())
-			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
-			Expect(err).NotTo(HaveOccurred())
+			_, errCCItems := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, vdoConfig.Spec.CloudProvider.VsphereCloudConfigs)
+			Expect(errCCItems).NotTo(HaveOccurred())
 
 			//Provide unknown cloudconfig
 			req.NamespacedName.Namespace = "unknown"
-			vsphereCloudConfigItems, err = r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, []string{"un-known"})
+			vsphereCloudConfigItems, err := r.fetchVsphereCloudConfigItems(vdoctx, req, vdoConfig, []string{"un-known"})
 			Expect(err).To(HaveOccurred())
 
 			_, err = r.reconcileCPISecret(vdoctx, vdoConfig, &vsphereCloudConfigItems, cpiSecretKey)
@@ -782,27 +780,42 @@ var _ = Describe("TestReconcileCSISecret", func() {
 
 		vdoConfig := initializeVDOConfig("default")
 
-		BeforeEach(func() {
-			secret := &v12.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "secret-ref",
-					Namespace: "kube-system",
-				},
-				Data: map[string][]byte{
-					"username": []byte(vc_user),
-					"password": []byte(vc_pwd),
-				},
-			}
+		secret := &v12.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret-ref",
+				Namespace: "kube-system",
+			},
+			Data: map[string][]byte{
+				"username": []byte(vc_user),
+				"password": []byte(vc_pwd),
+			},
+		}
 
-			Expect(r.Create(ctx, secret)).Should(Succeed())
+		Expect(r.Create(ctx, secret)).Should(Succeed())
 
-			Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
-		})
+		Expect(r.Create(ctx, vdoConfig)).Should(Succeed())
 
 		It("should reconcile CSI secret without error", func() {
 			_, err := r.reconcileCSISecret(vdoctx, vdoConfig, &cloudConfig)
 			Expect(err).NotTo(HaveOccurred())
 		})
+
+		It("should reconcile CSI secret without error when csi-secret changes", func() {
+			secret2 := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "vsphere-config-secret",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte("vc_user"),
+					"password": []byte(vc_pwd),
+				},
+			}
+			Expect(r.Update(ctx, secret2)).Should(Succeed())
+			_, err := r.reconcileCSISecret(vdoctx, vdoConfig, &cloudConfig)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
 	})
 })
 
