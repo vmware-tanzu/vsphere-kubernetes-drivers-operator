@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"reflect"
 )
 
@@ -90,7 +91,28 @@ var _ = Describe("TestSecretCreation", func() {
 			testConfigData, err := CreateCSISecretConfig(vdoConfig, &cloudConfig, vc_user, vc_pwd, "test_config.conf")
 			Expect(err).To(BeNil())
 			Expect(reflect.DeepEqual(testConfigData, expectedConfigData)).To(BeTrue())
+
+			_, err = CreateCSISecretConfig(vdoConfig, &cloudConfig, vc_user, vc_pwd, "test_config.conf2")
+			Expect(err).To(BeNil())
+
+			csiSecretKey := types.NamespacedName{
+				Namespace: "kube-system",
+				Name:      "vsphere-config-secret",
+			}
+
+			csiSecret := CreateCSISecret(testConfigData, csiSecretKey)
+			Expect(csiSecret).NotTo(BeNil())
+
+			isSame := CompareCSISecret(&csiSecret, testConfigData)
+			Expect(isSame).To(BeTrue())
+
+			testConfigDataNew, err := CreateCSISecretConfig(vdoConfig, &cloudConfig, "test-user-2", vc_pwd, "test_config.conf")
+			Expect(err).To(BeNil())
+
+			UpdateCSISecret(&csiSecret, testConfigDataNew)
+
 		})
+
 	})
 })
 
