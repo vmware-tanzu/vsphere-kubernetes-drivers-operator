@@ -2219,6 +2219,16 @@ var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 			os.Setenv(COMPAT_MATRIX_CONFIG_URL, "")
 		})
 
+		It("Test Config URL error", func() {
+			matrixConfig := "https://xxxxraw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/main/artifacts/compatibility-yaml/compatibility-v0.2.1.yaml"
+			os.Setenv(COMPAT_MATRIX_CONFIG_URL, matrixConfig)
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfig)
+			Expect(err).To(HaveOccurred())
+			os.Unsetenv(COMPAT_MATRIX_CONFIG_URL)
+			err = r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixConfig)
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("Should fetch deployment yamls without error", func() {
 			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfig, matrixString)
 			Expect(err).NotTo(HaveOccurred())
