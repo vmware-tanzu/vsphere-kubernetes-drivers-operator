@@ -150,16 +150,16 @@ var _ = Describe("Dynamic Client Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(matrix.CPISpecList)).ShouldNot(BeZero())
 
-			matrix, err = ParseMatrixYaml(fmt.Sprintf("file://non-existent"))
+			matrix, err = ParseMatrixYaml("file://non-existent")
 			Expect(err).To(HaveOccurred())
 
-			matrix, err = ParseMatrixYaml(fmt.Sprintf("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml"))
+			matrix, err = ParseMatrixYaml("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
 			Expect(err).To(HaveOccurred())
 
-			matrix, err = ParseMatrixYaml(fmt.Sprintf(""))
+			matrix, err = ParseMatrixYaml("")
 			Expect(err).To(HaveOccurred())
 
-			matrix, err = ParseMatrixYaml(fmt.Sprintf("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml2"))
+			matrix, err = ParseMatrixYaml("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml2")
 			Expect(err).To(HaveOccurred())
 		})
 	})
