@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -91,7 +91,7 @@ var driversCmd = &cobra.Command{
 		configFlag := cm.Data["configured-by"]
 
 		if !strings.EqualFold(configFlag, UserConfig) {
-			isConfigRequired := utils.PromptGetInput("VDO is configured with default compatiblity matrix. you can update compatiblity-matrix using 'vdoctl update compatiblity-matrix'. Do you want to use the defaults for compatiblity matrix (Y/N) ? ", errors.New("invalid input"), utils.IsString)
+			isConfigRequired := utils.PromptGetInput("VDO is configured with default compatibility matrix. you can update compatibility-matrix using 'vdoctl update compatibility-matrix'. Do you want to use the defaults for compatibility matrix (Y/N) ? ", errors.New("invalid input"), utils.IsString)
 			if !strings.EqualFold(isConfigRequired, "Y") {
 				os.Exit(0)
 			}

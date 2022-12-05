@@ -18,7 +18,7 @@ package models
 
 // VersionRange defines the min and max version
 type VersionRange struct {
-	// Min defines the minumum required version
+	// Min defines the minimum required version
 	Min string `json:"min"`
 	// Max defines the maximum required version
 	Max string `json:"max"`

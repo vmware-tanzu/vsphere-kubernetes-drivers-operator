@@ -132,6 +132,7 @@ var (
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch;delete;
 // +kubebuilder:rbac:groups=*,resources=namespaces,verbs=create;get;list;watch;update;patch;delete;
 
+//gocyclo:ignore
 func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.Logger.Info("Inside VDOConfig reconciler", "name", req.NamespacedName)
 
@@ -355,7 +356,8 @@ func (r *VDOConfigReconciler) getVcSession(vdoctx vdocontext.VDOContext, config 
 	return sess, nil
 }
 
-func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
+//gocyclo:ignore
+func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset kubernetes.Interface) (ctrl.Result, error) {
 
 	vsphereCloudConfigsList := vdoConfig.Spec.CloudProvider.VsphereCloudConfigs
 	if len(vsphereCloudConfigsList) <= 0 {
@@ -450,7 +452,8 @@ func (r *VDOConfigReconciler) reconcileCPIConfiguration(vdoctx vdocontext.VDOCon
 	return ctrl.Result{}, nil
 }
 
-func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset *kubernetes.Clientset) (ctrl.Result, error) {
+//gocyclo:ignore
+func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOContext, req ctrl.Request, vdoConfig *vdov1alpha1.VDOConfig, clientset kubernetes.Interface) (ctrl.Result, error) {
 
 	vsphereCloudConfig, err := r.fetchVSphereCloudConfig(vdoctx, vdoConfig.Spec.StorageProvider.VsphereCloudConfig, req.Namespace)
 	if err != nil {
@@ -727,7 +730,7 @@ func (r *VDOConfigReconciler) deleteCPIDeployment(ctx vdocontext.VDOContext) (bo
 	for _, deploymentYaml := range r.CpiDeploymentYamls {
 		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.DELETE)
 		if err != nil {
-			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CPI : ", deploymentYaml, updateStatus)
+			ctx.Logger.V(4).Info("Error occurred when deleting the deployment for CPI : ", deploymentYaml, updateStatus)
 		}
 	}
 	return updateStatus, nil
@@ -740,7 +743,7 @@ func (r *VDOConfigReconciler) deleteCSIDeployment(ctx vdocontext.VDOContext) (bo
 	for _, deploymentYaml := range r.CsiDeploymentYamls {
 		updateStatus, err := r.applyYaml(deploymentYaml, ctx, updateStatus, dynclient.DELETE)
 		if err != nil {
-			ctx.Logger.V(4).Info("Error occured when deleting the deployment for CSI : ", deploymentYaml, updateStatus)
+			ctx.Logger.V(4).Info("Error occurred when deleting the deployment for CSI : ", deploymentYaml, updateStatus)
 		}
 	}
 	return updateStatus, nil
@@ -1414,6 +1417,7 @@ func (r *VDOConfigReconciler) getMatrixConfig(matrixConfigUrl, matrixConfigConte
 	}
 }
 
+//gocyclo:ignore
 func (r *VDOConfigReconciler) updateCSIDaemonSet(ctx vdocontext.VDOContext, kubPath string) error {
 	ds := &appsv1.DaemonSet{}
 	kubeletDefaultPath := "/var/lib/kubelet"

@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -172,10 +172,10 @@ func GenerateYamlFromUrl(url string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("Recieved response code %d reading from url %s", resp.StatusCode, url)
+		return nil, errors.Errorf("Received response code %d reading from url %s", resp.StatusCode, url)
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func GenerateYamlFromUrl(url string) ([]byte, error) {
 
 func GenerateYamlFromFilePath(path string) ([]byte, error) {
 	filePath := strings.Replace(path, "file:/", "", 1)
-	fileBytes, err := ioutil.ReadFile(filePath)
+	fileBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}

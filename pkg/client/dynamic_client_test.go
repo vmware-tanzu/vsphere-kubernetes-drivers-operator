@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	vdocontext "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/context"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2/klogr"
 	"os"
 	"path/filepath"
@@ -84,6 +85,16 @@ var _ = Describe("Dynamic Client Tests", func() {
 			_, err = ParseAndProcessK8sObjects(vdoctx, k8sClient, yamlBytes, "", UPDATE)
 			Expect(err).NotTo(HaveOccurred())
 			*/
+
+			err = applyYamlSpec(vdoctx, k8sClient, nil, "", UPDATE)
+			Expect(err).NotTo(HaveOccurred())
+
+			obj := &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			}
+			err = applyYamlSpec(vdoctx, k8sClient, obj, "default", UPDATE)
+			Expect(err).To(HaveOccurred())
+
 		})
 
 		It("should work for all actions", func() {
@@ -138,6 +149,18 @@ var _ = Describe("Dynamic Client Tests", func() {
 			matrix, err := ParseMatrixYaml(fmt.Sprintf("file:/%s", compMatrixFilePath))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(matrix.CPISpecList)).ShouldNot(BeZero())
+
+			matrix, err = ParseMatrixYaml("file://non-existent")
+			Expect(err).To(HaveOccurred())
+
+			matrix, err = ParseMatrixYaml("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml")
+			Expect(err).To(HaveOccurred())
+
+			matrix, err = ParseMatrixYaml("")
+			Expect(err).To(HaveOccurred())
+
+			matrix, err = ParseMatrixYaml("https://raw.githubusercontent.com/asifdxtreme/Docs/master/compat/test-file-vdo-test.yaml2")
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

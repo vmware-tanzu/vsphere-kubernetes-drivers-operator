@@ -21,7 +21,7 @@ jobs:
       - name: Setup Go environment
         uses: actions/setup-go@v2.1.4
         with:
-          go-version: '1.18'
+          go-version: '1.19'
 
       - name: Build and Deploy
         run: make deploy
@@ -47,3 +47,7 @@ jobs:
           kubectl get configmaps -n vmware-system-vdo
           while [[ $(kubectl get pods -n vmware-system-vdo -l control-plane=controller-manager -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting for pod" && sleep 1 && kubectl get pods -A && docker images && kubectl describe pod -n vmware-system-vdo -l control-plane=controller-manager; done
           kubectl get pods -n vmware-system-vdo
+          
+      # Update the GoReportCard
+      - name: Go report card
+        uses: creekorful/goreportcard-action@v1.0
