@@ -157,12 +157,13 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	vdoConfigListItems := &vdov1alpha1.VDOConfigList{}
 	err = r.List(ctx, vdoConfigListItems)
 	if err != nil {
-		vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", vdoConfigListItems)
+		vdoctx.Logger.Error(err, "Error occurred when fetching list of vdoConfig resource", "itemsize", len(vdoConfigListItems.Items))
 		return ctrl.Result{}, err
 	}
 	vdoConfigList := vdoConfigListItems.Items
 
 	if len(vdoConfigList) <= 0 || len(vdoConfigList) > 1 {
+		err = errors.New("VDOConfig resource not found")
 		vdoctx.Logger.Error(err, "Skipping Reconcile for vdoConfig resource as no/multiple resources found", "name", vdoConfigListItems.ListMeta)
 		return ctrl.Result{}, err
 	}

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
@@ -856,6 +857,13 @@ var _ = Describe("TestReconcileNodeProviderID", func() {
 		node2 := v12.Node{
 			ObjectMeta: metav1.ObjectMeta{Name: "test-node2"},
 			Spec:       v12.NodeSpec{ProviderID: "vsphere://testid2"},
+			Status: v12.NodeStatus{Addresses: []v12.NodeAddress{
+				{
+					Type:    v12.NodeHostName,
+					Address: "1.1.1.1",
+				},
+			},
+			},
 		}
 
 		_, err := clientSet.CoreV1().Nodes().Create(vdoctx, &node1, metav1.CreateOptions{})
@@ -1784,6 +1792,54 @@ var _ = Describe("TestReconcile", func() {
 			_, err = r.Reconcile(ctx, req)
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("should fail when vdoconfig resource does not exists", func() {
+			r := VDOConfigReconciler{
+				Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+				Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
+				Scheme:       s,
+				ClientConfig: testRestConfig,
+			}
+
+			vdoctx := vdocontext.VDOContext{
+				Context: ctx,
+				Logger:  r.Logger,
+			}
+
+			secret := &v12.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-ref",
+					Namespace: "kube-system",
+				},
+				Data: map[string][]byte{
+					"username": []byte("vc_user"),
+					"password": []byte("vc_pwd"),
+				},
+			}
+
+			cloudConfig := &v1alpha1.VsphereCloudConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-resource",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.VsphereCloudConfigSpec{
+					VcIP:        "1.1.1.1",
+					Insecure:    true,
+					Credentials: "secret-ref",
+					DataCenters: []string{"datacenter-1"},
+				},
+				Status: v1alpha1.VsphereCloudConfigStatus{},
+			}
+
+			Expect(r.Create(vdoctx, secret)).Should(Succeed())
+			Expect(r.Create(vdoctx, cloudConfig)).Should(Succeed())
+
+			ns := types.NamespacedName{Name: "vdo-sample",
+				Namespace: "default"}
+			req := ctrl.Request{NamespacedName: ns}
+			_, err := r.Reconcile(ctx, req)
+			Expect(err.Error()).To(BeEquivalentTo("VDOConfig resource not found"))
+		})
 	})
 })
 
@@ -2252,6 +2308,32 @@ var _ = Describe("TestCheckCompatAndRetrieveSpec", func() {
 			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfigWithoutCpi, matrixStringIncompatibleCPI)
 			Expect(err).NotTo(HaveOccurred())
 			defer server.Close()
+		})
+
+		It("Should fail when cloud config returns error", func() {
+			SessionFn = func(ctx context.Context,
+				server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+				return &session.Session{
+					Client:         nil,
+					Datacenters:    nil,
+					VsphereVersion: "7.0.3",
+				}, errors.New("error occurred when fetching cloudconfig")
+
+			}
+			err := r.CheckCompatAndRetrieveSpec(vdoctx, req, vdoConfigWithoutCpi, matrixStringIncompatibleCPI)
+			Expect(err).To(HaveOccurred())
+			defer func() {
+				SessionFn = func(ctx context.Context,
+					server string, datacenters []string, username, password, thumbprint string) (*session.Session, error) {
+					return &session.Session{
+						Client:         nil,
+						Datacenters:    nil,
+						VsphereVersion: "7.0.3",
+					}, nil
+
+				}
+			}()
+			server.Close()
 		})
 	})
 })
