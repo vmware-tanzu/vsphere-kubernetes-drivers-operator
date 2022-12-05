@@ -2355,5 +2355,27 @@ var _ = Describe("Test SetupWithMgs", func() {
 			}).SetupWithManager(mgr)
 			Expect(err).NotTo(HaveOccurred())
 		})
+		It("should validate node with providerID", func() {
+			r := VDOConfigReconciler{
+				Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+				Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
+				Scheme:       s,
+				ClientConfig: &restclient.Config{Host: "sampleurl"},
+			}
+
+			node := &v12.Node{
+				Spec: v12.NodeSpec{
+					PodCIDR:       "1.1.1.1/2",
+					ProviderID:    "sampleproviderid",
+					Unschedulable: false,
+				},
+			}
+			labels := make(map[string]string)
+			labels[VDO_NODE_LABEL_KEY] = "sampleConfig"
+			node.SetLabels(labels)
+
+			req := r.validateNode(node)
+			Expect(req).NotTo(BeNil())
+		})
 	})
 })

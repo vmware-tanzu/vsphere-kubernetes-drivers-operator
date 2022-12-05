@@ -928,26 +928,7 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &v1.Node{}},
 			handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
-				node, ok := object.(*v1.Node)
-				r.Logger.Info("received reconcile request for node",
-					"providerID", node.Spec.ProviderID, "labels", node.Labels)
-				if !ok {
-					r.Logger.Error(nil, fmt.Sprintf("expected a Node but got a %T", object))
-					return nil
-				}
-
-				if len(node.Spec.ProviderID) > 0 {
-					if vdoName, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
-						return []ctrl.Request{{
-							NamespacedName: types.NamespacedName{
-								Namespace: VDO_NAMESPACE,
-								Name:      fmt.Sprintf("%s:%s", vdoName, node.Name),
-							},
-						}}
-					}
-				}
-
-				return nil
+				return r.validateNode(object)
 			}),
 		).
 		Watches(
@@ -965,6 +946,29 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return nil
 			})).
 		Complete(r)
+}
+
+func (r *VDOConfigReconciler) validateNode(object client.Object) []reconcile.Request {
+	node, ok := object.(*v1.Node)
+	r.Logger.Info("received reconcile request for node",
+		"providerID", node.Spec.ProviderID, "labels", node.Labels)
+	if !ok {
+		r.Logger.Error(nil, fmt.Sprintf("expected a Node but got a %T", object))
+		return nil
+	}
+
+	if len(node.Spec.ProviderID) > 0 {
+		if vdoName, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
+			return []ctrl.Request{{
+				NamespacedName: types.NamespacedName{
+					Namespace: VDO_NAMESPACE,
+					Name:      fmt.Sprintf("%s:%s", vdoName, node.Name),
+				},
+			}}
+		}
+	}
+
+	return nil
 }
 
 func (r *VDOConfigReconciler) reconcileCPISecret(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, cloudConfigs *[]vdov1alpha1.VsphereCloudConfig, cpiSecretKey types.NamespacedName) (*vdov1alpha1.VDOConfig, error) {
