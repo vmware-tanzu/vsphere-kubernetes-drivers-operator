@@ -950,12 +950,13 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *VDOConfigReconciler) validateNode(object client.Object) []reconcile.Request {
 	node, ok := object.(*v1.Node)
-	r.Logger.Info("received reconcile request for node",
-		"providerID", node.Spec.ProviderID, "labels", node.Labels)
 	if !ok {
 		r.Logger.Error(nil, fmt.Sprintf("expected a Node but got a %T", object))
 		return nil
 	}
+
+	r.Logger.Info("received reconcile request for node",
+		"providerID", node.Spec.ProviderID, "labels", node.Labels)
 
 	if len(node.Spec.ProviderID) > 0 {
 		if vdoName, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {

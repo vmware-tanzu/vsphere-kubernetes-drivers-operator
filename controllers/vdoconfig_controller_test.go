@@ -2377,5 +2377,23 @@ var _ = Describe("Test SetupWithMgs", func() {
 			req := r.validateNode(node)
 			Expect(req).NotTo(BeNil())
 		})
+		It("should return error when object is not a node", func() {
+			r := VDOConfigReconciler{
+				Client:       fake2.NewClientBuilder().WithRuntimeObjects().Build(),
+				Logger:       ctrllog.Log.WithName("VDOConfigControllerTest"),
+				Scheme:       s,
+				ClientConfig: &restclient.Config{Host: "sampleurl"},
+			}
+
+			pod := &v12.Pod{
+				Spec: v12.PodSpec{
+					NodeName:    "sampleNode",
+					HostNetwork: false,
+				},
+			}
+
+			req := r.validateNode(pod)
+			Expect(req).To(BeNil())
+		})
 	})
 })
