@@ -157,12 +157,13 @@ func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	vdoConfigListItems := &vdov1alpha1.VDOConfigList{}
 	err = r.List(ctx, vdoConfigListItems)
 	if err != nil {
-		vdoctx.Logger.Error(err, "Error occurred when fetching vdoConfig resource", "name", vdoConfigListItems)
+		vdoctx.Logger.Error(err, "Error occurred when fetching list of vdoConfig resource", "itemsize", len(vdoConfigListItems.Items))
 		return ctrl.Result{}, err
 	}
 	vdoConfigList := vdoConfigListItems.Items
 
 	if len(vdoConfigList) <= 0 || len(vdoConfigList) > 1 {
+		err = errors.New("VDOConfig resource not found")
 		vdoctx.Logger.Error(err, "Skipping Reconcile for vdoConfig resource as no/multiple resources found", "name", vdoConfigListItems.ListMeta)
 		return ctrl.Result{}, err
 	}
@@ -927,26 +928,7 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &v1.Node{}},
 			handler.EnqueueRequestsFromMapFunc(func(object client.Object) []reconcile.Request {
-				node, ok := object.(*v1.Node)
-				r.Logger.Info("received reconcile request for node",
-					"providerID", node.Spec.ProviderID, "labels", node.Labels)
-				if !ok {
-					r.Logger.Error(nil, fmt.Sprintf("expected a Node but got a %T", object))
-					return nil
-				}
-
-				if len(node.Spec.ProviderID) > 0 {
-					if vdoName, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
-						return []ctrl.Request{{
-							NamespacedName: types.NamespacedName{
-								Namespace: VDO_NAMESPACE,
-								Name:      fmt.Sprintf("%s:%s", vdoName, node.Name),
-							},
-						}}
-					}
-				}
-
-				return nil
+				return r.validateNode(object)
 			}),
 		).
 		Watches(
@@ -964,6 +946,30 @@ func (r *VDOConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return nil
 			})).
 		Complete(r)
+}
+
+func (r *VDOConfigReconciler) validateNode(object client.Object) []reconcile.Request {
+	node, ok := object.(*v1.Node)
+	if !ok {
+		r.Logger.Error(nil, fmt.Sprintf("expected a Node but got a %T", object))
+		return nil
+	}
+
+	r.Logger.Info("received reconcile request for node",
+		"providerID", node.Spec.ProviderID, "labels", node.Labels)
+
+	if len(node.Spec.ProviderID) > 0 {
+		if vdoName, ok := node.Labels[VDO_NODE_LABEL_KEY]; ok {
+			return []ctrl.Request{{
+				NamespacedName: types.NamespacedName{
+					Namespace: VDO_NAMESPACE,
+					Name:      fmt.Sprintf("%s:%s", vdoName, node.Name),
+				},
+			}}
+		}
+	}
+
+	return nil
 }
 
 func (r *VDOConfigReconciler) reconcileCPISecret(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig, cloudConfigs *[]vdov1alpha1.VsphereCloudConfig, cpiSecretKey types.NamespacedName) (*vdov1alpha1.VDOConfig, error) {
