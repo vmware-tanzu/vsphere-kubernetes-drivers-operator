@@ -1,0 +1,97 @@
+{
+  "CSI" : {
+    "2.5.1": {
+      "vSphere": { "min": "6.7.1", "max": "8.0.0" },
+      "k8s": { "min": "1.20", "max": "1.23" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.5.1/manifests/vanilla/vsphere-csi-driver.yaml" ]
+    },
+    "2.4.0": {
+      "vSphere": { "min": "6.7.1", "max": "8.0.0" },
+      "k8s": { "min": "1.20", "max": "1.22" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.4.0/manifests/vanilla/vsphere-csi-driver.yaml" ]
+    },
+    "2.3.0": {
+      "vSphere": { "min": "6.7.1", "max": "7.0.4" },
+      "k8s": { "min": "1.19", "max": "1.21" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.3.0/manifests/vanilla/vsphere-csi-driver.yaml" ]
+    },
+    "2.2.2": {
+      "vSphere": { "min": "6.7.1", "max": "7.0.4" },
+      "k8s": { "min": "1.18", "max": "1.20" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.2/manifests/v2.2.2/rbac/vsphere-csi-controller-rbac.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.2/manifests/v2.2.2/rbac/vsphere-csi-node-rbac.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.2/manifests/v2.2.2/deploy/vsphere-csi-controller-deployment.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.2/manifests/v2.2.2/deploy/vsphere-csi-node-ds.yaml" ]
+    },
+    "2.2.1": {
+      "vSphere": { "min": "6.7.1", "max": "7.0.4" },
+      "k8s": { "min": "1.18", "max": "1.20" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-controller-rbac.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/rbac/vsphere-csi-node-rbac.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-controller-deployment.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.1/manifests/v2.2.1/deploy/vsphere-csi-node-ds.yaml" ]
+    },
+    "2.2.0" : {
+      "vSphere" : { "min" : "6.7.1", "max": "7.0.4"},
+      "k8s" : {"min": "1.18", "max": "1.20"},
+      "isCPIRequired" : false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.0/manifests/v2.2.0/rbac/vsphere-csi-controller-rbac.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.0/manifests/v2.2.0/rbac/vsphere-csi-node-rbac.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.0/manifests/v2.2.0/deploy/vsphere-csi-controller-deployment.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.2.0/manifests/v2.2.0/deploy/vsphere-csi-node-ds.yaml"]
+    }
+  },
+  "CPI" : {
+    "1.22.0" : {
+      "vSphere" : { "min" : "6.7.1", "max": "8.0"},
+      "k8s" : {"skewVersion": "1.22"},
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.22.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.22.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.22.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml"]
+    },
+    "1.21.0": {
+      "vSphere": { "min": "6.7.1", "max": "8.0" },
+      "k8s": { "skewVersion": "1.21" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.21.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.21.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.21.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
+    "1.20.0": {
+      "vSphere": { "min": "6.7.1", "max": "7.0.4" },
+      "k8s": { "skewVersion": "1.20" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.20.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
+    "1.19.0": {
+      "vSphere": { "min": "6.7.1", "max": "7.0.4" },
+      "k8s": { "skewVersion": "1.19" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.19.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.19.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.19.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
+    "1.18.0" : {
+      "vSphere" : { "min" : "6.7.1", "max": "7.0.4"},
+      "k8s" : {"skewVersion": "1.18"},
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.18.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.18.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.18.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml"]
+    }
+  }
+}
