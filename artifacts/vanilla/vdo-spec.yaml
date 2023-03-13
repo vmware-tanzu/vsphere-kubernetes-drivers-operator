@@ -14,6 +14,55 @@ metadata:
   creationTimestamp: null
   labels:
     vdo.vmware.com/managed-by: vdo
+  name: compatibilityconfigs.vdo.vmware.com
+spec:
+  group: vdo.vmware.com
+  names:
+    kind: CompatibilityConfig
+    listKind: CompatibilityConfigList
+    plural: compatibilityconfigs
+    singular: compatibilityconfig
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CompatibilityConfig is the Schema for the Compatibility Matrix Configuration
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CompatibilitySpec is the Schema to get MatrixURL
+            properties:
+              matrixURL:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  labels:
+    vdo.vmware.com/managed-by: vdo
   name: vdoconfigs.vdo.vmware.com
 spec:
   group: vdo.vmware.com
@@ -448,6 +497,32 @@ rules:
 - apiGroups:
   - vdo.vmware.com
   resources:
+  - compatibilityconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - compatibilityconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - vdo.vmware.com
+  resources:
+  - compatibilityconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - vdo.vmware.com
+  resources:
   - vdoconfigs
   verbs:
   - create
@@ -593,7 +668,7 @@ data:
     health:
       healthProbeBindAddress: :8081
     metrics:
-      bindAddress: 127.0.0.1:8080
+      bindAddress: 127.0.0.1:8089
     webhook:
       port: 9443
     leaderElection:
@@ -661,7 +736,7 @@ spec:
           name: https
       - args:
         - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
+        - --metrics-bind-address=127.0.0.1:8089
         - --leader-elect
         command:
         - /manager
@@ -687,7 +762,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: projects.registry.vmware.com/vsphere_kubernetes_driver_operator/vdo@sha256:a89deecd215d19f40ddd140a12bc34416e24839fab72ebf8b11d855a30e05fce
+        image: vmware.com/vdo:0.2.0-6-g6bea2be
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
