@@ -108,7 +108,7 @@ var (
 	SessionFn     = session.GetOrCreate
 	GetVMFn       = session.GetVMByIP
 	VDO_NAMESPACE = ""
-	CsiNamespace  = "kube-system"
+	CsiNamespace  = "vmware-system-csi"
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete

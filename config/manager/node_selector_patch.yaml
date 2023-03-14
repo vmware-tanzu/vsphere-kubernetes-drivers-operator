@@ -8,4 +8,4 @@ spec:
     spec:
       # Add selector to be able to run only on WCP master
       nodeSelector:
-        node-role.kubernetes.io/master: ""
+        node-role.kubernetes.io/control-plane: ""

@@ -1,24 +1,39 @@
 {
   "CSI" : {
     "2.7.1" : {
-      "vSphere": { "min": "6.7.1", "max": "8.0.0" },
-      "k8s": { "min": "1.22", "max": "1.25" },
+      "vSphere": { "min": "6.7.1", "max": "8.0.1" },
+      "k8s": { "min": "1.22", "max": "1.26" },
       "isCPIRequired": false,
       "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.7.0/manifests/vanilla/namespace.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.7.0/manifests/vanilla/validatingwebhook.yaml",
           "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.7.0/manifests/vanilla/vsphere-csi-driver.yaml" ]
     },
+    "2.6.2": {
+      "vSphere": { "min": "6.7.1", "max": "8.0.1" },
+      "k8s": { "min": "1.22", "max": "1.24" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.6.2/manifests/vanilla/namespace.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.6.2/manifests/vanilla/validatingwebhook.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.6.2/manifests/vanilla/vsphere-csi-driver.yaml" ]
+    },
     "2.5.1": {
-      "vSphere": { "min": "6.7.1", "max": "8.0.0" },
+      "vSphere": { "min": "6.7.1", "max": "8.0.1" },
       "k8s": { "min": "1.20", "max": "1.23" },
       "isCPIRequired": false,
       "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.5.1/manifests/vanilla/namespace.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.5.1/manifests/vanilla/validatingwebhook.yaml",
           "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.5.1/manifests/vanilla/vsphere-csi-driver.yaml" ]
     },
     "2.4.0": {
-      "vSphere": { "min": "6.7.1", "max": "8.0.0" },
+      "vSphere": { "min": "6.7.1", "max": "8.0.1" },
       "k8s": { "min": "1.20", "max": "1.22" },
       "isCPIRequired": false,
       "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.4.0/manifests/vanilla/namespace.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.4.0/manifests/vanilla/validatingwebhook.yaml",
           "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.4.0/manifests/vanilla/vsphere-csi-driver.yaml" ]
     },
     "2.3.0": {
@@ -26,6 +41,8 @@
       "k8s": { "min": "1.19", "max": "1.21" },
       "isCPIRequired": false,
       "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.3.0/manifests/vanilla/namespace.yaml",
+          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.3.0/manifests/vanilla/validatingwebhook.yaml",
           "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.3.0/manifests/vanilla/vsphere-csi-driver.yaml" ]
     },
     "2.2.2": {
@@ -60,6 +77,38 @@
     }
   },
   "CPI" : {
+    "1.26.0": {
+      "vSphere": { "min": "6.7.1", "max": "8.0.1" },
+      "k8s": { "skewVersion": "1.26" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.26.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.26.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.26.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
+    "1.25.0": {
+      "vSphere": { "min": "6.7.1", "max": "8.0.1" },
+      "k8s": { "skewVersion": "1.25" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.25.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.25.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.25.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
+    "1.24.0": {
+      "vSphere": { "min": "6.7.1", "max": "8.0" },
+      "k8s": { "skewVersion": "1.24" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.24.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.24.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.24.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
+    "1.23.0": {
+      "vSphere": { "min": "6.7.1", "max": "8.0" },
+      "k8s": { "skewVersion": "1.23" },
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.23.0/manifests/controller-manager/cloud-controller-manager-roles.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.23.0/manifests/controller-manager/cloud-controller-manager-role-bindings.yaml",
+          "https://raw.githubusercontent.com/kubernetes/cloud-provider-vsphere/v1.23.0/manifests/controller-manager/vsphere-cloud-controller-manager-ds.yaml" ]
+    },
     "1.22.0" : {
       "vSphere" : { "min" : "6.7.1", "max": "8.0"},
       "k8s" : {"skewVersion": "1.22"},
