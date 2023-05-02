@@ -4,4 +4,4 @@ metadata:
   name: compat-matrix-config
   namespace: vmware-system-vdo
 spec:
-  matrixURL: "https://raw.githubusercontent.com/asifdxtreme/Docs/master/sample/matrix/matrix.yaml"
+  matrixURL: "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/compatibility-yaml/compatibility-v0.7.0.yaml"

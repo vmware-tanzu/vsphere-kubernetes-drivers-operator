@@ -345,7 +345,7 @@ kustomize: ## Download kustomize locally if necessary.
 
 KIND = $(shell pwd)/bin/kind
 kind:
-	$(call go-get-tool,$(KIND),sigs.k8s.io/kind@v0.11.1)
+	$(call go-get-tool,$(KIND),sigs.k8s.io/kind@v0.17.0)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
