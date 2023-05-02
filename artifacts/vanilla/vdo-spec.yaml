@@ -464,6 +464,18 @@ rules:
   - update
   - watch
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - apps
   resources:
   - daemonsets
@@ -801,7 +813,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: vmware.com/vdo:0.2.0-30-gd56e895
+        image: vmware.com/vdo:0.2.0-21-gdeae2cd
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
