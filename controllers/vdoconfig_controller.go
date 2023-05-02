@@ -108,7 +108,7 @@ var (
 	SessionFn     = session.GetOrCreate
 	GetVMFn       = session.GetVMByIP
 	VDO_NAMESPACE = ""
-	CsiNamespace  = "kube-system"
+	CsiNamespace  = "vmware-system-csi"
 )
 
 // +kubebuilder:rbac:groups=vdo.vmware.com,resources=vdoconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -131,6 +131,7 @@ var (
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;create;update;patch;delete;
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;get;list;watch;update;patch;delete;
 // +kubebuilder:rbac:groups=*,resources=namespaces,verbs=create;get;list;watch;update;patch;delete;
+// +kubebuilder:rbac:groups="admissionregistration.k8s.io",resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete;
 
 //gocyclo:ignore
 func (r *VDOConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

@@ -10,7 +10,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   labels:
     vdo.vmware.com/managed-by: vdo
@@ -27,13 +27,18 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: CompatibilityConfig is the Schema for the Compatibility Matrix Configuration
+        description: CompatibilityConfig is the Schema for the Compatibility Matrix
+          Configuration
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -59,7 +64,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   labels:
     vdo.vmware.com/managed-by: vdo
@@ -79,10 +84,14 @@ spec:
         description: VDOConfig is the Schema for the vdoconfigs API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -90,10 +99,12 @@ spec:
             description: VDOConfigSpec defines the desired state of VDOConfig
             properties:
               cloudProvider:
-                description: CloudProvider refers to the section of config that is required to configure CPI driver
+                description: CloudProvider refers to the section of config that is
+                  required to configure CPI driver
                 properties:
                   topology:
-                    description: Topology represents the information required for configuring CPI with zone and region
+                    description: Topology represents the information required for
+                      configuring CPI with zone and region
                     properties:
                       region:
                         type: string
@@ -104,48 +115,60 @@ spec:
                     - zone
                     type: object
                   vsphereCloudConfigs:
-                    description: VsphereCloudConfigs refers to the collection of the vSphereCloudConfig resource that holds the vSphere configuration
+                    description: VsphereCloudConfigs refers to the collection of the
+                      vSphereCloudConfig resource that holds the vSphere configuration
                     items:
                       type: string
                     type: array
                 type: object
               storageProvider:
-                description: StorageProvider refers to the section of config that is required to configure CSI driver
+                description: StorageProvider refers to the section of config that
+                  is required to configure CSI driver
                 properties:
                   clusterDistribution:
-                    description: ClusterDistribution refers to the type of k8s distribution such as TKGI, OpenShift
+                    description: ClusterDistribution refers to the type of k8s distribution
+                      such as TKGI, OpenShift
                     type: string
                   customKubeletPath:
-                    description: CustomKubeletPath refers to the Kubelet Path in case of custom K8s deployments
+                    description: CustomKubeletPath refers to the Kubelet Path in case
+                      of custom K8s deployments
                     type: string
                   fileVolumes:
-                    description: FileVolumes refers to the configuration required for file volumes
+                    description: FileVolumes refers to the configuration required
+                      for file volumes
                     properties:
                       netPermissions:
-                        description: NetPermissions refers to the list of Net permissions required for CSI driver to access file based volumes
+                        description: NetPermissions refers to the list of Net permissions
+                          required for CSI driver to access file based volumes
                         items:
                           properties:
                             ips:
-                              description: Ip refers to IP Subnet or Range to which these restrictions apply
+                              description: Ip refers to IP Subnet or Range to which
+                                these restrictions apply
                               type: string
                             permissions:
-                              description: Permission refers to access to the volume such as READ_WRITE, READ_ONLY
+                              description: Permission refers to access to the volume
+                                such as READ_WRITE, READ_ONLY
                               type: string
                             rootSquash:
-                              description: RootSquash refers to the access for root user to the volumes. If false, root access is confirmed for all volumes in this IP range
+                              description: RootSquash refers to the access for root
+                                user to the volumes. If false, root access is confirmed
+                                for all volumes in this IP range
                               type: boolean
                           required:
                           - ips
                           type: object
                         type: array
                       vsanDataStoreUrl:
-                        description: VSanDataStoreUrl refers to the list of datastores that the CSI drivers can access
+                        description: VSanDataStoreUrl refers to the list of datastores
+                          that the CSI drivers can access
                         items:
                           type: string
                         type: array
                     type: object
                   vsphereCloudConfig:
-                    description: VsphereCloudConfig refers to the name of the vSphereCloudConfig resource that holds the vSphere configuration
+                    description: VsphereCloudConfig refers to the name of the vSphereCloudConfig
+                      resource that holds the vSphere configuration
                     type: string
                 required:
                 - vsphereCloudConfig
@@ -157,13 +180,16 @@ spec:
             description: VDOConfigStatus defines the observed state of VDOConfig
             properties:
               cpi:
-                description: CPIStatus refers to the configuration status of the CPI driver
+                description: CPIStatus refers to the configuration status of the CPI
+                  driver
                 properties:
                   'nodeStatus ':
                     additionalProperties:
-                      description: NodeStatus is used to type the constants describing possible node states w.r.t CPI configuration.
+                      description: NodeStatus is used to type the constants describing
+                        possible node states w.r.t CPI configuration.
                       type: string
-                    description: NodeStatus indicates the status of CPI driver with respect to each node in the cluster.
+                    description: NodeStatus indicates the status of CPI driver with
+                      respect to each node in the cluster.
                     type: object
                   phase:
                     description: Phase is used to indicate the Phase of the CPI driver
@@ -175,11 +201,13 @@ spec:
                     - Failed
                     type: string
                   statusMsg:
-                    description: StatusMsg is used to display messages in reference to the Phase of the CPI driver
+                    description: StatusMsg is used to display messages in reference
+                      to the Phase of the CPI driver
                     type: string
                 type: object
               csi:
-                description: CSIStatus refers to the configuration status of the CSI driver
+                description: CSIStatus refers to the configuration status of the CSI
+                  driver
                 properties:
                   phase:
                     description: Phase is used to indicate the Phase of the CSI driver
@@ -191,7 +219,8 @@ spec:
                     - Failed
                     type: string
                   statusMsg:
-                    description: StatusMsg is used to display messages in reference to the Phase of the CSI driver
+                    description: StatusMsg is used to display messages in reference
+                      to the Phase of the CSI driver
                     type: string
                 type: object
             type: object
@@ -211,7 +240,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   labels:
     vdo.vmware.com/managed-by: vdo
@@ -228,13 +257,18 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: VsphereCloudConfig is the Schema for the vspherecloudconfigs API
+        description: VsphereCloudConfig is the Schema for the vspherecloudconfigs
+          API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -242,10 +276,12 @@ spec:
             description: VsphereCloudConfigSpec defines the desired state of VsphereCloudConfig
             properties:
               credentials:
-                description: Credentials refers to the name of k8s secret storing the VC creds
+                description: Credentials refers to the name of k8s secret storing
+                  the VC creds
                 type: string
               datacenters:
-                description: datacenters refers to list of datacenters on the VC which the configured user account can access
+                description: datacenters refers to list of datacenters on the VC which
+                  the configured user account can access
                 items:
                   type: string
                 type: array
@@ -253,10 +289,12 @@ spec:
                 description: Insecure flag determines if connection to VC can be insecured
                 type: boolean
               thumbprint:
-                description: thumbprint refers to the SSL Thumbprint to be used to establish a secure connection to VC
+                description: thumbprint refers to the SSL Thumbprint to be used to
+                  establish a secure connection to VC
                 type: string
               vcIp:
-                description: VCIP refers to IP of the vcenter which is used to configure for VDO
+                description: VCIP refers to IP of the vcenter which is used to configure
+                  for VDO
                 type: string
             required:
             - credentials
@@ -274,7 +312,8 @@ spec:
                 - failed
                 type: string
               message:
-                description: Message displays text indicating the reason for failure in validating VDO config
+                description: Message displays text indicating the reason for failure
+                  in validating VDO config
                 type: string
             required:
             - config
@@ -416,6 +455,18 @@ rules:
   - '*'
   resources:
   - namespaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
   verbs:
   - create
   - delete
@@ -762,7 +813,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: vmware.com/vdo:0.2.0-6-g6bea2be
+        image: vmware.com/vdo:0.2.0-21-gdeae2cd
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -791,12 +842,12 @@ spec:
           name: vsphere-config-volume
       hostNetwork: true
       nodeSelector:
-        node-role.kubernetes.io/master: ""
+        node-role.kubernetes.io/control-plane: ""
       serviceAccountName: vdo-controller-manager
       terminationGracePeriodSeconds: 10
       tolerations:
       - effect: NoSchedule
-        key: node-role.kubernetes.io/master
+        key: node-role.kubernetes.io/control-plane
         operator: Exists
       - effect: NoSchedule
         key: kubeadmNode
