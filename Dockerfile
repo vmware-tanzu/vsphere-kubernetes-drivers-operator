@@ -9,6 +9,12 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
+RUN apt-get update
+RUN apt-get install -y openssl
+
+COPY deploy-vsphere-csi-validation-webhook.sh .
+RUN chmod +x ./deploy-vsphere-csi-validation-webhook.sh
+RUN ["./deploy-vsphere-csi-validation-webhook.sh", "-x"]
 # Copy the go source
 COPY ./ ./
 
@@ -33,4 +39,20 @@ WORKDIR /
 COPY LICENSE /licenses/
 
 COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/webhook-server-tls.key .
+COPY --from=builder /workspace/webhook-server-tls.crt .
+COPY --from=builder /workspace/webhook.config .
+COPY --from=builder /workspace/cabundle.env .
+
+RUN cat cabundle.env
+# Create a custom script to import environment variables
+RUN echo '#!/bin/bash' > /import-env.sh \
+    && echo 'source cabundle.env' >> /import-env.sh \
+    && chmod +x /import-env.sh
+
+
+# Run the custom script in the second container to import the environment variable
+CMD [ "bash", "-c", "/import-env.sh && env" ]
+
+RUN env
 ENTRYPOINT ["/manager"]

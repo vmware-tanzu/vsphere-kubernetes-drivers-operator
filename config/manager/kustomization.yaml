@@ -18,4 +18,8 @@ kind: Kustomization
 images:
 - name: controller
   newName: vmware.com/vdo
+<<<<<<< Updated upstream
   newTag: 0.2.0-30-gd56e895
+=======
+  newTag: 0.2.0-22-g5c81207
+>>>>>>> Stashed changes

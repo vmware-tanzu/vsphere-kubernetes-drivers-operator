@@ -20,11 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"reflect"
-	"sort"
-	"strings"
-
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-version"
 	"github.com/pkg/errors"
@@ -35,6 +30,7 @@ import (
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/drivers/csi"
 	. "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/models"
 	"github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/pkg/session"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,12 +40,15 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-
+	"os"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sort"
+	"strings"
 )
 
 const (
@@ -64,6 +63,10 @@ const (
 	CSI_DAEMONSET_NAME            = "vsphere-csi-node"
 	CSI_DAEMON_POD_KEY            = "app"
 	CSI_SECRET_NAME               = "vsphere-config-secret"
+	CSI_WEBHOOK_CERT_SECRET       = "vsphere-webhook-certs"
+	WEBHOOK_SERVER_TLS_CRT        = "webhook-server-tls.crt"
+	WEBHOOK_SERVER_TLS_KEY        = "webhook-server-tls.key"
+	WEBHOOK_CONFIG                = "webhook.config"
 	CSI_FSS_CONFIGMAP             = "internal-feature-states.csi.vsphere.vmware.com"
 	CSI_NODE_ID                   = "use-csinode-id"
 	CSI_SECRET_CONFIG_FILE        = "/tmp/csi-vsphere.conf"
@@ -75,6 +78,8 @@ const (
 	CM_CONTENT_KEY = "versionConfigContent"
 
 	CSI_DRIVER_REG_PATH = "DRIVER_REG_SOCK_PATH"
+
+	VMWARE_SYSTEM_CSI_NAMESPACE = "vmware-system-csi"
 )
 
 // VDOConfigReconciler reconciles a VDOConfig object
@@ -473,6 +478,20 @@ func (r *VDOConfigReconciler) reconcileCSIConfiguration(vdoctx vdocontext.VDOCon
 	vdoConfig, err = r.reconcileCSISecret(vdoctx, vdoConfig, vsphereCloudConfig)
 	if err != nil {
 		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of secret for CSI configuration")
+		return ctrl.Result{}, err
+	}
+
+	vdoctx.Logger.V(4).Info("reconciling webhook certs secret for CSI")
+	vdoConfig, err = r.reconcileWebhookCertSecret(vdoctx, vdoConfig)
+	if err != nil {
+		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of webhook certs secret for CSI configuration")
+		return ctrl.Result{}, err
+	}
+
+	vdoctx.Logger.V(4).Info("reconciling validatingWebhookConfiguration for CSI")
+	vdoConfig, err = r.reconcileValidatingWebhookConf(vdoctx, vdoConfig)
+	if err != nil {
+		r.updateCSIStatusForError(vdoctx, err, vdoConfig, "Error in reconcile of validatingWebhookConfiguration for CSI configuration")
 		return ctrl.Result{}, err
 	}
 
@@ -1136,6 +1155,95 @@ func (r *VDOConfigReconciler) reconcileCSISecret(ctx vdocontext.VDOContext, conf
 			return config, errors.Wrapf(err, fmt.Sprintf("could not update csi secret %s", csiSecret.Name))
 		}
 		err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+		return config, err
+	}
+
+	if len(config.Status.CSIStatus.Phase) <= 0 {
+		err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+		return config, err
+	}
+
+	return config, nil
+}
+
+func (r *VDOConfigReconciler) reconcileWebhookCertSecret(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig) (*vdov1alpha1.VDOConfig, error) {
+
+	webhookSecretKey := types.NamespacedName{
+		Namespace: CsiNamespace,
+		Name:      CSI_WEBHOOK_CERT_SECRET,
+	}
+
+	webhookSecret := v1.Secret{}
+	dataMap, err := csi.CreateCSIWebhookCertSecretData(WEBHOOK_SERVER_TLS_CRT, WEBHOOK_SERVER_TLS_KEY, WEBHOOK_CONFIG)
+	if err != nil {
+		r.updateCSIStatusForError(ctx, err, config, "unable to create webhook cert secret data map")
+		return config, err
+	}
+
+	err = r.Get(ctx, webhookSecretKey, &webhookSecret)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			ctx.Logger.V(4).Info("creating new CSI webhook cert secret")
+			webhookSecret = csi.CreateCSIWebhookSecret(dataMap, webhookSecretKey)
+			err = r.Create(ctx, &webhookSecret)
+			if err != nil {
+				return config, errors.Wrap(err, fmt.Sprintf("could not create webhook cert secret %s", webhookSecret.Name))
+			}
+
+			ctx.Logger.V(4).Info("created CSI webhook cert secret", "name", webhookSecret.Name)
+			err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+			return config, err
+		}
+		ctx.Logger.Error(err, fmt.Sprintf("unable to fetch CSI webhook cert secret %s", webhookSecret.Name))
+		return config, err
+	}
+
+	csiSecretIsSame := csi.CompareWebhookSecret(&webhookSecret, dataMap)
+	if !csiSecretIsSame {
+		ctx.Logger.V(4).Info("updating csi webhook secret as it doesn't match vSphereCloudConfig resource")
+		csi.UpdateWebhookSecret(&webhookSecret, dataMap)
+		err = r.Update(ctx, &webhookSecret)
+		if err != nil {
+			return config, errors.Wrapf(err, fmt.Sprintf("could not update csi webhook cert secret %s", webhookSecret.Name))
+		}
+		err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+		return config, err
+	}
+
+	if len(config.Status.CSIStatus.Phase) <= 0 {
+		err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+		return config, err
+	}
+
+	return config, nil
+}
+
+func (r *VDOConfigReconciler) reconcileValidatingWebhookConf(ctx vdocontext.VDOContext, config *vdov1alpha1.VDOConfig) (*vdov1alpha1.VDOConfig, error) {
+	ctx.Logger.V(4).Info("reconciling ValidatingWebhookConfiguration for CSI")
+	validatingWebhookConfigurationKey := types.NamespacedName{
+		Name: "validation.csi.vsphere.vmware.com",
+	}
+
+	validatingWebhookConfiguration := &admissionv1.ValidatingWebhookConfiguration{}
+
+	err := r.Get(ctx, validatingWebhookConfigurationKey, validatingWebhookConfiguration)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			ctx.Logger.V(4).Info("creating new validatingWebhookConfiguration")
+			validatingWebhookConfiguration, err = csi.CreateValidatingWebhookConfiguration()
+			if err != nil {
+				return config, err
+			}
+			err = r.Create(ctx, validatingWebhookConfiguration)
+			if err != nil {
+				return config, errors.Wrap(err, fmt.Sprintf("could not create CSI validatingWebhookConfiguration %s", validatingWebhookConfiguration.Name))
+			}
+
+			ctx.Logger.V(4).Info("created CSI validatingWebhookConfiguration", "name", validatingWebhookConfiguration.Name)
+			err = r.updateCSIPhase(ctx, config, vdov1alpha1.Configuring, "")
+			return config, err
+		}
+		ctx.Logger.Error(err, fmt.Sprintf("unable to fetch CSI validatingWebhookConfiguration %s", validatingWebhookConfiguration.Name))
 		return config, err
 	}
 

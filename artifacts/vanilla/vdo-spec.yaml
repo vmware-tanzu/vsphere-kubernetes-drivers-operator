@@ -813,7 +813,7 @@ spec:
             configMapKeyRef:
               key: auto-upgrade
               name: compat-matrix-config
-        image: vmware.com/vdo:0.2.0-21-gdeae2cd
+        image: vmware.com/vdo:0.2.0-22-g5c81207
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

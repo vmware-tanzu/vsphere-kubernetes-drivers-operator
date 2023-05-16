@@ -18,12 +18,15 @@ package csi
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	"gopkg.in/ini.v1"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -42,6 +45,8 @@ const (
 	NETPERMISSIONS_IP          = "ips"
 	PERMISSIONS                = "permissions"
 	ROOTSQUASH                 = "rootsquash"
+	TLS_CRT                    = "tls.crt"
+	TLS_KEY                    = "tls.key"
 )
 
 func CreateCSISecret(configData string, csiSecretKey types.NamespacedName) v1.Secret {
@@ -53,6 +58,18 @@ func CreateCSISecret(configData string, csiSecretKey types.NamespacedName) v1.Se
 	csiSecret := v1.Secret{Data: data, ObjectMeta: object}
 
 	return csiSecret
+}
+func CreateCSIWebhookSecret(dataMap map[string][]byte, secretKey types.NamespacedName) v1.Secret {
+
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretKey.Name,
+			Namespace: secretKey.Namespace,
+		},
+		Data: dataMap,
+	}
+
+	return secret
 }
 
 func CreateCSISecretConfig(vdoConfig *vdov1alpha1.VDOConfig, cloudConfig *vdov1alpha1.VsphereCloudConfig, vcUser string, vcUserPwd string, csiSecretFileName string) (string, error) {
@@ -122,10 +139,46 @@ func CreateCSISecretConfig(vdoConfig *vdov1alpha1.VDOConfig, cloudConfig *vdov1a
 
 }
 
+func CreateCSIWebhookCertSecretData(tlsCrt string, tlsKey string, webhookconf string) (map[string][]byte, error) {
+
+	webhookCert, err := os.ReadFile(tlsCrt)
+	if err != nil {
+		return nil, err
+	}
+
+	webhookKey, err := os.ReadFile(tlsKey)
+	if err != nil {
+		return nil, err
+	}
+
+	webhookConfig, err := os.ReadFile(webhookconf)
+	if err != nil {
+		return nil, err
+	}
+
+	data := map[string][]byte{
+		TLS_CRT:     webhookCert,
+		TLS_KEY:     webhookKey,
+		webhookconf: webhookConfig,
+	}
+
+	return data, nil
+
+}
+
 func CompareCSISecret(csiSecret *v1.Secret, configData string) bool {
 
 	return string(csiSecret.Data[CSI_SECRET_CONFIG_FILENAME]) == configData
 
+}
+
+func CompareWebhookSecret(secret *v1.Secret, dataMap map[string][]byte) bool {
+	return reflect.DeepEqual(secret.Data, dataMap)
+
+}
+
+func UpdateWebhookSecret(secret *v1.Secret, dataMap map[string][]byte) {
+	secret.Data = dataMap
 }
 
 func UpdateCSISecret(csiSecret *v1.Secret, configData string) {
@@ -134,4 +187,58 @@ func UpdateCSISecret(csiSecret *v1.Secret, configData string) {
 	}
 	csiSecret.Data = data
 
+}
+
+func CreateValidatingWebhookConfiguration() (*admissionv1.ValidatingWebhookConfiguration, error) {
+	caBundleString := os.Getenv("CA_BUNDLE")
+	if caBundleString == "" {
+		return nil, errors.New("couldn't fetch cabundle from environment")
+	}
+	caBundle := []byte(caBundleString)
+
+	path := "/validate"
+	scope := admissionv1.NamespacedScope
+	sideEffects := admissionv1.SideEffectClassNone
+	failurePolicy := admissionv1.Fail
+	validatingWebhookConfiguration := &admissionv1.ValidatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "validation.csi.vsphere.vmware.com",
+		},
+		Webhooks: []admissionv1.ValidatingWebhook{
+			{
+				Name: "validation.csi.vsphere.vmware.com",
+				ClientConfig: admissionv1.WebhookClientConfig{
+					Service: &admissionv1.ServiceReference{
+						Name:      "vsphere-webhook-svc",
+						Namespace: "vmware-system-csi",
+						Path:      &path,
+					},
+					CABundle: caBundle,
+				},
+				Rules: []admissionv1.RuleWithOperations{
+					{
+						Operations: []admissionv1.OperationType{admissionv1.Create, admissionv1.Update},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{"storage.k8s.io"},
+							APIVersions: []string{"v1", "v1beta1"},
+							Resources:   []string{"storageclasses"},
+						},
+					},
+					{
+						Operations: []admissionv1.OperationType{admissionv1.Update, admissionv1.Delete},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1", "v1beta1"},
+							Resources:   []string{"persistentvolumeclaims"},
+							Scope:       &scope,
+						},
+					},
+				},
+				SideEffects:             &sideEffects,
+				AdmissionReviewVersions: []string{"v1"},
+				FailurePolicy:           &failurePolicy,
+			},
+		},
+	}
+	return validatingWebhookConfiguration, nil
 }
