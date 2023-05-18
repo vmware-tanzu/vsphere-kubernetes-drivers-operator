@@ -55,6 +55,6 @@ cert-file = "/run/secrets/tls/tls.crt"
 key-file = "/run/secrets/tls/tls.key"
 eof
 
-cat <<eof >cabundle.env
-CA_BUNDLE = "$(openssl base64 -A <"ca.crt")"
+cat <<eof >caBundle
+"$(openssl base64 -A <"ca.crt")"
 eof

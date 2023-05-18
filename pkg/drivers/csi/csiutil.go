@@ -18,7 +18,6 @@ package csi
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	vdov1alpha1 "github.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/api/v1alpha1"
 	"gopkg.in/ini.v1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -190,11 +189,10 @@ func UpdateCSISecret(csiSecret *v1.Secret, configData string) {
 }
 
 func CreateValidatingWebhookConfiguration() (*admissionv1.ValidatingWebhookConfiguration, error) {
-	caBundleString := os.Getenv("CA_BUNDLE")
-	if caBundleString == "" {
-		return nil, errors.New("couldn't fetch cabundle from environment")
+	caBundle, err := os.ReadFile("caBundle")
+	if err != nil {
+		return nil, err
 	}
-	caBundle := []byte(caBundleString)
 
 	path := "/validate"
 	scope := admissionv1.NamespacedScope

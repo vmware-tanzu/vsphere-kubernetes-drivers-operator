@@ -42,17 +42,15 @@ COPY --from=builder /workspace/manager .
 COPY --from=builder /workspace/webhook-server-tls.key .
 COPY --from=builder /workspace/webhook-server-tls.crt .
 COPY --from=builder /workspace/webhook.config .
-COPY --from=builder /workspace/cabundle.env .
+COPY --from=builder /workspace/caBundle .
 
-RUN cat cabundle.env
 # Create a custom script to import environment variables
-RUN echo '#!/bin/bash' > /import-env.sh \
-    && echo 'source cabundle.env' >> /import-env.sh \
-    && chmod +x /import-env.sh
+#RUN echo '#!/bin/bash' > /import-env.sh \
+#    && echo 'source cabundle.env' >> /import-env.sh \
+#    && chmod +x /import-env.sh
 
 
 # Run the custom script in the second container to import the environment variable
-CMD [ "bash", "-c", "/import-env.sh && env" ]
-
-RUN env
+#CMD [ "bash", "-c", "/import-env.sh && env" ]
+#CMD ["/import-env.sh"]
 ENTRYPOINT ["/manager"]
