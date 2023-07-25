@@ -1,0 +1,170 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: vmware-vsphere-csi-driver-webhook-role
+  namespace: vmware-system-csi
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: vsphere-csi-webhook-role-binding
+  namespace: vmware-system-csi
+subjects:
+  - kind: ServiceAccount
+    name: vmware-vsphere-csi-driver-webhook-sa
+    namespace: vmware-system-csi
+roleRef:
+  kind: Role
+  name: vmware-vsphere-csi-driver-webhook-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: vmware-system-csi
+  name: vsphere-csi-webhook-config
+data:
+  webhook.conf: |
+    [WebHookConfig]
+    port = "8443"
+    cert-file = "/etc/webhook/certs/tls.crt"
+    key-file = "/etc/webhook/certs/tls.key"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.csi.vsphere.vmware.com
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+webhooks:
+  - name: validation.csi.vsphere.vmware.com
+    clientConfig:
+      service:
+        name: vmware-vsphere-csi-driver-webhook-svc
+        namespace: vmware-system-csi
+        path: /validate
+    rules:
+      - apiGroups:   ["storage.k8s.io"]
+        apiVersions: ["v1", "v1beta1"]
+        operations:  ["CREATE", "UPDATE"]
+        resources:   ["storageclasses"]
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    failurePolicy: Fail
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vmware-vsphere-csi-driver-webhook-pdb
+  namespace: vmware-system-csi
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: vsphere-csi-webhook
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: vmware-vsphere-csi-driver-webhook-sa
+  namespace: vmware-system-csi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmware-vsphere-csi-driver-webhook-svc
+  namespace: vmware-system-csi
+  labels:
+    app: vsphere-csi-webhook
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: vmware-vsphere-csi-driver-webhook-secret
+    include.release.openshift.io/ibm-cloud-managed: "true"
+    include.release.openshift.io/self-managed-high-availability: "true"
+    include.release.openshift.io/single-node-developer: "true"
+spec:
+  ports:
+    - name: webhook
+      port: 443
+      protocol: TCP
+      targetPort: webhook
+  selector:
+    app: vsphere-csi-webhook
+  type: ClusterIP
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: vmware-vsphere-csi-driver-webhook
+  namespace: vmware-system-csi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vsphere-csi-webhook
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: vsphere-csi-webhook
+      annotations:
+        target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
+    spec:
+      #serviceName: vmware-vsphere-csi-driver-webhook-svc
+      serviceAccountName: vmware-vsphere-csi-driver-webhook-sa
+      priorityClassName: system-cluster-critical
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: "NoSchedule"
+      containers:
+        - name: vsphere-webhook
+          image: gcr.io/cloud-provider-vsphere/csi/release/syncer:v2.7.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--operation-mode=WEBHOOK_SERVER"
+            - "--fss-name=internal-feature-states.csi.vsphere.vmware.com"
+            - "--fss-namespace=$(CSI_NAMESPACE)"
+          ports:
+            - containerPort: 8443
+              name: webhook
+              protocol: TCP
+          resources:
+            requests:
+              memory: 20Mi
+              cpu: 10m
+          env:
+            - name: WEBHOOK_CONFIG_PATH
+              value: "/etc/webhook/config/webhook.conf"
+            - name: CSI_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - mountPath: /etc/webhook/certs
+              name: certs
+              readOnly: true
+            - mountPath: /etc/webhook/config
+              name: config
+              readOnly: true
+      volumes:
+        - name: socket-dir
+          emptyDir: {}
+        - name: certs
+          secret:
+            secretName: vmware-vsphere-csi-driver-webhook-secret
+        - name: config
+          configMap:
+            name: vsphere-csi-webhook-config
