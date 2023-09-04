@@ -14,7 +14,7 @@ require (
 	github.com/thanhpk/randstr v1.0.4
 	github.com/vmware/govmomi v0.26.0
 	gopkg.in/ini.v1 v1.63.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.0
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
