@@ -58,17 +58,6 @@ webhooks:
     admissionReviewVersions: ["v1"]
     failurePolicy: Fail
 ---
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: vmware-vsphere-csi-driver-webhook-pdb
-  namespace: vmware-system-csi
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app: vsphere-csi-webhook
----
 kind: ServiceAccount
 apiVersion: v1
 metadata:
