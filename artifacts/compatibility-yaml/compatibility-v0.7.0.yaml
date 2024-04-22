@@ -2,13 +2,12 @@
   "CSI" : {
     "2.7.0" : {
       "vSphere": { "min": "6.7.1", "max": "8.0.1" },
-      "k8s": { "min": "1.23", "max": "1.25" },
+      "k8s": { "min": "1.23", "max": "1.30" },
       "isCPIRequired": false,
       "deploymentPath": [
-          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.7.0/manifests/vanilla/namespace.yaml",
-          "https://raw.githubusercontent.com/asifdxtreme/Docs/master/vdo-deployment/validatingwebhook.yaml",
-          "https://raw.githubusercontent.com/asifdxtreme/Docs/master/vdo-deployment/csi-secret.yaml",
-          "https://raw.githubusercontent.com/kubernetes-sigs/vsphere-csi-driver/v2.7.0/manifests/vanilla/vsphere-csi-driver.yaml" ]
+          "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/namespace.yaml",
+          "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/webhook.yaml",
+          "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/vsphere-csi-driver.yaml" ]
     },
     "2.6.2": {
       "vSphere": { "min": "6.7.1", "max": "8.0.1" },
