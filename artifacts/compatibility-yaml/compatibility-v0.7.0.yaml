@@ -1,8 +1,17 @@
 {
   "CSI" : {
+    "3.0.0" : {
+      "vSphere": { "min": "6.7.1", "max": "8.2.0" },
+      "k8s": { "min": "1.26", "max": "1.28" },
+      "isCPIRequired": false,
+      "deploymentPath": [
+          "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/3.0.0/namespace.yaml",
+          "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/webhook.yaml",
+          "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/3.0.0/vsphere-csi-driver.yaml" ]
+    },
     "2.7.0" : {
       "vSphere": { "min": "6.7.1", "max": "8.0.1" },
-      "k8s": { "min": "1.23", "max": "1.30" },
+      "k8s": { "min": "1.23", "max": "1.25" },
       "isCPIRequired": false,
       "deploymentPath": [
           "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/namespace.yaml",
