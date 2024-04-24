@@ -2,7 +2,7 @@
   "CSI" : {
     "3.0.0" : {
       "vSphere": { "min": "6.7.1", "max": "8.2.0" },
-      "k8s": { "min": "1.26", "max": "1.28" },
+      "k8s": { "min": "1.25", "max": "1.27" },
       "isCPIRequired": false,
       "deploymentPath": [
           "https://raw.githubusercontent.com/vmware-tanzu/vsphere-kubernetes-drivers-operator/release/artifacts/csi/3.0.0/namespace.yaml",
